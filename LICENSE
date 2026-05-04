@@ -1,0 +1,49 @@
+# Source Available License - Mantle Turing Test Hackathon 2026
+
+## Copyright (c) 2026 MindClash Team. All Rights Reserved.
+
+### TERMS AND CONDITIONS
+
+This software and associated documentation files (the "Software") are made available 
+for viewing and educational purposes ONLY as part of the Mantle Turing Test Hackathon 2026.
+
+#### YOU MAY:
+✅ View and study the source code for educational purposes
+✅ Fork this repository for hackathon judging purposes only
+✅ Reference this work in academic or technical discussions with proper attribution
+
+#### YOU MAY NOT:
+❌ Use, copy, modify, merge, publish, or distribute this Software for commercial purposes
+❌ Create derivative works based on this Software
+❌ Deploy this Software or any substantial portion to any network (mainnet or testnet)
+❌ Use any smart contract code from this project in your own projects
+❌ Sublicense, sell, or otherwise transfer rights to this Software
+❌ Remove or alter this license notice from any copies of the Software
+
+### HACKATHON SUBMISSION NOTICE
+
+This project was developed for the Mantle Turing Test Hackathon 2026.
+All innovations, including the ERC-8004 AI Agent Identity Standard, are proprietary.
+
+### DEPLOYED CONTRACTS (Mantle Sepolia Testnet)
+
+The following contracts have been deployed as part of hackathon demonstration:
+- AgentNFT: 0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837
+- AgentRegistry: 0xbD19d3ec1B4d0f3852729b0dcC87bd739839cBDC
+
+These deployments are for demonstration purposes only and should not be interacted 
+with outside of official hackathon judging.
+
+### DISCLAIMER
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.
+IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY.
+
+### CONTACT
+
+For licensing inquiries or partnership opportunities, please contact the team 
+through the official DoraHacks BUIDL submission page.
+
+---
+Mantle Turing Test Hackathon 2026 Entry
+Track: AI Awakening (Phase 2)

@@ -1,0 +1,67 @@
+{
+  "common": {
+    "connect": "Connect Wallet",
+    "disconnect": "Disconnect",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success"
+  },
+  "navigation": {
+    "lobby": "Lobby",
+    "game": "Game",
+    "profile": "Profile"
+  },
+  "lobby": {
+    "title": "Prediction Arena",
+    "subtitle": "Choose your asset, set your duration, and predict the price movement to win big",
+    "selectAsset": "Select Asset",
+    "roundDuration": "Round Duration",
+    "betToken": "Bet Token",
+    "gameSetup": "Game Setup",
+    "startPlaying": "Start Playing",
+    "connectFirst": "Connect Wallet First",
+    "recentActivity": "Recent Activity",
+    "totalRounds": "Total Rounds",
+    "totalVolume": "Total Volume",
+    "activePlayers": "Active Players",
+    "avgWinRate": "Avg Win Rate"
+  },
+  "game": {
+    "timeRemaining": "Time Remaining",
+    "bullPool": "BULL Pool",
+    "bearPool": "BEAR Pool",
+    "totalBets": "Total Bets",
+    "potentialReturn": "Potential Return",
+    "placePrediction": "Place Your Prediction",
+    "betAmount": "Bet Amount",
+    "potentialPayout": "Potential Payout",
+    "up": "UP",
+    "down": "DOWN",
+    "priceUp": "Price will go UP",
+    "priceDown": "Price will go DOWN",
+    "recentBets": "Recent Bets in This Round",
+    "backToLobby": "Back to Lobby"
+  },
+  "profile": {
+    "demoProfile": "Demo Profile",
+    "connectToSave": "Connect wallet to save your progress",
+    "xpProgress": "XP Progress",
+    "stats": "Stats",
+    "history": "History",
+    "achievements": "Achievements",
+    "totalBets": "Total Bets",
+    "winnings": "Winnings",
+    "currentStreak": "Current Streak",
+    "favorite": "Favorite",
+    "performanceOverview": "Performance Overview",
+    "totalPredictions": "Total Predictions",
+    "winningPredictions": "Winning Predictions",
+    "averageBetSize": "Average Bet Size",
+    "assetPerformance": "Asset Performance",
+    "btcWinRate": "BTC Win Rate",
+    "ethWinRate": "ETH Win Rate",
+    "solWinRate": "SOL Win Rate",
+    "recentActivity": "Recent Activity",
+    "unlocked": "Unlocked"
+  }
+}

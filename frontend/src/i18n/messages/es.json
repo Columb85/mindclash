@@ -1,0 +1,67 @@
+{
+  "common": {
+    "connect": "Conectar Billetera",
+    "disconnect": "Desconectar",
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito"
+  },
+  "navigation": {
+    "lobby": "Lobby",
+    "game": "Juego",
+    "profile": "Perfil"
+  },
+  "lobby": {
+    "title": "Arena de Predicciones",
+    "subtitle": "Elige tu activo, establece tu duración y predice el movimiento del precio para ganar",
+    "selectAsset": "Seleccionar Activo",
+    "roundDuration": "Duración del Round",
+    "betToken": "Token de Apuesta",
+    "gameSetup": "Configuración del Juego",
+    "startPlaying": "Comenzar a Jugar",
+    "connectFirst": "Conecta Billetera Primero",
+    "recentActivity": "Actividad Reciente",
+    "totalRounds": "Rounds Totales",
+    "totalVolume": "Volumen Total",
+    "activePlayers": "Jugadores Activos",
+    "avgWinRate": "Tasa de Victoria Promedio"
+  },
+  "game": {
+    "timeRemaining": "Tiempo Restante",
+    "bullPool": "Pool BULL",
+    "bearPool": "Pool BEAR",
+    "totalBets": "Apuestas Totales",
+    "potentialReturn": "Retorno Potencial",
+    "placePrediction": "Haz tu Predicción",
+    "betAmount": "Monto de Apuesta",
+    "potentialPayout": "Pago Potencial",
+    "up": "SUBIR",
+    "down": "BAJAR",
+    "priceUp": "El precio subirá",
+    "priceDown": "El precio bajará",
+    "recentBets": "Apuestas Recientes en este Round",
+    "backToLobby": "Volver al Lobby"
+  },
+  "profile": {
+    "demoProfile": "Perfil Demo",
+    "connectToSave": "Conecta la billetera para guardar tu progreso",
+    "xpProgress": "Progreso XP",
+    "stats": "Estadísticas",
+    "history": "Historial",
+    "achievements": "Logros",
+    "totalBets": "Apuestas Totales",
+    "winnings": "Ganancias",
+    "currentStreak": "Racha Actual",
+    "favorite": "Favorito",
+    "performanceOverview": "Resumen de Rendimiento",
+    "totalPredictions": "Predicciones Totales",
+    "winningPredictions": "Predicciones Ganadoras",
+    "averageBetSize": "Tamaño Promedio de Apuesta",
+    "assetPerformance": "Rendimiento del Activo",
+    "btcWinRate": "Tasa de Victoria BTC",
+    "ethWinRate": "Tasa de Victoria ETH",
+    "solWinRate": "Tasa de Victoria SOL",
+    "recentActivity": "Actividad Reciente",
+    "unlocked": "Desbloqueado"
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "common": {
+    "startPlaying": "Начать игру",
+    "connectWalletFirst": "Сначала подключите кошелек",
+    "backToLobby": "Вернуться в лобби"
+  },
+  "header": {
+    "title": "GameFi Predict",
+    "subtitle": "Быстрая игра прогнозов"
+  },
+  "navigation": {
+    "lobby": "Лобби",
+    "game": "Игра",
+    "profile": "Профиль"
+  },
+  "lobby": {
+    "title": "Игровое лобби",
+    "selectAsset": "Выберите актив",
+    "selectDuration": "Выберите длительность",
+    "selectToken": "Выберите токен",
+    "gameSetup": "Настройка игры",
+    "asset": "Актив",
+    "duration": "Длительность",
+    "token": "Токен",
+    "network": "Сеть",
+    "recentActivity": "Недавняя активность",
+    "totalRounds": "Всего раундов",
+    "totalVolume": "Общий объем",
+    "activePlayers": "Активные игроки",
+    "avgWinRate": "Средний выигрыш"
+  },
+  "profile": {
+    "title": "Профиль пользователя",
+    "stats": "Статистика",
+    "history": "История",
+    "achievements": "Достижения",
+    "totalBets": "Всего ставок",
+    "wins": "Победы",
+    "losses": "Поражения",
+    "winRate": "Процент побед",
+    "totalProfit": "Общая прибыль",
+    "recentBets": "Последние ставки",
+    "noBets": "Ставок пока нет",
+    "connectWallet": "Подключите кошелек для просмотра профиля"
+  },
+  "game": {
+    "title": "Игра прогнозов",
+    "currentPrice": "Текущая цена",
+    "up": "ВВЕРХ",
+    "down": "ВНИЗ",
+    "placeBet": "Сделать ставку",
+    "betAmount": "Сумма ставки",
+    "potentialWin": "Возможный выигрыш",
+    "roundEndsIn": "Раунд заканчивается через",
+    "waitingForNextRound": "Ожидание следующего раунда...",
+    "youWon": "Вы выиграли!",
+    "youLost": "Вы проиграли",
+    "betPlaced": "Ставка сделана",
+    "roundInProgress": "Раунд в процессе"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "mantleSepolia": {
+    "chainId": 5003,
+    "rpcUrl": "https://rpc.sepolia.mantle.xyz",
+    "explorerUrl": "https://sepolia.mantlescan.xyz",
+    "contracts": {
+      "AgentNFT": "0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837",
+      "AgentRegistry": "0xbD19d3ec1B4d0f3852729b0dcC87bd739839cBDC"
+    },
+    "deployer": "0x25fc497AF97a258296E749a11bb08Df81dD70eC5",
+    "deployedAt": "2026-05-03T11:54:12.595Z"
+  }
+}

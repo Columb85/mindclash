@@ -1,0 +1,168 @@
+/**
+ * Official Mantle Network Brand Colors
+ * Based on Mantle brand guidelines
+ */
+
+:root {
+  /* Primary Mantle Colors */
+  --mantle-black: #000000;
+  --mantle-white: #FFFFFF;
+  
+  /* Mantle Brand Colors */
+  --mantle-primary: #000000;      /* Mantle Black */
+  --mantle-accent: #00D4AA;       /* Mantle Teal/Cyan */
+  --mantle-secondary: #1A1A1A;    /* Dark Gray */
+  
+  /* Gradient Colors (Mantle style) */
+  --mantle-gradient-start: #00D4AA;
+  --mantle-gradient-end: #00A896;
+  
+  /* UI Colors with Mantle theme */
+  --mantle-bg-primary: #000000;
+  --mantle-bg-secondary: #0A0A0A;
+  --mantle-bg-tertiary: #1A1A1A;
+  --mantle-bg-card: #141414;
+  
+  --mantle-text-primary: #FFFFFF;
+  --mantle-text-secondary: #B3B3B3;
+  --mantle-text-tertiary: #808080;
+  
+  --mantle-border: #2A2A2A;
+  --mantle-border-hover: #00D4AA;
+  
+  /* Status Colors */
+  --mantle-success: #00D4AA;
+  --mantle-warning: #FFB800;
+  --mantle-error: #FF4444;
+  --mantle-info: #00D4AA;
+  
+  /* AI Agent Colors */
+  --ai-agent-primary: #00D4AA;
+  --ai-agent-secondary: #00A896;
+  --ai-agent-glow: rgba(0, 212, 170, 0.3);
+  
+  /* Chart Colors */
+  --chart-up: #00D4AA;
+  --chart-down: #FF4444;
+  --chart-neutral: #808080;
+}
+
+/* Mantle Gradient Backgrounds */
+.mantle-gradient {
+  background: linear-gradient(135deg, var(--mantle-gradient-start) 0%, var(--mantle-gradient-end) 100%);
+}
+
+.mantle-gradient-text {
+  background: linear-gradient(135deg, var(--mantle-gradient-start) 0%, var(--mantle-gradient-end) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Mantle Glow Effects */
+.mantle-glow {
+  box-shadow: 0 0 20px var(--ai-agent-glow);
+}
+
+.mantle-glow-strong {
+  box-shadow: 0 0 30px rgba(0, 212, 170, 0.5);
+}
+
+/* Mantle Button Styles */
+.mantle-button {
+  background: var(--mantle-accent);
+  color: var(--mantle-black);
+  border: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.mantle-button:hover {
+  background: var(--mantle-gradient-end);
+  box-shadow: 0 0 20px var(--ai-agent-glow);
+  transform: translateY(-2px);
+}
+
+.mantle-button-outline {
+  background: transparent;
+  color: var(--mantle-accent);
+  border: 2px solid var(--mantle-accent);
+}
+
+.mantle-button-outline:hover {
+  background: var(--mantle-accent);
+  color: var(--mantle-black);
+}
+
+/* Mantle Card Styles */
+.mantle-card {
+  background: var(--mantle-bg-card);
+  border: 1px solid var(--mantle-border);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.mantle-card:hover {
+  border-color: var(--mantle-accent);
+  box-shadow: 0 4px 20px var(--ai-agent-glow);
+}
+
+/* Mantle Badge */
+.mantle-badge {
+  background: var(--mantle-gradient-start);
+  color: var(--mantle-black);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* AI Agent Specific Styles */
+.ai-agent-active {
+  border: 2px solid var(--mantle-accent);
+  box-shadow: 0 0 30px var(--ai-agent-glow);
+  animation: pulse-mantle 2s infinite;
+}
+
+@keyframes pulse-mantle {
+  0%, 100% {
+    box-shadow: 0 0 20px var(--ai-agent-glow);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(0, 212, 170, 0.6);
+  }
+}
+
+/* Mantle Network Logo Colors */
+.mantle-logo-text {
+  color: var(--mantle-white);
+  font-weight: 700;
+}
+
+/* Performance Indicators with Mantle Colors */
+.performance-up {
+  color: var(--mantle-success);
+}
+
+.performance-down {
+  color: var(--mantle-error);
+}
+
+/* Mantle-themed Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--mantle-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--mantle-accent);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--mantle-gradient-end);
+}

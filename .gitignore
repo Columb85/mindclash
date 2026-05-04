@@ -1,0 +1,55 @@
+# ── Dependencies ──────────────────────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# ── Environment files — NEVER COMMIT REAL KEYS ────────────────────────────────
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
+!.env.example
+!.env.*.example
+
+# ── Next.js ───────────────────────────────────────────────────────────────────
+.next/
+out/
+build/
+
+# ── Hardhat / Solidity ────────────────────────────────────────────────────────
+artifacts/
+cache/
+typechain/
+typechain-types/
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+
+# ── Python cache ──────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ── Deployed addresses with sensitive metadata ────────────────────────────────
+# Contract addresses are safe to share, but private deployment notes are not
+deployed-addresses-private.json

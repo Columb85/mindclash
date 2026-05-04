@@ -1,0 +1,56 @@
+{
+  "name": "web3-gamefi-protocol",
+  "version": "1.0.0",
+  "description": "Gamified Web3 Prediction Protocol Smart Contracts",
+  "main": "index.js",
+  "scripts": {
+    "build": "hardhat compile",
+    "test": "hardhat test",
+    "coverage": "hardhat coverage",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:testnet-bsc": "hardhat run scripts/deploy.js --network bscTestnet",
+    "deploy:testnet-arbitrum": "hardhat run scripts/deploy.js --network arbitrumSepolia",
+    "deploy:mainnet-bsc": "hardhat run scripts/deploy.js --network bsc",
+    "deploy:mainnet-arbitrum": "hardhat run scripts/deploy.js --network arbitrumOne",
+    "node": "hardhat node",
+    "clean": "hardhat clean",
+    "verify:bsc": "hardhat verify --network bsc",
+    "verify:arbitrum": "hardhat verify --network arbitrumOne"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.1",
+    "@openzeppelin/contracts-upgradeable": "^5.0.1",
+    "@pythnetwork/pyth-evm-js": "^1.5.3",
+    "@pythnetwork/pyth-sdk-solidity": "^2.2.1"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
+    "@nomicfoundation/hardhat-ethers": "^3.0.0",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.0",
+    "@typechain/ethers-v6": "^0.5.0",
+    "@typechain/hardhat": "^9.0.0",
+    "@types/chai": "^4.2.0",
+    "@types/mocha": ">=9.1.0",
+    "chai": "^4.2.0",
+    "ethers": "^6.4.0",
+    "hardhat": "^2.19.0",
+    "hardhat-gas-reporter": "^1.0.8",
+    "solidity-coverage": "^0.8.1",
+    "typechain": "^8.3.0",
+    "typescript": ">=4.5.0",
+    "dotenv": "^16.0.0"
+  },
+  "keywords": [
+    "web3",
+    "prediction",
+    "parimutuel",
+    "defi",
+    "gaming",
+    "solidity",
+    "smart-contracts"
+  ],
+  "author": "WEB3 GameFi Team",
+  "license": "MIT"
+}
