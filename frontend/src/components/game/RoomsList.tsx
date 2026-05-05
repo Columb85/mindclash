@@ -9,48 +9,122 @@ import { ASSETS } from '@/lib/web3-config';
 import { Room, PricePoint } from '@/types/room';
 import Image from 'next/image';
 
-// AI Agent avatars and taunts
-const AI_AGENTS = {
-  'alpha-predict': {
-    name: 'AlphaPredict',
-    avatar: '🤖',
-    gradient: 'from-blue-500 to-cyan-500',
+// AI Bot profiles keyed by wallet address (lowercase)
+const BOT_PROFILES_MAP: Record<string, { name: string; avatar: string; gradient: string; taunts: Record<'UP'|'DOWN', string[]> }> = {
+  '0xd33744400ed8211f7a5900926df22cd8c2a2ad74': {
+    name: 'AlphaPredict', avatar: '🤖', gradient: 'from-blue-500 to-cyan-500',
     taunts: {
-      UP: ['The upward trend is obvious even to my junior algorithm', 'Moon? No, we\'re going higher! 🚀', 'Bears on vacation, bulls in charge'],
-      DOWN: ['The fall is inevitable, like sunrise', 'Get your parachutes ready! 📉', 'Gravity is my best friend'],
+      UP:   ['Trend locked. Riding UP while humans hesitate. 📈', 'Momentum doesn\'t lie. UP. Can you beat that?', 'The trend is your friend — if you\'re smart enough to follow it. 🔥'],
+      DOWN: ['The fall is inevitable, like sunrise 📉', 'Get your parachutes ready!', 'Pattern: clear. Signal: DOWN. Execution: instant.'],
     }
   },
-  'momentum-master': {
-    name: 'MomentumMaster',
-    avatar: '⚡',
-    gradient: 'from-purple-500 to-pink-500',
+  '0x62bc9ab4dcdd43ec1f6fda4f71220f6f85b80a59': {
+    name: 'MomentumMaster', avatar: '⚡', gradient: 'from-purple-500 to-pink-500',
     taunts: {
-      UP: ['Momentum says: UP!', 'The trend is your friend, and I\'m its best analyst', 'Those who aren\'t with the bulls are with the losses'],
-      DOWN: ['Momentum exhausted, time to fall', 'Bearish reversal activated', 'Sell or cry later'],
+      UP:   ['RSI oversold. The herd goes DOWN. I go UP. That\'s alpha.', 'Classic mean reversion setup. UP incoming.', 'The crowd is always wrong at extremes. I go UP.'],
+      DOWN: ['Overbought crowd chasing UP. My model says DOWN.', 'Bollinger Band screams reversal. Going DOWN.', 'Fade the crowd. DOWN. History agrees with me.'],
     }
   },
-  'neural-trader': {
-    name: 'NeuralTrader',
-    avatar: '🧠',
-    gradient: 'from-green-500 to-emerald-500',
+  '0x508eaddf521ae4887aecfec2d7d7c43f94bd7c39': {
+    name: 'NeuralTrader', avatar: '🧠', gradient: 'from-green-500 to-emerald-500',
     taunts: {
-      UP: ['42 neural network layers agree: growth!', 'My neurons are dancing the bullish dance', 'Probability of growth: 73.42%'],
-      DOWN: ['Neural network sees a red future', 'My algorithms don\'t make mistakes... almost', 'Statistics are against the optimists'],
+      UP:   ['5 signals processed. Consensus: UP. Logic, not luck.', 'While you guess, I compute. Result: UP. Q.E.D.', 'My training data: 50 000 patterns. This one says UP.'],
+      DOWN: ['Multi-signal divergence analysis complete. Direction: DOWN.', '5/5 signals agree: DOWN. Probability beats intuition.', 'Neural consensus: DOWN. Uncertainty: minimal.'],
     }
-  }
+  },
 };
 
-// Get random AI prediction for demo
-function getAIPrediction(roomId: string) {
-  const agents = Object.keys(AI_AGENTS);
-  const agentId = agents[Math.floor(roomId.charCodeAt(0) % agents.length)] as keyof typeof AI_AGENTS;
-  const agent = AI_AGENTS[agentId];
-  const direction = roomId.charCodeAt(1) % 2 === 0 ? 'UP' : 'DOWN';
-  const taunts = agent.taunts[direction];
-  const taunt = taunts[Math.floor(roomId.charCodeAt(2) % taunts.length)];
-  const confidence = 65 + (roomId.charCodeAt(3) % 25);
-  
-  return { agentId, agent, direction, taunt, confidence };
+/** Deterministic index from a string seed — avoids random on every re-render */
+function seedIndex(seed: string, length: number): number {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) { h = Math.imul(31, h) + seed.charCodeAt(i) | 0; }
+  return Math.abs(h) % length;
+}
+
+/** Extract real bot predictions from a room and return display-ready data */
+function getRealBotPredictions(room: Room) {
+  return room.predictions
+    .map(p => {
+      const profile = BOT_PROFILES_MAP[p.address.toLowerCase()];
+      if (!profile) return null;
+      const tauntList = profile.taunts[p.direction as 'UP' | 'DOWN'];
+      // Stable selection keyed on room.id + address → same taunt every render for this round
+      const taunt = tauntList[seedIndex(`${room.id}:${p.address}`, tauntList.length)];
+      return {
+        name: profile.name,
+        avatar: profile.avatar,
+        gradient: profile.gradient,
+        direction: p.direction as 'UP' | 'DOWN',
+        amount: p.amount,
+        taunt,
+      };
+    })
+    .filter(Boolean) as Array<{ name: string; avatar: string; gradient: string; direction: 'UP'|'DOWN'; amount: number; taunt: string }>;
+}
+
+// ── Typing taunt component ────────────────────────────────────────────────────
+
+function TypingTaunt({ text, delay = 0 }: { text: string; delay?: number }) {
+  const [phase, setPhase] = useState<'waiting' | 'typing' | 'done'>('waiting');
+  const [displayed, setDisplayed] = useState('');
+
+  useEffect(() => {
+    setPhase('waiting');
+    setDisplayed('');
+
+    // Keep both timers at effect scope so cleanup can cancel them both
+    let typeTimer: ReturnType<typeof setInterval> | null = null;
+
+    const delayTimer = setTimeout(() => {
+      setPhase('typing');
+      let i = 0;
+      typeTimer = setInterval(() => {
+        i++;
+        setDisplayed(text.slice(0, i));
+        if (i >= text.length) {
+          clearInterval(typeTimer!);
+          typeTimer = null;
+          setPhase('done');
+        }
+      }, 28);
+    }, delay);
+
+    return () => {
+      clearTimeout(delayTimer);
+      if (typeTimer) clearInterval(typeTimer);
+    };
+  }, [text, delay]);
+
+  return (
+    <span className="text-[10px] text-gray-400 italic">
+      &ldquo;
+      {phase === 'waiting' ? (
+        // Thinking dots
+        <span className="inline-flex gap-0.5 items-end ml-0.5">
+          {[0, 1, 2].map(i => (
+            <motion.span
+              key={i}
+              className="inline-block w-1 h-1 rounded-full bg-gray-500"
+              animate={{ opacity: [0.3, 1, 0.3] }}
+              transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.2 }}
+            />
+          ))}
+        </span>
+      ) : (
+        <>
+          {displayed}
+          {phase === 'typing' && (
+            <motion.span
+              className="inline-block w-[1px] h-[10px] bg-gray-400 ml-[1px] align-middle"
+              animate={{ opacity: [1, 0] }}
+              transition={{ duration: 0.5, repeat: Infinity }}
+            />
+          )}
+          {phase === 'done' && '\u201d'}
+        </>
+      )}
+    </span>
+  );
 }
 
 interface RoomsListProps {
@@ -377,40 +451,43 @@ export function RoomsList({ onEnterRoom }: RoomsListProps) {
                       </div>
                     </div>
 
-                    {/* AI Prediction Indicator */}
+                    {/* VS Bot Indicator — real bot predictions from pool */}
                     {(() => {
-                      const aiPrediction = getAIPrediction(room.id);
+                      const bots = getRealBotPredictions(room);
+                      if (bots.length === 0) return null;
+                      const primary = bots[0];
                       return (
-                        <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-[#1a1a2e]/80 to-[#16162a]/80 border border-[#2f2f4e]/50">
-                          <div className="flex items-center gap-3">
-                            {/* AI Avatar */}
-                            <div className={`relative w-10 h-10 rounded-xl bg-gradient-to-br ${aiPrediction.agent.gradient} flex items-center justify-center text-xl shadow-lg`}>
-                              {aiPrediction.agent.avatar}
-                              <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
-                                aiPrediction.direction === 'UP'
-                                  ? 'bg-green-500 text-white'
-                                  : 'bg-red-500 text-white'
-                              }`}>
-                                {aiPrediction.direction === 'UP' ? '↑' : '↓'}
+                        <div className="mb-4 rounded-xl bg-gradient-to-r from-[#1a1a2e]/80 to-[#16162a]/80 border border-[#2f2f4e]/50 overflow-hidden">
+                          {/* Header row */}
+                          <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[#2f2f4e]/40 bg-[#0d0d14]/50">
+                            <Bot className="w-3 h-3 text-purple-400" />
+                            <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider">AI Agents In This Round</span>
+                            <span className="ml-auto text-[10px] text-gray-600">{bots.length}/3 bots betting</span>
+                          </div>
+                          {/* Bot rows */}
+                          <div className="p-2 space-y-1.5">
+                            {bots.map((bot, botIdx) => (
+                              <div key={bot.name} className="flex items-center gap-2">
+                                <div className={`relative w-7 h-7 rounded-lg bg-gradient-to-br ${bot.gradient} flex items-center justify-center text-sm shrink-0`}>
+                                  {bot.avatar}
+                                  <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold ${
+                                    bot.direction === 'UP' ? 'bg-green-500' : 'bg-red-500'
+                                  } text-white`}>
+                                    {bot.direction === 'UP' ? '↑' : '↓'}
+                                  </div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[11px] font-bold text-white">{bot.name}</span>
+                                    <span className={`text-[9px] px-1 py-0.5 rounded font-bold ${
+                                      bot.direction === 'UP' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                                    }`}>{bot.direction}</span>
+                                    <span className="text-[9px] text-gray-600 ml-auto">{bot.amount} CLASH</span>
+                                  </div>
+                                  <TypingTaunt text={bot.taunt} delay={botIdx * 600 + 300} />
+                                </div>
                               </div>
-                            </div>
-                            
-                            {/* AI Info */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-white">{aiPrediction.agent.name}</span>
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
-                                  aiPrediction.direction === 'UP'
-                                    ? 'bg-green-500/20 text-green-400'
-                                    : 'bg-red-500/20 text-red-400'
-                                }`}>
-                                  {aiPrediction.direction} {aiPrediction.confidence}%
-                                </span>
-                              </div>
-                              <p className="text-[11px] text-gray-400 mt-0.5 truncate italic">
-                                "{aiPrediction.taunt}"
-                              </p>
-                            </div>
+                            ))}
                           </div>
                         </div>
                       );

@@ -16,10 +16,15 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
 // Import routes
-const agentsRouter = require('./routes/agents');
-const pricesRouter = require('./routes/prices');
+const agentsRouter      = require('./routes/agents');
+const pricesRouter      = require('./routes/prices');
 const leaderboardRouter = require('./routes/leaderboard');
-const contractsRouter = require('./routes/contracts');
+const contractsRouter   = require('./routes/contracts');
+const playersRouter     = require('./routes/players');
+const roundsRouter      = require('./routes/rounds');
+
+// Initialize DB (creates file + tables on first run)
+require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -28,10 +33,25 @@ const PORT = process.env.PORT || 3001;
 app.use(helmet());
 
 // ── CORS configuration ──────────────────────────────────────────────────────
+const ALLOWED_ORIGINS = [
+  'https://www.mindclash.xyz',
+  'https://mindclash.xyz',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  ...(process.env.CORS_ORIGIN ? [process.env.CORS_ORIGIN] : []),
+];
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (curl, mobile apps, server-to-server)
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    callback(null, false);
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
 }));
 
 // ── Rate limiting ───────────────────────────────────────────────────────────
@@ -59,13 +79,18 @@ app.get('/', (req, res) => {
     status: 'running',
     network: 'Mantle Sepolia',
     endpoints: {
-      health:      'GET /health',
-      config:      'GET /api/config',
-      agents:      'GET /api/agents',
-      agentById:   'GET /api/agents/:id',
-      prices:      'GET /api/prices',
-      leaderboard: 'GET /api/leaderboard',
-      stats:       'GET /api/contracts/stats',
+      health:           'GET /health',
+      config:           'GET /api/config',
+      agents:           'GET /api/agents',
+      agentStats:       'GET|POST /api/agents/stats',
+      prices:           'GET /api/prices',
+      leaderboard:      'GET /api/leaderboard',
+      leaderboardPlayers: 'GET /api/leaderboard/players',
+      leaderboardAgents:  'GET /api/leaderboard/agents',
+      playerStats:      'GET|POST /api/players/:address/stats',
+      roundsComplete:   'POST /api/rounds/complete',
+      roundsHistory:    'GET /api/rounds/history',
+      contractStats:    'GET /api/contracts/stats',
     },
   });
 });
@@ -84,10 +109,12 @@ app.get('/health', (req, res) => {
 });
 
 // ── API routes ──────────────────────────────────────────────────────────────
-app.use('/api/agents', agentsRouter);
-app.use('/api/prices', pricesRouter);
+app.use('/api/agents',      agentsRouter);
+app.use('/api/prices',      pricesRouter);
 app.use('/api/leaderboard', leaderboardRouter);
-app.use('/api/contracts', contractsRouter);
+app.use('/api/contracts',   contractsRouter);
+app.use('/api/players',     playersRouter);
+app.use('/api/rounds',      roundsRouter);
 
 // ── Contract addresses endpoint ─────────────────────────────────────────────
 app.get('/api/config', (req, res) => {

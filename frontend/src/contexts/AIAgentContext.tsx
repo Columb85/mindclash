@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { useAccount } from 'wagmi';
 import { bybitPriceFeed, AssetSymbol, PriceTick } from '@/lib/bybit-price-feed';
 
@@ -197,16 +197,14 @@ function generateDecision(
 // ── Backend API URL ───────────────────────────────────────────────────────────
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
-// ── Initial agents (fallback if API unavailable) ──────────────────────────────
-// These are the REAL deployed agents on Mantle Sepolia
-
+// ── Initial agents — must match BOT_PROFILES in RoomsContext and DB names ─────
 const INITIAL_AGENTS: AIAgent[] = [
   {
     id: 'ai-agent-001',
     name: 'AlphaPredict',
     version: '1.0.0',
-    address: '0x25fc497AF97a258296E749a11bb08Df81dD70eC5', // Real owner address
-    tokenId: '1',
+    address: '0xD33744400Ed8211F7a5900926Df22CD8C2A2aD74',
+    tokenId: '5',
     isActive: true,
     totalDecisions: 0,
     correctDecisions: 0,
@@ -217,10 +215,10 @@ const INITIAL_AGENTS: AIAgent[] = [
   },
   {
     id: 'ai-agent-002',
-    name: 'BetaOracle',
+    name: 'MomentumMaster',
     version: '1.0.0',
-    address: '0x042e2a0459CbcfC3e0815a049bcF6D9107e9682A', // Real owner address
-    tokenId: '2',
+    address: '0x62Bc9Ab4dCdd43eC1f6FdA4F71220f6F85b80A59',
+    tokenId: '6',
     isActive: true,
     totalDecisions: 0,
     correctDecisions: 0,
@@ -231,10 +229,10 @@ const INITIAL_AGENTS: AIAgent[] = [
   },
   {
     id: 'ai-agent-003',
-    name: 'GammaNeural',
+    name: 'NeuralTrader',
     version: '1.0.0',
-    address: '0x8F6D6F81d9f1DAE2ba8805845e79Ab672Bd70D6d', // Real owner address
-    tokenId: '3',
+    address: '0x508EaDdf521Ae4887AecfeC2d7d7C43F94bd7c39',
+    tokenId: '7',
     isActive: true,
     totalDecisions: 0,
     correctDecisions: 0,
@@ -245,37 +243,41 @@ const INITIAL_AGENTS: AIAgent[] = [
   },
 ];
 
-// ── Helper to fetch agents from backend API ───────────────────────────────────
-async function fetchAgentsFromAPI(): Promise<AIAgent[]> {
+// ── API persistence helpers ───────────────────────────────────────────────────
+
+async function fetchAgentStatsFromDB(): Promise<Record<string, { totalDecisions: number; correctDecisions: number; winRate: number; totalPnL: number }>> {
   try {
-    const response = await fetch(`${API_URL}/agents`);
-    if (!response.ok) throw new Error('Failed to fetch agents');
-    
-    const data = await response.json();
-    if (!data.success || !data.agents) throw new Error('Invalid response');
-    
-    // Map API response to AIAgent format
-    return data.agents.map((agent: any, index: number) => {
-      const strategies: AIAgent['strategy'][] = ['momentum', 'mean-reversion', 'neural'];
-      return {
-        id: `ai-agent-${agent.tokenId}`,
-        name: agent.name,
-        version: agent.version,
-        address: agent.owner,
-        tokenId: agent.tokenId.toString(),
-        isActive: agent.isActive,
-        totalDecisions: Number(agent.totalDecisions) || 0,
-        correctDecisions: Number(agent.correctDecisions) || 0,
-        winRate: parseFloat(agent.winRate) || 0,
-        totalPnL: parseFloat(agent.totalPnL) || 0,
-        createdAt: agent.createdAt * 1000, // Convert to milliseconds
-        strategy: strategies[index % strategies.length],
+    const res = await fetch(`${API_URL}/agents/stats`, { cache: 'no-store' });
+    if (!res.ok) return {};
+    const json = await res.json();
+    const map: Record<string, any> = {};
+    for (const row of (json.data ?? [])) {
+      map[row.name] = {
+        totalDecisions:   row.total_decisions,
+        correctDecisions: row.correct_decisions,
+        winRate:          row.win_rate,
+        totalPnL:         row.total_pnl,
       };
+    }
+    return map;
+  } catch { return {}; }
+}
+
+async function pushAgentStatsToDB(agents: AIAgent[]): Promise<void> {
+  try {
+    await fetch(`${API_URL}/agents/stats`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(agents.map(a => ({
+        name:             a.name,
+        strategy:         a.strategy,
+        totalDecisions:   a.totalDecisions,
+        correctDecisions: a.correctDecisions,
+        winRate:          a.winRate,
+        totalPnL:         a.totalPnL,
+      }))),
     });
-  } catch (error) {
-    console.warn('Failed to fetch agents from API, using fallback:', error);
-    return INITIAL_AGENTS;
-  }
+  } catch { /* network unavailable — silently ignore */ }
 }
 
 // ── Context ───────────────────────────────────────────────────────────────────
@@ -287,6 +289,10 @@ export function useAIAgent() {
   if (!context) throw new Error('useAIAgent must be used within AIAgentProvider');
   return context;
 }
+
+// Session start is fixed at module load time so it doesn't shift on every render
+const SESSION_START = Date.now() - 3_600_000;
+const SESSION_END   = SESSION_START + 7_200_000; // 2h session
 
 export function AIAgentProvider({ children }: { children: ReactNode }) {
   const { address } = useAccount();
@@ -301,30 +307,68 @@ export function AIAgentProvider({ children }: { children: ReactNode }) {
   const priceHistoryRef = useRef<Record<string, number[]>>({
     BTC: [], ETH: [], SOL: [], MNT: [],
   });
+  // Ref mirror of livePrices so the decision loop can read current prices without restarting interval
+  const livePricesRef = useRef<Record<string, PriceTick>>({});
 
+  // Session object is stable — does not recalculate endTime on each render
   const currentSession: CompetitionSession = {
     id: 'session-001',
-    startTime: Date.now() - 3_600_000,
-    endTime:   Date.now() + 3_600_000,
+    startTime: SESSION_START,
+    endTime:   SESSION_END,
     isActive:  true,
     totalAgents: agents.filter(a => a.isActive).length,
     totalHumans: humanPlayers.length + (currentHuman ? 1 : 0),
     prizePool: 50_000,
   };
 
-  // ── Fetch agents from backend API on mount ────────────────────────────────────
+  // ── Load stats from DB on mount ───────────────────────────────────────────────
+  useEffect(() => {
+    fetchAgentStatsFromDB().then(dbStats => {
+      if (Object.keys(dbStats).length === 0) return;
+      setAgents(prev => prev.map(a => {
+        const s = dbStats[a.name];
+        if (!s) return a;
+        return {
+          ...a,
+          totalDecisions:   s.totalDecisions,
+          correctDecisions: s.correctDecisions,
+          winRate:          s.winRate,
+          totalPnL:         s.totalPnL,
+        };
+      }));
+    });
+  }, []);
+
+  // ── Sync stats to DB (debounced 10s after each change) ────────────────────────
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(() => pushAgentStatsToDB(agents), 10_000);
+    return () => { if (syncTimerRef.current) clearTimeout(syncTimerRef.current); };
+  }, [agents]);
+
+  // ── Poll DB stats every 60s to pick up round resolutions ─────────────────────
   useEffect(() => {
     let cancelled = false;
-    
-    fetchAgentsFromAPI().then(apiAgents => {
-      if (!cancelled && apiAgents.length > 0) {
-        console.log('✅ Loaded agents from blockchain via API:', apiAgents);
-        setAgents(apiAgents);
-        setActiveAgent(apiAgents[0]);
-      }
-    });
-    
-    return () => { cancelled = true; };
+    const sync = () => {
+      fetchAgentStatsFromDB().then(dbStats => {
+        if (cancelled || Object.keys(dbStats).length === 0) return;
+        setAgents(prev => prev.map(a => {
+          const s = dbStats[a.name];
+          if (!s) return a;
+          return {
+            ...a,
+            totalDecisions:   s.totalDecisions,
+            correctDecisions: s.correctDecisions,
+            winRate:          s.winRate,
+            totalPnL:         s.totalPnL,
+          };
+        }));
+      });
+    };
+    // Initial load already handled by the mount effect above; poll for updates
+    const timer = setInterval(sync, 60_000);
+    return () => { cancelled = true; clearInterval(timer); };
   }, []);
 
   // ── Subscribe to Bybit real-time prices ──────────────────────────────────────
@@ -332,6 +376,7 @@ export function AIAgentProvider({ children }: { children: ReactNode }) {
     const assets: AssetSymbol[] = ['BTC', 'ETH', 'SOL', 'MNT'];
     const unsubs = assets.map(asset =>
       bybitPriceFeed.subscribe(asset, tick => {
+        livePricesRef.current[asset] = tick;
         setLivePrices(prev => ({ ...prev, [asset]: tick }));
         // Append to price history (keep last 50)
         priceHistoryRef.current[asset] = [
@@ -346,6 +391,7 @@ export function AIAgentProvider({ children }: { children: ReactNode }) {
       const prices: Record<string, PriceTick> = {};
       map.forEach((tick, asset) => {
         prices[asset] = tick;
+        livePricesRef.current[asset] = tick;
         priceHistoryRef.current[asset] = [tick.price];
       });
       setLivePrices(prices);
@@ -354,53 +400,42 @@ export function AIAgentProvider({ children }: { children: ReactNode }) {
     return () => unsubs.forEach(u => u());
   }, []);
 
-  // ── AI decision loop — every 15s, based on real prices ───────────────────────
+  // ── AI signal loop — every 15s, generates lastDecision for display only ──────
+  // Stats (totalDecisions, winRate, totalPnL) are updated from REAL round outcomes
+  // via the backend (POST /rounds/complete → updateAgentStatsFromRound in db.js).
+  // The simulation here does NOT modify cumulative stats — it only updates lastDecision
+  // so the AI Monitor can show what each agent is currently "thinking".
   useEffect(() => {
-    const ASSETS_TO_TRADE: AssetSymbol[] = ['BTC', 'ETH', 'SOL'];
-    const DECISION_INTERVAL = 15_000; // 15 seconds
+    // Each agent watches a different primary asset (by fixed index, not totalDecisions)
+    const AGENT_ASSETS: AssetSymbol[] = ['BTC', 'ETH', 'SOL'];
+    const SIGNAL_INTERVAL = 15_000;
 
     const interval = setInterval(() => {
-      setAgents(prev => prev.map(agent => {
+      setAgents(prev => prev.map((agent, idx) => {
         if (!agent.isActive) return agent;
 
-        // Pick asset round-robin based on agent id hash
-        const assetIdx = (agent.totalDecisions) % ASSETS_TO_TRADE.length;
-        const asset    = ASSETS_TO_TRADE[assetIdx];
-        const history  = priceHistoryRef.current[asset] ?? [];
-        const price    = livePrices[asset]?.price ?? 0;
+        // Primary asset assigned by agent position — never all-BTC
+        const asset   = AGENT_ASSETS[idx % AGENT_ASSETS.length];
+        const history = priceHistoryRef.current[asset] ?? [];
+        const price   = livePricesRef.current[asset]?.price ?? 0;
 
-        if (history.length < 5 || price === 0) return agent; // not enough data yet
+        if (price === 0) return agent;
 
-        const decision = generateDecision(agent, asset, history, price);
+        // Need at least a few ticks; pad with current price if history is short
+        const paddedHistory = history.length >= 5
+          ? history
+          : Array(5).fill(price).map((p, i) => p * (1 + (i - 2) * 0.001));
 
-        // Skip HOLD decisions for display (but count them)
-        if (decision.direction === 'HOLD') {
-          return { ...agent, totalDecisions: agent.totalDecisions + 1 };
-        }
+        const decision = generateDecision(agent, asset, paddedHistory, price);
 
-        // Simulate outcome after 30s (optimistic: 60% win rate for good strategies)
-        const winProb = agent.strategy === 'momentum' ? 0.58 : agent.strategy === 'mean-reversion' ? 0.62 : 0.55;
-        const wasCorrect = Math.random() < winProb;
-        const pnl = wasCorrect ? decision.stake * 0.95 : -decision.stake;
-
-        const newCorrect = agent.correctDecisions + (wasCorrect ? 1 : 0);
-        const newTotal   = agent.totalDecisions + 1;
-
+        // Only update lastDecision for UI — stats come from real round outcomes
         setAgentDecisions(prev => [decision, ...prev].slice(0, 50));
-
-        return {
-          ...agent,
-          totalDecisions:   newTotal,
-          correctDecisions: newCorrect,
-          winRate:          (newCorrect / newTotal) * 100,
-          totalPnL:         agent.totalPnL + pnl,
-          lastDecision:     { ...decision, wasCorrect, pnl },
-        };
+        return { ...agent, lastDecision: decision };
       }));
-    }, DECISION_INTERVAL);
+    }, SIGNAL_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [livePrices]);
+  }, []); // empty deps — reads prices from refs, never restarts
 
   // ── Leaderboard ───────────────────────────────────────────────────────────────
   const leaderboard = [...agents, ...humanPlayers, ...(currentHuman ? [currentHuman] : [])]

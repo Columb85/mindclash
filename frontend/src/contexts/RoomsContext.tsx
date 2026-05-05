@@ -5,6 +5,33 @@ import { Room, Direction, Prediction } from '@/types/room';
 import { ASSETS } from '@/lib/web3-config';
 import { bybitPriceFeed, AssetSymbol } from '@/lib/bybit-price-feed';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+
+async function postRoundComplete(room: Room): Promise<void> {
+  try {
+    await fetch(`${API_URL}/rounds/complete`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        id:          room.id,
+        asset:       room.asset,
+        duration:    room.duration,
+        startPrice:  room.startPrice  ?? null,
+        endPrice:    room.endPrice    ?? null,
+        upPool:      room.upPool,
+        downPool:    room.downPool,
+        resolvedAt:  Math.floor(Date.now() / 1000),
+        predictions: room.predictions.map(p => ({
+          address:   p.address,
+          direction: p.direction,
+          amount:    p.amount,
+          timestamp: Math.floor((p.timestamp ?? Date.now()) / 1000),
+        })),
+      }),
+    });
+  } catch { /* network unavailable — silently ignore */ }
+}
+
 /**
  * Track = (asset, duration, token) pair. System auto-spawns consecutive rooms per track.
  * Lifecycle of a room:
@@ -93,7 +120,7 @@ function botDecision(
   const w     = weights[strategy];
   const score = w[0]*sigMom + w[1]*sigRsi + w[2]*sigBb + w[3]*sigSma;
 
-  if (Math.abs(score) < 0.30) return null; // HOLD
+  if (Math.abs(score) < 0.15) return null; // HOLD — lowered threshold so bots predict more often
   const confidence = 0.55 + Math.min(0.40, Math.abs(score) * 0.55);
   return { direction: score > 0 ? 'UP' : 'DOWN', confidence };
 }
@@ -150,27 +177,32 @@ function spawnRoom(track: Track, openAt: number, currentPrice: number): Room {
   };
 }
 
-/** Returns bot predictions for a fresh room using the price history available at spawn time */
+/**
+ * Returns ONE bot prediction for a fresh room.
+ * Each track is assigned a specific bot (round-robin by track index).
+ * This matches the "VS Bot" concept — one human vs one AI opponent.
+ */
 function buildBotPredictions(track: Track, spawnPrice: number): Prediction[] {
-  const predictions: Prediction[] = [];
-  // Use a tiny synthetic price series around the spawn price to seed bot signals
-  const syntheticPrices = Array.from({ length: 20 }, (_, i) =>
-    spawnPrice * (1 + (Math.random() - 0.5) * 0.002)
-  );
-  syntheticPrices.push(spawnPrice);
+  const trackIdx = TRACKS.indexOf(track);
+  const bot      = BOT_PROFILES[((trackIdx >= 0 ? trackIdx : Math.floor(Math.random() * BOT_PROFILES.length))) % BOT_PROFILES.length];
 
-  for (const bot of BOT_PROFILES) {
-    const dec = botDecision(bot.strategy, syntheticPrices);
-    if (!dec) continue; // bot HOLDs
-    const stake = Math.round(bot.baseStake * (0.8 + Math.random() * 0.6)); // ±30% variance
-    predictions.push({
-      address: bot.address,
-      direction: dec.direction,
-      amount: Math.max(MIN_STAKE, Math.min(MAX_STAKE, stake)),
-      timestamp: Date.now(),
-    });
+  // Synthetic price walk with 0.5% variance to generate clear signals
+  const syntheticPrices: number[] = [spawnPrice];
+  for (let i = 1; i < 25; i++) {
+    const drift = (Math.random() - 0.48) * 0.005;
+    syntheticPrices.push(syntheticPrices[i - 1] * (1 + drift));
   }
-  return predictions;
+
+  const dec       = botDecision(bot.strategy, syntheticPrices);
+  const direction = dec ? dec.direction : (Math.random() > 0.5 ? 'UP' : 'DOWN');
+  const stake     = Math.round(bot.baseStake * (0.8 + Math.random() * 0.6));
+
+  return [{
+    address:   bot.address,
+    direction,
+    amount:    Math.max(MIN_STAKE, Math.min(MAX_STAKE, stake)),
+    timestamp: Date.now(),
+  }];
 }
 
 export function RoomsProvider({ children }: { children: ReactNode }) {
@@ -231,6 +263,8 @@ export function RoomsProvider({ children }: { children: ReactNode }) {
           if (status === 'live' && nowSec >= room.endTime) {
             status   = 'resolved';
             endPrice = price; // lock end price at real market price
+            // Fire-and-forget: persist resolved round to DB
+            postRoundComplete({ ...room, status: 'resolved', endPrice });
           }
 
           const effectivePrice = status === 'resolved' ? (room.endPrice ?? price) : price;

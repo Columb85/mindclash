@@ -7,6 +7,7 @@
 const express = require('express');
 const { ethers } = require('ethers');
 const router = express.Router();
+const { getTopPlayers, getAllAgentStats } = require('../db');
 
 // ── Contract ABIs ───────────────────────────────────────────────────────────
 const AGENT_NFT_ABI = [
@@ -174,6 +175,41 @@ router.get('/stats', async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+// ── GET /api/leaderboard/players — human players from DB ────────────────────
+router.get('/players', (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+  const rows  = getTopPlayers.all(limit);
+  const ranked = rows.map((p, i) => ({
+    rank:             i + 1,
+    address:          p.address,
+    xp:               p.xp,
+    level:            p.level,
+    wins:             p.wins,
+    losses:           p.losses,
+    totalPredictions: p.total_predictions,
+    winRate:          p.total_predictions > 0
+      ? ((p.wins / p.total_predictions) * 100).toFixed(1)
+      : '0.0',
+    totalWon:         p.total_won,
+  }));
+  res.json({ success: true, data: ranked, timestamp: Date.now() });
+});
+
+// ── GET /api/leaderboard/agents — AI agents from DB ──────────────────────────
+router.get('/agents', (req, res) => {
+  const rows   = getAllAgentStats.all();
+  const ranked = rows.map((a, i) => ({
+    rank:             i + 1,
+    name:             a.name,
+    strategy:         a.strategy,
+    totalDecisions:   a.total_decisions,
+    correctDecisions: a.correct_decisions,
+    winRate:          a.win_rate.toFixed(1),
+    totalPnL:         a.total_pnl.toFixed(2),
+  }));
+  res.json({ success: true, data: ranked, timestamp: Date.now() });
 });
 
 // ── GET /api/leaderboard/human-vs-ai - Compare human and AI performance ─────

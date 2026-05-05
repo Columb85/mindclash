@@ -13,6 +13,7 @@ import { ASSETS } from '@/lib/web3-config';
 import { useRooms, BOT_PROFILES } from '@/contexts/RoomsContext';
 import { useChat } from '@/contexts/ChatContext';
 import { usePlayer, getRank, xpForOutcome, xpForBotBeating } from '@/contexts/PlayerContext';
+import { useClash, POINTS_REWARDS } from '@/contexts/ClashContext';
 import { CryptoIcon } from '@/components/icons/CryptoIcons';
 import { RankIcon } from '@/components/icons/RankIcon';
 import { Direction } from '@/types/room';
@@ -20,6 +21,7 @@ import { AnimatedPrice, CountdownDigits } from './AnimatedPrice';
 import { ResolutionReveal } from './ResolutionReveal';
 import { PriceChart } from './PriceChart';
 import { AchievementToast } from '@/components/player/AchievementToast';
+import { useSignPrediction, SignedCommitment } from '@/hooks/useSignPrediction';
 
 interface GameRoundInterfaceProps {
   roomId: string;
@@ -37,6 +39,7 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
   const { getRoom, predict, protocolFee } = useRooms();
   const { sendSystem, getMessages, sendMessage } = useChat();
   const { stats, recordPrediction, recordResult } = usePlayer();
+  const { addPoints } = useClash();
   const [, forceTick] = useState(0);
   const [stake, setStake] = useState(50);
   const [showReveal, setShowReveal] = useState(false);
@@ -44,8 +47,10 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
   const [chatText, setChatText] = useState('');
   const [botResults, setBotResults] = useState<BotResult[]>([]);
   const [ptsGained, setPtsGained] = useState(0);
+  const [signedCommitment, setSignedCommitment] = useState<SignedCommitment | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const resolvedRef = useRef(false);
+  const { signPrediction, isSigning } = useSignPrediction();
 
   useEffect(() => {
     const i = setInterval(() => forceTick(n => n + 1), 1000);
@@ -102,9 +107,17 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
             const profit      = Math.max(0, payout - winnerStake);
             const pts         = xpForOutcome('win', profit) + xpForBotBeating(botsBeatenCount);
             setPtsGained(pts);
+            // CLASH points for win
+            addPoints(POINTS_REWARDS.ROUND_WON, 'round_won');
+            if (botsBeatenCount >= 1) addPoints(POINTS_REWARDS.BEAT_AI, 'beat_ai');
             recordResult({ outcome: 'win', stake: winnerStake, payout, botsBeaten: botsBeatenCount }).forEach(ach =>
               toast.custom(() => <AchievementToast achievement={ach} />, { duration: 5000 })
             );
+            // Streak bonus — check updated stats after recordResult resolves
+            // stats.currentStreak is the value BEFORE this win, so +1 = new streak
+            const newStreak = stats.currentStreak + 1;
+            if (newStreak === 3) addPoints(POINTS_REWARDS.WIN_STREAK_3, 'streak_3');
+            if (newStreak === 5) addPoints(POINTS_REWARDS.WIN_STREAK_5, 'streak_5');
           } else {
             const pts = xpForOutcome('loss', 0);
             setPtsGained(pts);
@@ -191,6 +204,7 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
     const res = predict(room.id, dir, stake, userAddr);
     if (res.ok) {
       toast.success(`${dir} · ${stake} ${room.token}`);
+      addPoints(POINTS_REWARDS.BET_PLACED, 'bet_placed');
       recordPrediction(stake).forEach(ach =>
         toast.custom(() => <AchievementToast achievement={ach} />, { duration: 5000 })
       );
@@ -199,6 +213,23 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
       } committed ${stake} ${room.token} on ${dir}`, {
         prediction: { direction: dir, amount: stake },
       });
+
+      // Sign commitment on-chain (EIP-712, no gas) if wallet connected
+      if (address) {
+        signPrediction({
+          roundId:   room.id,
+          asset:     room.asset,
+          direction: dir,
+          amount:    stake,
+          timestamp: Math.floor(Date.now() / 1000),
+          player:    address,
+        }).then(signed => {
+          if (signed) {
+            setSignedCommitment(signed);
+            toast.success('Prediction signed on-chain ✓', { icon: '🔏', duration: 3000 });
+          }
+        });
+      }
     } else {
       toast.error(res.error || 'Failed');
     }
@@ -428,6 +459,23 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
         {userTotalStake > 0 && (
           <div className="px-5 py-3 border-t border-dark-border bg-dark-surface/30 flex items-center gap-4 flex-wrap text-sm">
             <span className="text-xs text-gray-500 font-semibold">YOUR POSITION</span>
+            {/* On-chain signature badge */}
+            {isSigning && (
+              <span className="ml-auto flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-md animate-pulse"
+                style={{ background: '#6366f115', border: '1px solid #6366f140', color: '#a5b4fc' }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping" />
+                Signing…
+              </span>
+            )}
+            {signedCommitment && !isSigning && (
+              <span
+                title={`EIP-712 signature: ${signedCommitment.signature.slice(0, 20)}…`}
+                className="ml-auto flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-md cursor-default"
+                style={{ background: '#22c55e10', border: '1px solid #22c55e30', color: '#4ade80' }}>
+                <CheckCircle2 className="w-3 h-3" />
+                On-chain proof ✓
+              </span>
+            )}
             {userUpStake > 0 && (
               <span className="flex items-center gap-1.5">
                 <TrendingUp className="w-3.5 h-3.5 text-green-500" />

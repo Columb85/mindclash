@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { ArrowLeft, Zap, Swords, ChevronDown, ChevronUp, Bot } from 'lucide-react';
+import { ArrowLeft, Zap, ChevronDown, ChevronUp, Bot } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GameRoundInterface } from '@/components/game/GameRoundInterface';
 import { RoomsList } from '@/components/game/RoomsList';
@@ -97,15 +97,13 @@ export default function Home() {
           <div className="container mx-auto px-4 py-3">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="relative w-9 h-9 bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30">
-                  <Swords className="w-5 h-5 text-white" />
+                <div className="relative flex items-center">
+                  <img
+                    src="/mindclash-logo.png"
+                    alt="MindClash"
+                    className="h-16 w-auto object-contain rounded-xl"
+                  />
                   <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-dark-bg animate-pulse" />
-                </div>
-                <div className="hidden sm:block">
-                  <h1 className="text-base font-black bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400 bg-clip-text text-transparent tracking-tight">
-                    MindClash
-                  </h1>
-                  <p className="text-[10px] text-gray-500 -mt-0.5">Mantle Network · AI Prediction</p>
                 </div>
               </div>
 
@@ -156,6 +154,13 @@ export default function Home() {
                     </span>
                   )}
                 </div>
+              </div>
+
+              {/* Demo mode banner */}
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                style={{ background: '#f59e0b15', border: '1px solid #f59e0b40', color: '#f59e0b' }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                DEMO MODE — Testnet · Mantle Sepolia · Real AI predictions, simulated players
               </div>
 
               {/* 2 · Protocol stats bar */}

@@ -3,6 +3,7 @@ node_modules/
 .pnp
 .pnp.js
 .yarn/install-state.gz
+TOKENOMICS.md
 
 # ── Environment files — NEVER COMMIT REAL KEYS ────────────────────────────────
 .env

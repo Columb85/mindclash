@@ -1,6 +1,43 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode, useCallback } from 'react';
+import { useAccount } from 'wagmi';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+
+async function fetchPlayerStats(address: string): Promise<PlayerStats | null> {
+  try {
+    const res = await fetch(`${API_URL}/players/${address}/stats`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (!json.data) return null;
+    const d = json.data;
+    return {
+      xp:               d.xp               ?? 0,
+      level:            d.level            ?? 1,
+      totalPredictions: d.total_predictions ?? 0,
+      wins:             d.wins             ?? 0,
+      losses:           d.losses           ?? 0,
+      ties:             d.ties             ?? 0,
+      totalStaked:      d.total_staked      ?? 0,
+      totalWon:         d.total_won         ?? 0,
+      currentStreak:    0,
+      bestStreak:       d.best_streak       ?? 0,
+      lastPredictionAt: 0,
+      achievements:     { ...DEFAULT_ACHIEVEMENTS },
+    };
+  } catch { return null; }
+}
+
+async function pushPlayerStats(address: string, stats: PlayerStats): Promise<void> {
+  try {
+    await fetch(`${API_URL}/players/${address}/stats`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(stats),
+    });
+  } catch { /* network unavailable — silently ignore */ }
+}
 
 export interface Rank {
   id: string;
@@ -143,30 +180,42 @@ export function xpForBotBeating(botsBeaten: number): number {
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
-  const [stats, setStats]           = useState<PlayerStats>(DEFAULT_STATS);
+  const { address } = useAccount();
+  const [stats, setStats]               = useState<PlayerStats>(DEFAULT_STATS);
   const [totalBotsBeaten, setBotsBeaten] = useState(0);
+  const syncTimerRef                     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const botsBeatenRef                    = useRef(0); // ref mirror for use inside callbacks
 
+  // Load stats: API first, then localStorage fallback
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as PlayerStats;
-        setStats({
-          ...DEFAULT_STATS,
-          ...parsed,
-          achievements: { ...DEFAULT_ACHIEVEMENTS, ...(parsed.achievements || {}) },
-        });
+    const load = async () => {
+      if (address) {
+        const remote = await fetchPlayerStats(address);
+        if (remote) {
+          setStats({ ...remote, achievements: { ...DEFAULT_ACHIEVEMENTS, ...(remote.achievements ?? {}) } });
+          return;
+        }
       }
-    } catch {
-      /* ignore */
-    }
-  }, []);
+      // localStorage fallback
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as PlayerStats;
+          setStats({ ...DEFAULT_STATS, ...parsed, achievements: { ...DEFAULT_ACHIEVEMENTS, ...(parsed.achievements || {}) } });
+        }
+      } catch { /* ignore */ }
+    };
+    load();
+  }, [address]);
 
-  const persist = (s: PlayerStats) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
-    } catch {/* ignore */}
-  };
+  // Persist: localStorage always, API debounced 2s when wallet connected
+  const persist = useCallback((s: PlayerStats) => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+    if (address) {
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = setTimeout(() => pushPlayerStats(address, s), 2000);
+    }
+  }, [address]);
 
   const recordPrediction = useCallback((stake: number): Achievement[] => {
     const newlyUnlocked: Achievement[] = [];
@@ -210,7 +259,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const recordResult = useCallback((result: PredictionResult): Achievement[] => {
     const newlyUnlocked: Achievement[] = [];
     const bots = Math.max(0, Math.min(3, result.botsBeaten ?? 0));
-    if (bots > 0) setBotsBeaten(prev => prev + bots);
+    if (bots > 0) {
+      botsBeatenRef.current += bots;
+      setBotsBeaten(botsBeatenRef.current);
+    }
 
     setStats(prev => {
       const isWin = result.outcome === 'win';
@@ -248,6 +300,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (level >= 25) unlock('level_25');
       if (bots >= 1) unlock('beat_a_bot');
       if (bots >= 3) unlock('beat_all_bots');
+      if (botsBeatenRef.current >= 10) unlock('bot_nemesis');
 
       const next: PlayerStats = {
         ...prev,
@@ -264,7 +317,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const resetStats = useCallback(() => {
     setStats(DEFAULT_STATS);
     persist(DEFAULT_STATS);
-  }, []);
+  }, [persist]);
 
   return (
     <PlayerContext.Provider value={{ stats, recordPrediction, recordResult, resetStats, totalBotsBeaten }}>

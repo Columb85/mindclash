@@ -7,6 +7,7 @@
 const express = require('express');
 const { ethers } = require('ethers');
 const router = express.Router();
+const { getAllAgentStats, saveAgentsBatch } = require('../db');
 
 // ── Contract ABIs (matching actual deployed contracts) ──────────────────────
 const AGENT_NFT_ABI = [
@@ -56,6 +57,37 @@ const getAgentRegistryContract = () => {
     provider
   );
 };
+
+// ── GET /api/agents/stats — read all agent stats from DB ────────────────────
+// (must be before /:id to avoid being matched as tokenId)
+router.get('/stats', (req, res) => {
+  const rows = getAllAgentStats.all();
+  res.json({ success: true, data: rows, timestamp: Date.now() });
+});
+
+// ── POST /api/agents/stats — batch-upsert agent stats from frontend ─────────
+router.post('/stats', (req, res) => {
+  const agents = req.body;
+  if (!Array.isArray(agents) || agents.length === 0) {
+    return res.status(400).json({ error: 'Body must be a non-empty array of agents' });
+  }
+  try {
+    const rows = agents.map(a => ({
+      name:              String(a.name              ?? ''),
+      strategy:          String(a.strategy          ?? 'neural'),
+      total_decisions:   parseInt(a.totalDecisions)  ?? 0,
+      correct_decisions: parseInt(a.correctDecisions) ?? 0,
+      win_rate:          parseFloat(a.winRate)        ?? 0,
+      total_pnl:         parseFloat(a.totalPnL)       ?? 0,
+      updated_at:        Math.floor(Date.now() / 1000),
+    }));
+    saveAgentsBatch(rows);
+    res.json({ success: true, saved: rows.length, timestamp: Date.now() });
+  } catch (err) {
+    console.error('saveAgentsBatch error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ── GET /api/agents - List all agents ───────────────────────────────────────
 router.get('/', async (req, res, next) => {
