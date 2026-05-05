@@ -23,6 +23,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider
           chains={SUPPORTED_CHAINS}
+          locale="en"
           theme={darkTheme({
             accentColor: '#00d4ff',
             accentColorForeground: 'black',

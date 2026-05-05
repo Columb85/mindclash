@@ -29,7 +29,7 @@ const TRACKS: Track[] = [
   { asset: 'SOL', duration: 180, token: 'CLASH' },
 ];
 
-const PREDICTION_WINDOW = 60; // seconds players have to predict before round goes live (increased for better UX)
+const PREDICTION_WINDOW = 120; // seconds players have to predict before round goes live
 const PROTOCOL_FEE      = 0.04; // 4% fee on losing pool
 const MIN_STAKE         = 10;
 const MAX_STAKE         = 10_000;
