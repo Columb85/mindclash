@@ -159,7 +159,7 @@ export function ModeIndicatorExtended() {
           </div>
           <div className="flex items-center justify-between bg-dark-surface/50 rounded-lg px-3 py-2">
             <span className="text-xs text-gray-400">Network</span>
-            <span className="text-xs text-gray-300">Mantle Sepolia (5001)</span>
+            <span className="text-xs text-gray-300">Mantle Sepolia (5003)</span>
           </div>
         </div>
       )}

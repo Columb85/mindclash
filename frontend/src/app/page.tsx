@@ -549,7 +549,7 @@ export default function LandingPage() {
               { icon: Shield, title:'On-Chain Decision Records',  desc:'Every AI prediction is signed and recorded on Mantle blockchain via smart contracts. Fully transparent, verifiable, immutable history.', accent:'#a855f7', tag:'Mantle' },
               { icon: Cpu,    title:'Mint Your Own AI Agent',     desc:'Users can mint ERC-8004 Agent NFTs that use the same LLM engine to generate decisions. Sign transactions directly from your wallet.', accent:'#f59e0b', tag:'ERC-8004 NFT' },
               { icon: Layers, title:'Dual Stack Protocol',        desc:'AI Benchmark Stack measures neural network performance. Game Protocol handles prediction rounds, staking and reward distribution.', accent:'#3b82f6', tag:'Protocol' },
-              { icon: Globe,  title:'Live Price Oracle',          desc:'Real-time BTC, ETH and MNT prices via Pyth Network oracle integration. All predictions resolve against actual market data feeds.', accent:'#10b981', tag:'Pyth Oracle' },
+              { icon: Globe,  title:'Live Price Feed',             desc:'Real-time BTC, ETH and SOL prices via Bybit WebSocket. On-chain resolution uses Pyth Oracle for tamper-proof price settlement.', accent:'#10b981', tag:'Bybit + Pyth' },
               { icon: Lock,   title:'Fair & Transparent',         desc:'All game logic lives on-chain. Smart contracts handle staking, round resolution and reward distribution — no hidden house edge.', accent:'#ef4444', tag:'Smart Contracts' },
             ].map(({ icon: Icon, title, desc, accent, tag }, i) => (
               <motion.div
@@ -597,9 +597,9 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             {[
-              { name:'ATLAS', asset:'BTC/USD', dir:'UP',   conf:78, color:'#00D4AA', delay:0 },
-              { name:'NEXUS', asset:'ETH/USD', dir:'DOWN', conf:65, color:'#a855f7', delay:0.15 },
-              { name:'VOID',  asset:'MNT/USD', dir:'UP',   conf:82, color:'#3b82f6', delay:0.3 },
+              { name:'AlphaPredict',   asset:'BTC/USD', dir:'UP',   conf:78, color:'#00D4AA', delay:0 },
+              { name:'MomentumMaster', asset:'ETH/USD', dir:'DOWN', conf:65, color:'#a855f7', delay:0.15 },
+              { name:'NeuralTrader',   asset:'SOL/USD', dir:'UP',   conf:82, color:'#3b82f6', delay:0.3 },
             ].map(({ name, asset, dir, conf, color, delay }) => (
               <motion.div
                 key={name}
@@ -672,7 +672,7 @@ export default function LandingPage() {
             {[
               { name:'Mantle Network', role:'L2 Blockchain', desc:'Fast EVM L2 for on-chain game logic & transactions',   color:'#00D4AA', dot:'M' },
               { name:'Groq',           role:'AI Inference',  desc:'LLaMA-70B for real-time neural bot decisions',          color:'#f97316', dot:'G' },
-              { name:'Pyth Oracle',    role:'Price Feeds',   desc:'Sub-second real-time crypto price data on-chain',       color:'#a855f7', dot:'P' },
+              { name:'Bybit + Pyth',   role:'Price Feeds',   desc:'Bybit WebSocket for live prices · Pyth Oracle for on-chain settlement', color:'#a855f7', dot:'P' },
               { name:'RainbowKit',     role:'Web3 UX',       desc:'Seamless wallet connect & transaction signing',         color:'#3b82f6', dot:'R' },
             ].map(({ name, role, desc, color, dot }, i) => (
               <motion.div
@@ -761,7 +761,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-5">
             <span>Mantle Turing Test Hackathon</span>
             <span className="text-gray-700">·</span>
-            <a href="https://github.com" className="hover:text-gray-400 transition-colors">GitHub</a>
+            <a href="https://github.com/Columb85/mindclash" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors">GitHub</a>
             <span className="text-gray-700">·</span>
             <Link href="/app" className="hover:text-[#00D4AA] transition-colors">Launch App</Link>
           </div>

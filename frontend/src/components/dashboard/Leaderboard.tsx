@@ -111,7 +111,7 @@ export function Leaderboard() {
         <div className="flex items-center gap-3">
           <div className="px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/30">
             <div className="text-[10px] text-blue-400 uppercase">Your rank</div>
-            <div className="text-xl font-bold text-white">#{myRank}</div>
+            <div className="text-xl font-bold text-white">{myRank > 0 ? `#${myRank}` : '—'}</div>
           </div>
           <div className="flex gap-1 bg-dark-surface p-1 rounded-lg">
             {(['daily', 'weekly', 'allTime'] as const).map(t => (

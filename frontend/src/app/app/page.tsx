@@ -157,11 +157,32 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Demo mode banner */}
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold"
-                style={{ background: '#f59e0b15', border: '1px solid #f59e0b40', color: '#f59e0b' }}>
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                DEMO MODE — Testnet · Mantle Sepolia · Real AI predictions, simulated players
+              {/* Testnet banner */}
+              <div className="rounded-xl overflow-hidden"
+                style={{ background: 'linear-gradient(135deg, #f59e0b0a, #a855f70a)', border: '1px solid #f59e0b30' }}>
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-bold text-amber-400">TESTNET</span>
+                    <span className="text-[11px] text-gray-400 ml-2">
+                      Mantle Sepolia (5003) · No real money · Groq LLM bots make live on-chain decisions
+                    </span>
+                  </div>
+                  <div className="hidden sm:flex items-center gap-3 shrink-0 text-[10px] text-gray-500">
+                    <span className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                      Groq AI
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                      Mantle Chain
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                      Bybit + Pyth
+                    </span>
+                  </div>
+                </div>
               </div>
 
               {/* 2 · Protocol stats bar */}

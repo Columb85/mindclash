@@ -163,7 +163,10 @@ export function LeaderboardProvider({ children }: { children: ReactNode }) {
       winRate: p.winRate, totalWon: p.netProfit,
     }, 0.03))), { ...you, netProfit: Math.floor(you.netProfit * 0.05) });
 
-    const findRank = (list: LeaderboardEntry[]) => list.findIndex(e => e.isYou) + 1;
+    const findRank = (list: LeaderboardEntry[]) => {
+      const idx = list.findIndex(e => e.isYou);
+      return idx === -1 ? 0 : idx + 1; // 0 means "unranked"
+    };
 
     return {
       daily,
