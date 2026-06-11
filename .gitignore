@@ -51,6 +51,27 @@ __pycache__/
 .venv/
 venv/
 
+# ── SQLite database files ─────────────────────────────────────────────────────
+*.db
+*.db-wal
+*.db-shm
+data/
+
+# ── Private key / wallet files ────────────────────────────────────────────────
+*.pem
+*.key
+*.keystore
+*.json.secret
+private-key*
+wallet*
+
+# ── Dev environment overrides ─────────────────────────────────────────────────
+.env.dev
+.env.dev.local
+
+# ── PM2 logs and pid files ────────────────────────────────────────────────────
+.pm2/
+logs/
+
 # ── Deployed addresses with sensitive metadata ────────────────────────────────
-# Contract addresses are safe to share, but private deployment notes are not
 deployed-addresses-private.json

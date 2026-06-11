@@ -7,3 +7,5 @@ requests>=2.31.0
 aiohttp>=3.9.0
 pydantic>=2.3.0
 loguru>=0.7.2
+flask>=3.0.0
+flask-cors>=4.0.0

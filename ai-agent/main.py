@@ -601,10 +601,12 @@ AGENT_STRATEGIES = {
 }
 
 
-async def main():
-    """Main entry point — runs all configured agents concurrently."""
+# ═══════════════════════════════════════════════════════════════════════════════
+# MODE 1: Autonomous Loop (original — for background benchmarking)
+# ═══════════════════════════════════════════════════════════════════════════════
+async def run_loop():
+    """Run all configured agents in an infinite autonomous loop."""
     from blockchain import load_all_agents
-    import os
 
     bc_clients = load_all_agents()
 
@@ -632,5 +634,122 @@ async def main():
     except Exception as e:
         logger.error(f"Agent crash: {e}")
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MODE 2: Event-Driven API (for hackathon Demo Day — decisions on demand)
+# ═══════════════════════════════════════════════════════════════════════════════
+def run_api(port: int = 5050):
+    """
+    Start a lightweight Flask server that accepts single-decision requests.
+
+    POST /decide
+      Body: { "agent": "AlphaPredict"|"MomentumMaster"|"NeuralTrader",
+              "asset": "MNT"|"BTC"|"ETH"|"SOL" }
+      Returns: { direction, confidence, reasoning, tx_hash }
+
+    GET /health
+      Returns: { status: "ok", mode: "event-driven" }
+
+    This replaces the infinite loop with demand-driven decisions.
+    Each POST /decide triggers exactly ONE market analysis + on-chain recording.
+    """
+    try:
+        from flask import Flask, request, jsonify
+        from flask_cors import CORS
+    except ImportError:
+        logger.error("Flask not installed. Run: pip install flask flask-cors")
+        return
+
+    from blockchain import load_all_agents
+
+    app = Flask(__name__)
+    CORS(app)
+
+    # Pre-load agents
+    bc_clients = load_all_agents()
+    agents: Dict[str, MantleAIAgent] = {}
+    for client in bc_clients:
+        strategy = AGENT_STRATEGIES.get(client.agent_name, 'neural')
+        agents[client.agent_name] = MantleAIAgent(
+            agent_id=client.agent_name,
+            blockchain_client=client,
+            strategy=strategy,
+        )
+        logger.info(f"[API] Loaded {client.agent_name} (strategy={strategy})")
+
+    # Fallback mock agents if no wallets
+    if not agents:
+        for name, strat in AGENT_STRATEGIES.items():
+            agents[name] = MantleAIAgent(agent_id=name, strategy=strat)
+        logger.warning("[API] No wallets — mock agents loaded")
+
+    @app.route('/health', methods=['GET'])
+    def health():
+        return jsonify({
+            'status': 'ok',
+            'mode': 'event-driven',
+            'agents': list(agents.keys()),
+            'timestamp': int(time.time()),
+        })
+
+    @app.route('/decide', methods=['POST'])
+    def decide():
+        body = request.get_json(force=True, silent=True) or {}
+        agent_name = body.get('agent', 'NeuralTrader')
+        asset      = body.get('asset', 'MNT').upper()
+
+        if agent_name not in agents:
+            return jsonify({'error': f'Unknown agent: {agent_name}', 'available': list(agents.keys())}), 400
+
+        agent = agents[agent_name]
+
+        # Run one tick: fetch data → analyze → decide → record on-chain
+        loop = asyncio.new_event_loop()
+        try:
+            market_data = loop.run_until_complete(agent.fetch_market_data(f"{asset}/USDT"))
+            decision    = agent.make_trading_decision(market_data)
+            tx_hash     = loop.run_until_complete(agent.log_decision_onchain(decision))
+        finally:
+            loop.close()
+
+        logger.info(f"[API] {agent_name} → {decision.direction} ({decision.confidence:.2f}) on {asset}, tx={tx_hash}")
+
+        return jsonify({
+            'success':    True,
+            'agent':      agent_name,
+            'strategy':   agent.strategy,
+            'asset':      asset,
+            'direction':  decision.direction,
+            'confidence': decision.confidence,
+            'stake':      decision.stake,
+            'reasoning':  decision.reasoning,
+            'tx_hash':    tx_hash,
+            'timestamp':  decision.timestamp,
+        })
+
+    logger.info(f"[API] Event-driven server starting on port {port}")
+    logger.info(f"[API] POST /decide — trigger single agent decision")
+    logger.info(f"[API] GET  /health  — health check")
+    app.run(host='0.0.0.0', port=port, debug=False)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CLI entry point
+# ═══════════════════════════════════════════════════════════════════════════════
 if __name__ == "__main__":
-    asyncio.run(main())
+    import argparse
+
+    parser = argparse.ArgumentParser(description="MindClash AI Agent")
+    parser.add_argument(
+        '--mode', choices=['loop', 'api'], default='api',
+        help='loop = autonomous infinite loop (background), api = event-driven server (default for Demo Day)',
+    )
+    parser.add_argument('--port', type=int, default=5050, help='Port for API mode (default: 5050)')
+    args = parser.parse_args()
+
+    if args.mode == 'loop':
+        logger.info("Starting in AUTONOMOUS LOOP mode")
+        asyncio.run(run_loop())
+    else:
+        logger.info("Starting in EVENT-DRIVEN API mode (Demo Day)")
+        run_api(port=args.port)

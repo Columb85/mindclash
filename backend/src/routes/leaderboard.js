@@ -7,10 +7,11 @@
 const express = require('express');
 const { ethers } = require('ethers');
 const router = express.Router();
-const { getTopPlayers, getAllAgentStats } = require('../db');
+const { getTopPlayers, getAllAgentStats, db } = require('../db');
 
 // ── Contract ABIs ───────────────────────────────────────────────────────────
 const AGENT_NFT_ABI = [
+  'function agentProfiles(uint256) view returns (string name, string version, uint256 createdAt, uint256 totalDecisions, uint256 correctDecisions, uint256 totalPnL, bool isActive)',
   'function totalAgents() view returns (uint256)',
   'function getAgentInfo(uint256 tokenId) view returns (tuple(address agentAddress, string name, string version, uint256 createdAt, uint256 totalDecisions, uint256 successfulDecisions, int256 totalPnL, bool isActive))',
 ];
@@ -216,55 +217,50 @@ router.get('/agents', (req, res) => {
 router.get('/human-vs-ai', async (req, res, next) => {
   try {
     const nftContract = getAgentNFTContract();
-    const totalAgents = await nftContract.totalAgents();
-    
-    // Calculate AI aggregate stats
-    let aiStats = {
-      totalDecisions: 0,
-      wins: 0,
-      pnl: 0,
-      agentCount: Number(totalAgents),
-    };
-    
-    for (let i = 1; i <= totalAgents; i++) {
+    const AI_TOKEN_IDS = [5, 6, 7];
+
+    let aiStats = { totalDecisions: 0, wins: 0, pnl: 0, agentCount: 0 };
+
+    for (const tokenId of AI_TOKEN_IDS) {
       try {
-        const info = await nftContract.getAgentInfo(i);
-        aiStats.totalDecisions += Number(info.totalDecisions);
-        aiStats.wins += Number(info.successfulDecisions);
-        aiStats.pnl += Number(info.totalPnL);
-      } catch (err) {
-        // Skip
+        const profile = await nftContract.agentProfiles(tokenId);
+        const name = profile[0] || profile.name;
+        if (!name) continue;
+        aiStats.agentCount += 1;
+        aiStats.totalDecisions += Number(profile[3] ?? profile.totalDecisions ?? 0);
+        aiStats.wins += Number(profile[4] ?? profile.correctDecisions ?? 0);
+        aiStats.pnl += Number(profile[5] ?? profile.totalPnL ?? 0);
+      } catch {
+        // skip missing token
       }
     }
-    
-    aiStats.winRate = aiStats.totalDecisions > 0 
+
+    aiStats.winRate = aiStats.totalDecisions > 0
       ? ((aiStats.wins / aiStats.totalDecisions) * 100).toFixed(2)
       : '0.00';
-    
-    // Mock human stats (would come from user database)
+
+    const row = db.prepare(`
+      SELECT COUNT(*) as playerCount,
+             COALESCE(SUM(total_predictions), 0) as totalDecisions,
+             COALESCE(SUM(wins), 0) as wins,
+             COALESCE(SUM(total_won - total_staked), 0) as pnl
+      FROM players WHERE total_predictions > 0
+    `).get();
     const humanStats = {
-      totalDecisions: Math.floor(Math.random() * 1000) + 100,
-      wins: 0,
-      pnl: 0,
-      playerCount: 42, // Mock
+      playerCount: Number(row.playerCount) || 0,
+      totalDecisions: Number(row.totalDecisions) || 0,
+      wins: Number(row.wins) || 0,
+      pnl: Number(row.pnl) || 0,
+      winRate: row.totalDecisions > 0
+        ? ((row.wins / row.totalDecisions) * 100).toFixed(2)
+        : '0.00',
     };
-    humanStats.wins = Math.floor(humanStats.totalDecisions * (0.45 + Math.random() * 0.15));
-    humanStats.pnl = (Math.random() - 0.5) * 10000;
-    humanStats.winRate = ((humanStats.wins / humanStats.totalDecisions) * 100).toFixed(2);
-    
+
     res.json({
       success: true,
-      ai: {
-        ...aiStats,
-        label: 'AI Agents',
-        color: '#00D4AA', // Mantle green
-      },
-      human: {
-        ...humanStats,
-        label: 'Human Players',
-        color: '#FF6B6B',
-      },
-      winner: parseFloat(aiStats.winRate) > parseFloat(humanStats.winRate) ? 'AI' : 'Human',
+      ai: { ...aiStats, label: 'AI Agents', color: '#00D4AA' },
+      human: { ...humanStats, label: 'Human Players', color: '#FF6B6B' },
+      winner: parseFloat(aiStats.winRate) >= parseFloat(humanStats.winRate) ? 'AI' : 'Human',
       timestamp: Date.now(),
     });
   } catch (error) {

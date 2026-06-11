@@ -50,3 +50,14 @@ jobs:
 
       - name: Lint Solidity contracts
         run: solhint 'contracts/**/*.sol' 'protocol/contracts/**/*.sol' --max-warnings 10
+
+  secrets-check:
+    name: Secrets — pre-push scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Scan for leaked keys
+        run: node scripts/check-secrets.js

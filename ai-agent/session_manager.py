@@ -22,8 +22,14 @@ load_dotenv()
 # ── Config ────────────────────────────────────────────────────────────────────
 RPC_URL         = os.getenv('MANTLE_SEPOLIA_RPC', 'https://rpc.sepolia.mantle.xyz')
 CHAIN_ID        = int(os.getenv('CHAIN_ID', '5003'))
-DEPLOYER_KEY    = os.getenv('DEPLOYER_PRIVATE_KEY',
-                  '0x8d2fae16b39cc0cb6deab82dbe3ce01ec3181149f5df93665a3e66bd56bebad3')
+DEPLOYER_KEY    = os.getenv('DEPLOYER_PRIVATE_KEY')
+if not DEPLOYER_KEY:
+    logger.error(
+        'DEPLOYER_PRIVATE_KEY is required. '
+        'Agents #5–#7 are already deployed on Mantle Sepolia — '
+        'you only need this script for a fresh testnet setup.'
+    )
+    sys.exit(1)
 
 AGENT_NFT_ADDR      = Web3.to_checksum_address(os.getenv('AGENT_NFT_ADDRESS',      '0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837'))
 AGENT_REGISTRY_ADDR = Web3.to_checksum_address(os.getenv('AGENT_REGISTRY_ADDRESS', '0xbD19d3ec1B4d0f3852729b0dcC87bd739839cBDC'))

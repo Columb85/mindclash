@@ -49,6 +49,8 @@ The first implementation of the **ERC-8004** standard — on-chain identity for 
 | $CLASH Token | [`0xFb178c931e5F64bBA180A4419E4E2f216d1eEDDe`](https://sepolia.mantlescan.xyz/address/0xFb178c931e5F64bBA180A4419E4E2f216d1eEDDe) |
 | PythOracleAdapter | [`0x246CD1fcdF43dDfF09b7619375bD4E8C98ECa612`](https://sepolia.mantlescan.xyz/address/0x246CD1fcdF43dDfF09b7619375bD4E8C98ECa612) |
 
+All contracts **verified on MantleScan** (June 2026) — see [deployed-addresses.json](./deployed-addresses.json).
+
 ## Live AI Agents
 
 | Agent | Strategy | NFT | Wallet |
@@ -73,32 +75,80 @@ Contracts are already deployed — you only need to run the frontend.
 git clone https://github.com/your-org/mindclash
 cd mindclash/frontend
 npm install
+cp .env.example .env.local   # if present
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000), connect wallet, claim $CLASH from the in-app faucet, and start predicting.
 
+**Full live demo (on-chain AI decisions):** [https://mindclash.xyz](https://mindclash.xyz)
+
 ---
 
-## Project Structure (Public)
+## Running the Backend Locally (Optional)
+
+The backend in this repo runs in **read-only mode** by default — it serves agents, prices, and leaderboard data **without** signing blockchain transactions.
+
+```bash
+cd backend
+cp .env.example .env
+npm install
+npm run dev
+# or (Windows): .\scripts\start-local.ps1
+```
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | Health + `mode: read-only` |
+| `GET /api/agents` | Live agent stats from chain |
+| `POST /api/duels` | AI decision logic (no tx unless you enable signing) |
+
+Live on-chain duels with MantleScan tx hashes: **https://api.mindclash.xyz**
+
+---
+
+## Running the AI Agent Locally (Optional)
+
+```bash
+cd ai-agent
+cp .env.example .env
+pip install -r requirements.txt
+python main.py
+```
+
+Use **your own** testnet wallet in `.env`. The three hackathon agents (#5–#7) are operated on production infrastructure and are not included in this repository.
+
+---
+
+## Open Source Scope (Hackathon Submission)
+
+This repository satisfies the **open-source submission** requirement while keeping production secrets private.
+
+| ✅ Published here (MIT) | 🔒 Not in this repo |
+|------------------------|---------------------|
+| Smart contracts (`contracts/`, `protocol/`) | Private keys / operator wallets |
+| Frontend UI | Production `.env` |
+| Backend API (read-only default) | On-chain signing relayer for agents #5–#7 |
+| AI strategy logic (`ai-agent/`) | VPS / PM2 / Caddy deployment |
+| Contract addresses | Production SQLite database |
+
+**Why this is compliant:** Judges can audit contracts, run the frontend, inspect AI logic, and verify on-chain activity via MantleScan. The live demo at mindclash.xyz proves end-to-end behavior.
+
+See [SECURITY.md](./SECURITY.md) for the pre-push checklist.
+
+---
+
+## Project Structure
 
 ```
 ├── frontend/            # Next.js 14 web application
-│   └── src/
-│       ├── app/         # Pages & API routes
-│       ├── components/  # UI components
-│       ├── contexts/    # State (Rooms, Player, Clash)
-│       ├── hooks/       # Contract interaction hooks
-│       └── lib/         # Web3 config, utilities
-│
-├── contracts/           # Core ERC-8004 contracts (Solidity)
-│   ├── AgentNFT.sol
-│   └── AgentRegistry.sol
-│
-└── protocol/            # Protocol contracts (RoundEngine, Treasury, etc.)
+├── contracts/           # ERC-8004 core (AgentNFT, AgentRegistry)
+├── protocol/            # RoundEngine, Treasury, ClashToken, Pyth adapter
+├── backend/             # REST API (read-only by default)
+├── ai-agent/            # Autonomous agent logic (Python)
+├── deployed-addresses.json
+└── scripts/check-secrets.js
 ```
-
-> Backend API and AI agent source are hosted on a private server.
 
 ---
 
@@ -118,9 +168,17 @@ Open [http://localhost:3000](http://localhost:3000), connect wallet, claim $CLAS
 
 ## License
 
-This code is **source available, not open source**.  
-Commercial use, redeployment, and derivative works are prohibited without explicit permission.  
-See [LICENSE](./LICENSE) for full terms.
+MIT License — see [LICENSE](./LICENSE).
+
+---
+
+## Live Demo
+
+| Resource | URL |
+|----------|-----|
+| Frontend | https://mindclash.xyz |
+| API | https://api.mindclash.xyz |
+| AgentNFT | [MantleScan](https://sepolia.mantlescan.xyz/address/0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837) |
 
 ---
 

@@ -8,10 +8,12 @@ const path     = require('path');
 const fs       = require('fs');
 
 // Store DB file next to src/ directory
+// DB_FILE env var lets prod and dev use separate database files
 const DATA_DIR = path.join(__dirname, '..', 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-const DB_PATH = path.join(DATA_DIR, 'mindclash.db');
+const DB_FILE = process.env.DB_FILE || 'mindclash.db';
+const DB_PATH = path.join(DATA_DIR, DB_FILE);
 const db      = new Database(DB_PATH);
 
 // WAL mode — faster concurrent reads

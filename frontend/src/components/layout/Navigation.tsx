@@ -1,5 +1,7 @@
 'use client';
 
+import { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
 import { HomeIcon, UserIcon, CrownIcon, TargetIcon, AIBrainIcon, SwordIcon } from '@/components/icons/MantleIcons';
 import { useQuests } from '@/contexts/QuestsContext';
 
@@ -10,9 +12,31 @@ interface NavigationProps {
   onViewChange: (view: View) => void;
 }
 
+const MORE_LINKS = [
+  { href: '/duel',         label: '⚔️ Duel',      desc: 'Challenge AI agent', color: '#ef4444' },
+  { href: '/gauntlet',     label: '🛡️ Gauntlet',  desc: 'Beat all 3 champions', color: '#f97316' },
+  { href: '/showdown',     label: '🔥 Showdown',   desc: 'Head-to-head battle', color: '#f97316' },
+  { href: '/create-agent', label: '✨ Create',      desc: 'Mint AI agent NFT', color: '#eab308' },
+  { href: '/leaderboard',  label: '🏆 Rankings',    desc: 'On-chain leaderboard', color: '#f59e0b' },
+  { href: '/verify',       label: '✅ Verify',      desc: 'On-chain proofs', color: '#22c55e' },
+  { href: '/autonomous',   label: '🤖 Bot Loop',   desc: 'Autonomous agent mode', color: '#06b6d4' },
+];
+
 export function Navigation({ currentView, onViewChange }: NavigationProps) {
   const { completedCount, totalCount } = useQuests();
   const hasIncompleteQuests = completedCount < totalCount;
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!moreOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [moreOpen]);
 
   const navItems = [
     { id: 'lobby' as View,       label: 'Arena',       icon: AIBrainIcon,  color: '#a855f7' },
@@ -23,7 +47,7 @@ export function Navigation({ currentView, onViewChange }: NavigationProps) {
   ];
 
   return (
-    <nav className="flex items-center gap-1 bg-dark-surface/50 backdrop-blur-sm p-1 rounded-xl border border-dark-border">
+    <nav className="flex items-center gap-1 bg-white/[0.03] backdrop-blur-sm p-1 rounded-xl border border-white/[0.06]">
       {navItems.map(({ id, label, icon: Icon, color, badge }) => {
         const active = currentView === id;
         return (
@@ -58,6 +82,48 @@ export function Navigation({ currentView, onViewChange }: NavigationProps) {
           </button>
         );
       })}
+
+      {/* Duel quick-link (always visible) */}
+      <div className="w-px h-5 bg-dark-border mx-1" />
+      <Link
+        href="/duel"
+        className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-all text-xs font-bold"
+      >
+        <span>⚔️</span>
+        <span className="hidden md:inline">Duel</span>
+      </Link>
+
+      {/* More dropdown */}
+      <div className="relative" ref={moreRef}>
+        <button
+          onClick={() => setMoreOpen(!moreOpen)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-600/30 bg-gray-600/10 text-gray-300 hover:bg-gray-600/20 hover:text-white transition-all text-xs font-bold"
+        >
+          <span className="hidden md:inline">More</span>
+          <svg className={`w-3 h-3 transition-transform ${moreOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {moreOpen && (
+          <div className="absolute top-full right-0 mt-2 w-56 rounded-xl border border-white/[0.08] bg-black/90 backdrop-blur-xl shadow-2xl shadow-black/60 overflow-hidden z-50">
+            {MORE_LINKS.map(link => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMoreOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.05] transition-colors border-b border-white/[0.04] last:border-0"
+              >
+                <span className="text-sm">{link.label.split(' ')[0]}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-bold" style={{ color: link.color }}>{link.label.split(' ').slice(1).join(' ')}</div>
+                  <div className="text-[10px] text-gray-600">{link.desc}</div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
     </nav>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, ReactNode, useMemo } from 'react';
+import { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { usePlayer, getRank } from './PlayerContext';
 
 export interface LeaderboardEntry {
@@ -16,6 +16,9 @@ export interface LeaderboardEntry {
   netProfit: number;
   volume: number;
   isYou?: boolean;
+  isAI?: boolean;
+  tokenId?: number;
+  explorerUrl?: string;
 }
 
 interface LeaderboardContextType {
@@ -27,46 +30,53 @@ interface LeaderboardContextType {
 
 const LeaderboardContext = createContext<LeaderboardContextType | undefined>(undefined);
 
-// Deterministic mock leaderboard data
-const MOCK_TOPS = [
-  { name: 'CryptoOracle.eth',  level: 78, wins: 642, predictions: 812, profit: 45320, volume: 280400 },
-  { name: 'DiamondWhale',      level: 65, wins: 518, predictions: 702, profit: 38100, volume: 220800 },
-  { name: 'MoonPredictor',     level: 58, wins: 421, predictions: 589, profit: 29850, volume: 185200 },
-  { name: '0xSatoshi.eth',     level: 52, wins: 389, predictions: 551, profit: 25600, volume: 164200 },
-  { name: 'BullRunKing',       level: 48, wins: 352, predictions: 515, profit: 22100, volume: 142500 },
-  { name: 'DegenMaxi',         level: 42, wins: 298, predictions: 462, profit: 18500, volume: 121000 },
-  { name: 'AlphaHunter',       level: 38, wins: 271, predictions: 435, profit: 15200, volume: 99400 },
-  { name: 'ChartWizard',       level: 35, wins: 245, predictions: 402, profit: 13100, volume: 87300 },
-  { name: '0xEmperor',         level: 32, wins: 221, predictions: 372, profit: 11050, volume: 74100 },
-  { name: 'SignalSensei',      level: 28, wins: 198, predictions: 345, profit: 9400, volume: 62800 },
-  { name: 'MarketMystic',      level: 25, wins: 178, predictions: 318, profit: 7800, volume: 52600 },
-  { name: 'PriceProphet',      level: 22, wins: 152, predictions: 282, profit: 6300, volume: 44200 },
-  { name: 'TrendTamer',        level: 19, wins: 134, predictions: 259, profit: 5100, volume: 37800 },
-  { name: 'BlockOracle',       level: 17, wins: 118, predictions: 231, profit: 4200, volume: 32400 },
-  { name: 'VolatilityViking',  level: 15, wins: 102, predictions: 204, profit: 3400, volume: 27500 },
-  { name: 'CandleStickNinja',  level: 13, wins: 89,  predictions: 182, profit: 2700, volume: 23000 },
-  { name: 'PipHunter',         level: 12, wins: 78,  predictions: 163, profit: 2200, volume: 19400 },
-  { name: 'HodlerHero',        level: 10, wins: 67,  predictions: 142, profit: 1700, volume: 16200 },
-  { name: 'MomentumMage',      level: 9,  wins: 58,  predictions: 128, profit: 1400, volume: 13800 },
-  { name: 'RSIRanger',         level: 8,  wins: 50,  predictions: 114, profit: 1100, volume: 11500 },
-];
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api';
 
-function toEntry(seed: typeof MOCK_TOPS[number], scale = 1): LeaderboardEntry {
-  const rank = getRank(seed.level);
-  const wins = Math.max(1, Math.floor(seed.wins * scale));
-  const predictions = Math.max(wins, Math.floor(seed.predictions * scale));
+function aiAgentToEntry(agent: {
+  tokenId: number; name: string; totalDecisions: number;
+  correctDecisions: number; winRate: number; totalPnL: number;
+  explorerUrl?: string;
+}): LeaderboardEntry {
+  const rank = getRank(Math.min(20 + Math.floor(agent.totalDecisions / 5), 80));
   return {
-    id: seed.name,
-    name: seed.name,
-    level: seed.level,
+    id:           `ai-${agent.tokenId}`,
+    name:         `🤖 ${agent.name}`,
+    level:        Math.min(20 + Math.floor(agent.totalDecisions / 5), 80),
+    rankName:     rank.name,
+    rankColor:    '#00D4AA',
+    rankId:       rank.id,
+    wins:         agent.correctDecisions,
+    predictions:  agent.totalDecisions,
+    winRate:      agent.winRate,
+    netProfit:    agent.totalPnL,
+    volume:       agent.totalDecisions * 10,
+    isAI:         true,
+    tokenId:      agent.tokenId,
+    explorerUrl:  agent.explorerUrl,
+  };
+}
+
+function playerToEntry(p: {
+  address: string; level: number; wins: number;
+  totalPredictions: number; winRate: string | number; totalWon: number;
+}, scale = 1): LeaderboardEntry {
+  const level = p.level || 1;
+  const rank = getRank(level);
+  const wins = Math.max(0, Math.floor(p.wins * scale));
+  const predictions = Math.max(wins, Math.floor(p.totalPredictions * scale));
+  const winRate = typeof p.winRate === 'string' ? parseFloat(p.winRate) : p.winRate;
+  return {
+    id: p.address,
+    name: `${p.address.slice(0, 6)}…${p.address.slice(-4)}`,
+    level,
     rankName: rank.name,
     rankColor: rank.color,
     rankId: rank.id,
     wins,
     predictions,
-    winRate: (wins / predictions) * 100,
-    netProfit: Math.floor(seed.profit * scale),
-    volume: Math.floor(seed.volume * scale),
+    winRate: predictions > 0 ? winRate : 0,
+    netProfit: Math.floor((p.totalWon || 0) * scale),
+    volume: predictions * 10,
   };
 }
 
@@ -77,10 +87,54 @@ function insertYou(list: LeaderboardEntry[], you: LeaderboardEntry): Leaderboard
 
 export function LeaderboardProvider({ children }: { children: ReactNode }) {
   const { stats } = usePlayer();
+  const [aiAgents, setAiAgents] = useState<LeaderboardEntry[]>([]);
+  const [humanPlayers, setHumanPlayers] = useState<LeaderboardEntry[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch('/api/leaderboard?limit=20');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled || !data.data?.length) return;
+        setAiAgents((data.data as any[]).map(a => aiAgentToEntry({
+          tokenId: a.tokenId,
+          name: a.name,
+          totalDecisions: a.totalDecisions,
+          correctDecisions: a.correctDecisions,
+          winRate: a.winRate,
+          totalPnL: a.totalPnL,
+          explorerUrl: a.explorerUrl,
+        })));
+      } catch { /* keep previous */ }
+    };
+    load();
+    const t = setInterval(load, 30_000);
+    return () => { cancelled = true; clearInterval(t); };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch(`${API_URL}/leaderboard/players?limit=20`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled || !data.data?.length) return;
+        setHumanPlayers((data.data as any[]).map(p => playerToEntry(p)));
+      } catch { /* optional — DB may be empty */ }
+    };
+    load();
+    const t = setInterval(load, 60_000);
+    return () => { cancelled = true; clearInterval(t); };
+  }, []);
 
   const value = useMemo<LeaderboardContextType>(() => {
     const rank = getRank(stats.level);
-    const winRate = stats.totalPredictions > 0 ? (stats.wins / Math.max(1, stats.wins + stats.losses)) * 100 : 0;
+    const winRate = stats.totalPredictions > 0
+      ? (stats.wins / Math.max(1, stats.wins + stats.losses)) * 100
+      : 0;
 
     const you: LeaderboardEntry = {
       id: 'YOU',
@@ -96,9 +150,18 @@ export function LeaderboardProvider({ children }: { children: ReactNode }) {
       volume: Math.floor(stats.totalStaked),
     };
 
-    const allTime = insertYou(MOCK_TOPS.map(m => toEntry(m, 1)), you);
-    const weekly  = insertYou(MOCK_TOPS.map(m => toEntry(m, 0.18)), { ...you, netProfit: Math.floor(you.netProfit * 0.3) });
-    const daily   = insertYou(MOCK_TOPS.map(m => toEntry(m, 0.03)), { ...you, netProfit: Math.floor(you.netProfit * 0.05) });
+    const withAI = (humans: LeaderboardEntry[]) =>
+      [...humans, ...aiAgents].sort((a, b) => b.netProfit - a.netProfit);
+
+    const allTime = insertYou(withAI(humanPlayers), you);
+    const weekly  = insertYou(withAI(humanPlayers.map(p => playerToEntry({
+      address: p.id, level: p.level, wins: p.wins, totalPredictions: p.predictions,
+      winRate: p.winRate, totalWon: p.netProfit,
+    }, 0.18))), { ...you, netProfit: Math.floor(you.netProfit * 0.3) });
+    const daily   = insertYou(withAI(humanPlayers.map(p => playerToEntry({
+      address: p.id, level: p.level, wins: p.wins, totalPredictions: p.predictions,
+      winRate: p.winRate, totalWon: p.netProfit,
+    }, 0.03))), { ...you, netProfit: Math.floor(you.netProfit * 0.05) });
 
     const findRank = (list: LeaderboardEntry[]) => list.findIndex(e => e.isYou) + 1;
 
@@ -112,7 +175,7 @@ export function LeaderboardProvider({ children }: { children: ReactNode }) {
         allTime: findRank(allTime),
       },
     };
-  }, [stats]);
+  }, [stats, aiAgents, humanPlayers]);
 
   return (
     <LeaderboardContext.Provider value={value}>

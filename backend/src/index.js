@@ -22,6 +22,7 @@ const leaderboardRouter = require('./routes/leaderboard');
 const contractsRouter   = require('./routes/contracts');
 const playersRouter     = require('./routes/players');
 const roundsRouter      = require('./routes/rounds');
+const duelsRouter       = require('./routes/duels');
 
 // Initialize DB (creates file + tables on first run)
 require('./db');
@@ -66,9 +67,10 @@ app.use('/api/', limiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ── Logging ─────────────────────────────────────────────────────────────────
+// ── Logging — 'tiny' in prod to reduce disk usage, 'dev' in development ──────
 if (process.env.NODE_ENV !== 'test') {
-  app.use(morgan('dev'));
+  const logFormat = process.env.NODE_ENV === 'production' ? 'tiny' : 'dev';
+  app.use(morgan(logFormat));
 }
 
 // ── Root endpoint ───────────────────────────────────────────────────────────
@@ -101,6 +103,7 @@ app.get('/health', (req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
+    mode: process.env.ENABLE_ONCHAIN_SIGNING === 'true' ? 'signing-enabled' : 'read-only',
     network: {
       chainId: process.env.CHAIN_ID,
       rpcUrl: process.env.RPC_URL,
@@ -115,10 +118,13 @@ app.use('/api/leaderboard', leaderboardRouter);
 app.use('/api/contracts',   contractsRouter);
 app.use('/api/players',     playersRouter);
 app.use('/api/rounds',      roundsRouter);
+app.use('/api/duels',       duelsRouter);
 
 // ── Contract addresses endpoint ─────────────────────────────────────────────
 app.get('/api/config', (req, res) => {
   res.json({
+    mode: process.env.ENABLE_ONCHAIN_SIGNING === 'true' ? 'signing-enabled' : 'read-only',
+    liveProductionApi: 'https://api.mindclash.xyz',
     network: {
       chainId: parseInt(process.env.CHAIN_ID),
       rpcUrl: process.env.RPC_URL,

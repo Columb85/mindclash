@@ -5,9 +5,27 @@
     "explorerUrl": "https://sepolia.mantlescan.xyz",
     "contracts": {
       "AgentNFT": "0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837",
-      "AgentRegistry": "0xbD19d3ec1B4d0f3852729b0dcC87bd739839cBDC"
+      "AgentRegistry": "0xbD19d3ec1B4d0f3852729b0dcC87bd739839cBDC",
+      "RoundEngine": "0x69656D3220fDF9F59F005b0D73834D6af2E9cf9a",
+      "Treasury": "0xA82615C3882170BAFCFb145C19B2D388E7aF5952",
+      "ClashToken": "0xFb178c931e5F64bBA180A4419E4E2f216d1eEDDe",
+      "PythOracleAdapter": "0x246CD1fcdF43dDfF09b7619375bD4E8C98ECa612"
+    },
+    "verified": {
+      "AgentNFT": "https://sepolia.mantlescan.xyz/address/0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837#code",
+      "AgentRegistry": "https://sepolia.mantlescan.xyz/address/0xbD19d3ec1B4d0f3852729b0dcC87bd739839cBDC#code",
+      "RoundEngine": "https://sepolia.mantlescan.xyz/address/0x69656D3220fDF9F59F005b0D73834D6af2E9cf9a#code",
+      "Treasury": "https://sepolia.mantlescan.xyz/address/0xA82615C3882170BAFCFb145C19B2D388E7aF5952#code",
+      "ClashToken": "https://sepolia.mantlescan.xyz/address/0xFb178c931e5F64bBA180A4419E4E2f216d1eEDDe#code",
+      "PythOracleAdapter": "https://sepolia.mantlescan.xyz/address/0x246CD1fcdF43dDfF09b7619375bD4E8C98ECa612#code"
+    },
+    "agents": {
+      "AlphaPredict": { "tokenId": 5, "wallet": "0xD33744400Ed8211F7a5900926Df22CD8C2A2aD74" },
+      "MomentumMaster": { "tokenId": 6, "wallet": "0x62Bc9Ab4dCdd43eC1f6FdA4F71220f6F85b80A59" },
+      "NeuralTrader": { "tokenId": 7, "wallet": "0x508EaDdf521Ae4887AecfeC2d7d7C43F94bd7c39" }
     },
     "deployer": "0x25fc497AF97a258296E749a11bb08Df81dD70eC5",
-    "deployedAt": "2026-05-03T11:54:12.595Z"
+    "deployedAt": "2026-05-03T11:54:12.595Z",
+    "verifiedAt": "2026-06-11T00:00:00.000Z"
   }
 }

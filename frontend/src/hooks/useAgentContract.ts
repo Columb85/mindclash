@@ -115,6 +115,36 @@ export function useRecordDecision() {
   };
 }
 
+export function useCreateAgent() {
+  const { data, write, isLoading: isWriting } = useContractWrite({
+    address: CONTRACTS.mantleSepolia.agentNFT,
+    abi: AGENT_NFT_ABI,
+    functionName: 'createAgent',
+  });
+
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransaction({
+    hash: data?.hash,
+  });
+
+  const createAgent = (
+    agentAddress: Address,
+    name: string,
+    version: string,
+    tokenURI: string
+  ) => {
+    write?.({
+      args: [agentAddress, name, version, tokenURI],
+    });
+  };
+
+  return {
+    createAgent,
+    isLoading: isWriting || isConfirming,
+    isSuccess,
+    txHash: data?.hash,
+  };
+}
+
 export function useCurrentSession() {
   const { data, isError, isLoading, refetch } = useContractRead({
     address: CONTRACTS.mantleSepolia.agentRegistry,

@@ -11,11 +11,9 @@ const { getAllAgentStats, saveAgentsBatch } = require('../db');
 
 // ── Contract ABIs (matching actual deployed contracts) ──────────────────────
 const AGENT_NFT_ABI = [
-  // Agent profile struct mapping
   'function agentProfiles(uint256) view returns (string name, string version, uint256 createdAt, uint256 totalDecisions, uint256 correctDecisions, uint256 totalPnL, bool isActive)',
-  // Get agent stats
   'function getAgentStats(uint256 tokenId) view returns (uint256 totalDecisions, uint256 correctDecisions, uint256 totalPnL, uint256 winRate, bool isActive)',
-  // Address to token mapping
+  'function getRecentDecisions(uint256 tokenId, uint256 limit) view returns (tuple(string direction, uint256 confidence, uint256 stake, uint256 timestamp, bool wasCorrect, int256 pnl, string reasoning, bytes32 decisionHash)[])',
   'function agentToToken(address) view returns (uint256)',
   // Standard ERC721 functions
   'function ownerOf(uint256 tokenId) view returns (address)',
@@ -33,7 +31,7 @@ const AGENT_REGISTRY_ABI = [
 ];
 
 // Known agent IDs from deployment (3 agents created)
-const KNOWN_AGENT_IDS = [1, 2, 3];
+const KNOWN_AGENT_IDS = [5, 6, 7];
 
 // ── Initialize provider ─────────────────────────────────────────────────────
 const getProvider = () => {
@@ -182,45 +180,33 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-// ── GET /api/agents/:id/decisions - Get agent decision history ──────────────
+// ── GET /api/agents/:id/decisions - Get agent decision history (on-chain) ───
 router.get('/:id/decisions', async (req, res, next) => {
   try {
     const tokenId = parseInt(req.params.id);
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
-    
-    // For now, return mock data (actual implementation would read from events)
-    const decisions = [
-      {
-        id: 1,
-        timestamp: Date.now() - 3600000,
-        direction: 'UP',
-        confidence: 85,
-        asset: 'BTC',
-        entryPrice: '67000.00',
-        exitPrice: '67500.00',
-        result: 'WIN',
-        pnl: '+500.00',
-        txHash: '0x...',
-      },
-      {
-        id: 2,
-        timestamp: Date.now() - 7200000,
-        direction: 'DOWN',
-        confidence: 72,
-        asset: 'ETH',
-        entryPrice: '3200.00',
-        exitPrice: '3150.00',
-        result: 'WIN',
-        pnl: '+50.00',
-        txHash: '0x...',
-      },
-    ];
-    
-    res.json({
-      tokenId,
-      total: decisions.length,
-      decisions: decisions.slice(0, limit),
-    });
+
+    if (![5, 6, 7].includes(tokenId)) {
+      return res.status(400).json({ error: 'Invalid tokenId' });
+    }
+
+    const contract = getAgentNFTContract();
+    const raw = await contract.getRecentDecisions(tokenId, limit);
+
+    const decisions = raw.map((d, i) => ({
+      id: i + 1,
+      timestamp: Number(d.timestamp) * 1000,
+      direction: d.direction,
+      confidence: Number(d.confidence) / 10,
+      stake: Number(d.stake),
+      wasCorrect: d.wasCorrect,
+      pnl: Number(d.pnl),
+      reasoning: d.reasoning,
+      decisionHash: d.decisionHash,
+      result: d.wasCorrect ? 'WIN' : (Number(d.pnl) !== 0 ? 'LOSS' : 'PENDING'),
+    }));
+
+    res.json({ tokenId, total: decisions.length, decisions, source: 'chain' });
   } catch (error) {
     next(error);
   }

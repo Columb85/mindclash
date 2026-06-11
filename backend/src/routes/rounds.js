@@ -6,7 +6,8 @@
 
 const express = require('express');
 const router  = express.Router();
-const { saveRound, getRecentRounds, updateAgentStatsFromRound } = require('../db');
+const { saveRound, getRecentRounds, updateAgentStatsFromRound,
+        insertSignature, getSignaturesByRound, getSignaturesByPlayer } = require('../db');
 
 // ── POST /api/rounds/complete ─────────────────────────────────────────────────
 router.post('/complete', (req, res) => {
@@ -64,6 +65,48 @@ router.get('/history', (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 20, 100);
   const rows  = getRecentRounds.all(limit);
   res.json({ success: true, data: rows, timestamp: Date.now() });
+});
+
+// ── POST /api/rounds/signature — store EIP-712 signed prediction commitment ──
+router.post('/signature', (req, res) => {
+  const { roundId, asset, direction, amount, timestamp, player, signature } = req.body ?? {};
+
+  if (!roundId || !player || !signature || !direction) {
+    return res.status(400).json({ error: 'Missing required fields: roundId, player, signature, direction' });
+  }
+
+  if (!/^0x[0-9a-fA-F]{130}$/.test(signature)) {
+    return res.status(400).json({ error: 'Invalid EIP-712 signature format' });
+  }
+
+  try {
+    insertSignature.run({
+      round_id:  roundId,
+      player:    player.toLowerCase(),
+      asset:     asset ?? '',
+      direction: direction,
+      amount:    Math.round(amount ?? 0),
+      timestamp: timestamp ?? Math.floor(Date.now() / 1000),
+      signature,
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('insertSignature error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/rounds/:roundId/signatures — list all signed predictions for round
+router.get('/:roundId/signatures', (req, res) => {
+  const rows = getSignaturesByRound.all(req.params.roundId);
+  res.json({ success: true, data: rows, count: rows.length });
+});
+
+// ── GET /api/players/:address/signatures — all signed predictions by player
+// (mounted on /api/rounds for simplicity, player route also works)
+router.get('/player/:address/signatures', (req, res) => {
+  const rows = getSignaturesByPlayer.all(req.params.address.toLowerCase());
+  res.json({ success: true, data: rows, count: rows.length });
 });
 
 module.exports = router;

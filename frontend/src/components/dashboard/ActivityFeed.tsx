@@ -73,13 +73,18 @@ export function ActivityFeed() {
     <div className="glass rounded-2xl border border-dark-border overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-dark-border bg-dark-surface/50">
         <Activity className="w-4 h-4 text-blue-500" />
-        <span className="font-semibold text-white text-sm">Live Activity</span>
+        <span className="font-semibold text-white text-sm">Your Activity</span>
         <span className="ml-auto flex w-2 h-2">
           <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-green-500 opacity-75" />
           <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
         </span>
       </div>
       <div className="max-h-[420px] overflow-y-auto">
+        {events.length === 0 ? (
+          <p className="px-4 py-8 text-sm text-gray-500 text-center">
+            Your predictions and round results appear here during play.
+          </p>
+        ) : (
         <AnimatePresence initial={false}>
           {events.slice(0, 25).map(ev => (
             <motion.div
@@ -94,6 +99,7 @@ export function ActivityFeed() {
             </motion.div>
           ))}
         </AnimatePresence>
+        )}
       </div>
     </div>
   );
