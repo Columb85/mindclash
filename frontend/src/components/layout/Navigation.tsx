@@ -13,10 +13,11 @@ interface NavigationProps {
 }
 
 const MORE_LINKS = [
-  { href: '/gauntlet',     label: '🛡️ Gauntlet',  desc: 'Beat all 3 champions', color: '#f97316' },
-  { href: '/showdown',     label: '🔥 Showdown',   desc: 'Head-to-head battle', color: '#f97316' },
-  { href: '/leaderboard',  label: '🏆 Rankings',    desc: 'On-chain leaderboard', color: '#f59e0b' },
-  { href: '/verify',       label: '✅ Verify',      desc: 'On-chain proofs', color: '#22c55e' },
+  { href: '/',             label: '🏠 Home',       desc: 'Back to landing page',  color: '#00D4AA' },
+  { href: '/gauntlet',     label: '🛡️ Gauntlet',  desc: 'Beat all 3 champions',  color: '#f97316' },
+  { href: '/showdown',     label: '🔥 Showdown',   desc: 'Head-to-head battle',   color: '#f97316' },
+  { href: '/leaderboard',  label: '🏆 Rankings',   desc: 'On-chain leaderboard',  color: '#f59e0b' },
+  { href: '/verify',       label: '✅ Verify',     desc: 'On-chain proofs',       color: '#22c55e' },
   { href: '/autonomous',   label: '🤖 Bot Loop',   desc: 'Autonomous agent mode', color: '#06b6d4' },
 ];
 

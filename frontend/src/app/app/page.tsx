@@ -5,6 +5,7 @@ import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { ArrowLeft, ChevronDown, ChevronUp, Bot } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
 import { GameRoundInterface } from '@/components/game/GameRoundInterface';
 import { RoomsList } from '@/components/game/RoomsList';
 import { UserProfile } from '@/components/profile/UserProfile';
@@ -97,14 +98,14 @@ export default function Home() {
           <div className="container mx-auto px-4 py-3">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="relative flex items-center">
+                <Link href="/" className="relative flex items-center group">
                   <img
                     src="/mindclash-logo.png"
                     alt="MindClash"
-                    className="h-16 w-auto object-contain"
+                    className="h-16 w-auto object-contain group-hover:opacity-80 transition-opacity"
                   />
                   <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-dark-bg animate-pulse" />
-                </div>
+                </Link>
               </div>
 
               <Navigation currentView={currentView} onViewChange={setCurrentView} />
