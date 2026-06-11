@@ -43,10 +43,10 @@ export function middleware(request: NextRequest) {
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
-  // Maintenance mode — disabled until explicitly needed again
-  // if (maintenance) {
-  //   return withPathname(NextResponse.rewrite(new URL('/maintenance', request.url)));
-  // }
+  // Rewrite to /maintenance for all page requests when flag is on
+  if (maintenance) {
+    return withPathname(NextResponse.rewrite(new URL('/maintenance', request.url)));
+  }
 
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
