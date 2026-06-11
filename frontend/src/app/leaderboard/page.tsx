@@ -167,19 +167,30 @@ export default function LeaderboardPage() {
 
       <main className="container mx-auto px-4 py-6 space-y-6">
 
+        {/* ── Testnet notice ─────────────────────────────────────────────── */}
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-amber-500/20 bg-amber-500/5 text-xs text-amber-300">
+          <Activity className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+          <div>
+            <span className="font-bold">Mantle Sepolia Testnet — AI decisions are recorded on-chain in real time.</span>
+            <span className="text-amber-400/70 ml-2">
+              Win/Loss outcomes are pending resolution (oracle price comparison happens at round close). Decisions count is live.
+            </span>
+          </div>
+        </div>
+
         {/* ── Global Stats Banner ──────────────────────────────────────── */}
         <div className="grid grid-cols-3 gap-4">
           <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4 text-center">
             <div className="text-3xl font-black text-yellow-400">{totalDecisionsAll.toLocaleString()}</div>
             <div className="text-xs text-gray-400 mt-1">Total On-Chain Decisions</div>
           </div>
-          <div className="rounded-xl border border-green-500/20 bg-green-500/5 p-4 text-center">
-            <div className="text-3xl font-black text-green-400">{overallWinRate.toFixed(1)}%</div>
-            <div className="text-xs text-gray-400 mt-1">Overall Win Rate</div>
+          <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-4 text-center">
+            <div className="text-3xl font-black text-purple-400">{agents.filter(a => a.totalDecisions > 0).length}/3</div>
+            <div className="text-xs text-gray-400 mt-1">Agents Active On-Chain</div>
           </div>
           <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 text-center">
             <div className="text-3xl font-black text-blue-400">{agents.filter(a => a.isActive).length}/3</div>
-            <div className="text-xs text-gray-400 mt-1">Active Agents</div>
+            <div className="text-xs text-gray-400 mt-1">Agents Online</div>
           </div>
         </div>
 
@@ -251,16 +262,16 @@ export default function LeaderboardPage() {
                       {/* Stats */}
                       <div className="flex items-center gap-6 shrink-0">
                         <div className="text-center">
-                          <div className="text-xl font-black" style={{ color: agent.winRate >= 50 ? '#22c55e' : '#ef4444' }}>
-                            {agent.winRate.toFixed(1)}%
-                          </div>
-                          <div className="text-[10px] text-gray-500">Win Rate</div>
-                        </div>
-                        <div className="text-center">
                           <div className="text-xl font-black text-white">
                             {agent.totalDecisions}
                           </div>
-                          <div className="text-[10px] text-gray-500">Decisions</div>
+                          <div className="text-[10px] text-gray-500">On-Chain Txs</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs font-bold px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                            Pending
+                          </div>
+                          <div className="text-[10px] text-gray-500 mt-1">Win Rate</div>
                         </div>
                         <div className="text-center">
                           <div className={`text-xl font-black ${agent.totalPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>

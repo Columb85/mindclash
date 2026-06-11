@@ -40,7 +40,7 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
   const { getRoom, predict, protocolFee } = useRooms();
   const { sendSystem, getMessages, sendMessage } = useChat();
   const { stats, recordPrediction, recordResult } = usePlayer();
-  const { addPoints } = useClash();
+  const { addPoints, clashBalance } = useClash();
   const { push: pushActivity } = useActivity();
   const [, forceTick] = useState(0);
   const [stake, setStake] = useState(50);
@@ -217,6 +217,8 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
   }
 
   const canPredict = room.status === 'open';
+  // Warn (but don't block) if wallet connected and balance insufficient
+  const insufficientBalance = !!address && clashBalance > 0 && stake > clashBalance;
   const userRank = getRank(stats.level);
   const upPct = totalPool > 0 ? (room.upPool / totalPool) * 100 : 50;
   const downPct = totalPool > 0 ? (room.downPool / totalPool) * 100 : 50;
@@ -467,7 +469,13 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-gray-400 font-semibold">Amount</span>
-                <span className="text-[10px] text-gray-600">Balance in {room.token}</span>
+                <span className={`text-[10px] font-semibold ${insufficientBalance ? 'text-red-400' : 'text-gray-500'}`}>
+                  {address
+                    ? clashBalance > 0
+                      ? `${clashBalance.toLocaleString()} ${room.token}`
+                      : `0 ${room.token} — claim free tokens ↓`
+                    : `Balance in ${room.token}`}
+                </span>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {[10, 25, 50, 100, 250, 500].map(v => (
@@ -483,6 +491,14 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
                     {v}
                   </button>
                 ))}
+                {address && clashBalance > 0 && (
+                  <button
+                    onClick={() => setStake(Math.min(clashBalance, room.maxStake))}
+                    className="px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30"
+                  >
+                    MAX
+                  </button>
+                )}
                 <input
                   type="number"
                   value={stake}
@@ -512,21 +528,34 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
               </div>
             </div>
 
+            {/* Insufficient balance warning */}
+            {insufficientBalance && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-[11px] text-red-400">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                Stake exceeds your balance ({clashBalance} CLASH). Claim free tokens below.
+              </div>
+            )}
+
             {/* 4 · Confirm */}
             <motion.button
-              whileHover={{ scale: 1.015 }}
-              whileTap={{ scale: 0.985 }}
+              whileHover={{ scale: insufficientBalance ? 1 : 1.015 }}
+              whileTap={{ scale: insufficientBalance ? 1 : 0.985 }}
               onClick={() => handlePredict(side)}
               className="mt-auto flex items-center justify-center gap-2 py-3.5 rounded-xl font-black text-white text-base transition-all"
               style={{
-                background: side === 'UP'
+                background: insufficientBalance
+                  ? 'linear-gradient(135deg, #374151, #4b5563)'
+                  : side === 'UP'
                   ? 'linear-gradient(135deg, #16a34a, #22c55e)'
                   : 'linear-gradient(135deg, #dc2626, #ef4444)',
-                boxShadow: `0 4px 20px ${side === 'UP' ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.35)'}`,
+                boxShadow: insufficientBalance
+                  ? 'none'
+                  : `0 4px 20px ${side === 'UP' ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.35)'}`,
+                opacity: insufficientBalance ? 0.6 : 1,
               }}
             >
               {side === 'UP' ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
-              Predict {side}
+              {insufficientBalance ? 'Insufficient Balance' : `Predict ${side}`}
             </motion.button>
           </div>
         ) : (

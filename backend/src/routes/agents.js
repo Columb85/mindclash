@@ -4,27 +4,44 @@
  * Endpoints for managing and monitoring AI trading agents
  */
 
-const express = require('express');
+const express  = require('express');
+const rateLimit = require('express-rate-limit');
 const { ethers } = require('ethers');
 const router = express.Router();
-const { getAllAgentStats, saveAgentsBatch, MAX_AGENTS_PER_WALLET,
-        getUserAgentByCreator, getUserAgentByTokenId, getAllUserAgents,
-        insertUserAgent, rowToUserAgent } = require('../db');
+const { getAllAgentStats, saveAgentsBatch } = require('../db');
 const { generateDecision } = require('../neural-decision');
+
+// Strict rate limit for on-chain demo endpoint (costs gas + Groq credits)
+const demoLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 5,                    // max 5 on-chain demos per IP per 10 min
+  message: { error: 'Too many demo requests. Try again in a few minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // ── Contract ABIs (matching actual deployed contracts) ──────────────────────
 const AGENT_NFT_ABI = [
   'function agentProfiles(uint256) view returns (string name, string version, uint256 createdAt, uint256 totalDecisions, uint256 correctDecisions, uint256 totalPnL, bool isActive)',
   'function getAgentStats(uint256 tokenId) view returns (uint256 totalDecisions, uint256 correctDecisions, uint256 totalPnL, uint256 winRate, bool isActive)',
-  'function getRecentDecisions(uint256 tokenId, uint256 limit) view returns (tuple(string direction, uint256 confidence, uint256 stake, uint256 timestamp, bool wasCorrect, int256 pnl, string reasoning, bytes32 decisionHash)[])',
   'function agentToToken(address) view returns (uint256)',
-  // Standard ERC721 functions
   'function ownerOf(uint256 tokenId) view returns (address)',
   'function tokenURI(uint256 tokenId) view returns (string)',
   'function balanceOf(address owner) view returns (uint256)',
-  // Events
   'event AgentCreated(uint256 indexed tokenId, address indexed agentAddress, string name, string version)',
 ];
+
+const AGENT_NFT_WRITE_ABI = [
+  'function recordDecision(uint256 tokenId, string direction, uint256 confidence, uint256 stake, string reasoning) returns (bytes32)',
+  'function getRecentDecisions(uint256 tokenId, uint256 limit) view returns (tuple(string direction, uint256 confidence, uint256 stake, uint256 timestamp, bool wasCorrect, int256 pnl, string reasoning, bytes32 decisionHash)[])',
+];
+
+// Known bots (tokenId → metadata)
+const BOT_CONFIGS = {
+  5: { name: 'AlphaPredict',   strategy: 'momentum',       envKey: 'AGENT_ALPHA_PRIVATE_KEY' },
+  6: { name: 'MomentumMaster', strategy: 'mean-reversion', envKey: 'AGENT_MOMENTUM_PRIVATE_KEY' },
+  7: { name: 'NeuralTrader',   strategy: 'neural',         envKey: 'AGENT_NEURAL_PRIVATE_KEY' },
+};
 
 const AGENT_REGISTRY_ABI = [
   'function currentSession() view returns (uint256)',
@@ -87,182 +104,6 @@ router.post('/stats', (req, res) => {
   } catch (err) {
     console.error('saveAgentsBatch error:', err.message);
     res.status(500).json({ error: err.message });
-  }
-});
-
-// ── GET /api/agents/limits — creation limits ─────────────────────────────────
-router.get('/limits', (_req, res) => {
-  res.json({
-    success: true,
-    maxAgentsPerWallet: MAX_AGENTS_PER_WALLET,
-    timestamp: Date.now(),
-  });
-});
-
-// ── GET /api/agents/mine/:address — user's created agent + quota ─────────────
-router.get('/mine/:address', async (req, res, next) => {
-  try {
-    const creator = req.params.address.toLowerCase();
-    if (!/^0x[0-9a-fA-F]{40}$/.test(creator)) {
-      return res.status(400).json({ error: 'Invalid address' });
-    }
-
-    const row = getUserAgentByCreator.get(creator);
-    let chainTokenId = 0;
-
-    try {
-      const contract = getAgentNFTContract();
-      chainTokenId = Number(await contract.agentToToken(creator));
-    } catch { /* RPC unavailable */ }
-
-    const hasAgent = !!row || chainTokenId > 0;
-    res.json({
-      success: true,
-      data: row ? rowToUserAgent(row) : null,
-      chainTokenId,
-      canCreate: !hasAgent,
-      remaining: hasAgent ? 0 : MAX_AGENTS_PER_WALLET,
-      limit: MAX_AGENTS_PER_WALLET,
-      timestamp: Date.now(),
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// ── GET /api/agents/community — user-created agents (not #5–7) ───────────────
-router.get('/community', (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit) || 20, 50);
-  const rows  = getAllUserAgents.all(limit);
-  res.json({
-    success: true,
-    data: rows.map(rowToUserAgent),
-    total: rows.length,
-    timestamp: Date.now(),
-  });
-});
-
-// ── POST /api/agents/register — register after on-chain mint (1 per wallet) ───
-router.post('/register', async (req, res, next) => {
-  try {
-    const {
-      creatorAddress,
-      tokenId,
-      name,
-      strategy,
-      version = '1.0.0',
-      txHash = null,
-    } = req.body ?? {};
-
-    if (!creatorAddress || !tokenId || !name || !strategy) {
-      return res.status(400).json({ error: 'Missing: creatorAddress, tokenId, name, strategy' });
-    }
-
-    const creator = String(creatorAddress).toLowerCase();
-    if (!/^0x[0-9a-fA-F]{40}$/.test(creator)) {
-      return res.status(400).json({ error: 'Invalid creatorAddress' });
-    }
-
-    const validStrategies = ['momentum', 'mean-reversion', 'neural'];
-    if (!validStrategies.includes(strategy)) {
-      return res.status(400).json({ error: 'strategy must be momentum, mean-reversion or neural' });
-    }
-
-    const existing = getUserAgentByCreator.get(creator);
-    if (existing) {
-      return res.status(409).json({
-        error: 'Agent limit reached',
-        message: `Maximum ${MAX_AGENTS_PER_WALLET} agent(s) per wallet`,
-        data: rowToUserAgent(existing),
-      });
-    }
-
-    const tokenIdNum = parseInt(tokenId, 10);
-    if (getUserAgentByTokenId.get(tokenIdNum)) {
-      return res.status(409).json({ error: 'Token ID already registered' });
-    }
-
-    // Verify on-chain ownership when RPC is configured
-    if (process.env.RPC_URL && process.env.AGENT_NFT_ADDRESS) {
-      try {
-        const contract = getAgentNFTContract();
-        const onChainId = Number(await contract.agentToToken(creator));
-        if (onChainId !== tokenIdNum) {
-          return res.status(400).json({
-            error: 'On-chain tokenId mismatch',
-            expected: onChainId,
-            received: tokenIdNum,
-          });
-        }
-        const owner = (await contract.ownerOf(tokenIdNum)).toLowerCase();
-        if (owner !== creator) {
-          return res.status(403).json({ error: 'Wallet does not own this agent NFT' });
-        }
-      } catch (err) {
-        console.warn('[register] on-chain verify skipped:', err.message);
-      }
-    }
-
-    insertUserAgent.run({
-      creator_address: creator,
-      token_id:        tokenIdNum,
-      name:            String(name).trim().slice(0, 32),
-      strategy:        strategy,
-      version:         String(version).slice(0, 16),
-      tx_hash:         txHash,
-      created_at:      Math.floor(Date.now() / 1000),
-    });
-
-    const saved = getUserAgentByCreator.get(creator);
-    res.json({ success: true, data: rowToUserAgent(saved), timestamp: Date.now() });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// ── POST /api/agents/demo — simulation-only demo decision (public backend, no private keys)
-// The private backend overrides this with real on-chain signing via AGENT_*_PRIVATE_KEY.
-router.post('/demo', async (req, res, next) => {
-  try {
-    const tokenId = parseInt(req.body.tokenId) || 7;
-    const asset   = String(req.body.asset || 'BTC').toUpperCase();
-
-    if (!['BTC', 'ETH', 'SOL', 'MNT'].includes(asset)) {
-      return res.status(400).json({ error: 'asset must be BTC, ETH, SOL or MNT' });
-    }
-
-    const decision = await generateDecision({ agentTokenId: tokenId, asset });
-
-    // Public backend never signs on-chain — indicate simulation mode to the frontend.
-    // The private backend (api.mindclash.xyz) returns txHash when keys are configured.
-    res.json({
-      success:   true,
-      mode:      'simulation',
-      message:   'On-chain signing is disabled on the public API. The private backend handles live transactions.',
-      decision,
-      timestamp: Date.now(),
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// ── POST /api/agents/decide — unified bot decision (LLM optional + rules fallback)
-router.post('/decide', async (req, res, next) => {
-  try {
-    const { agentTokenId = 7, asset = 'BTC', duration = 60, strategy } = req.body ?? {};
-    if (!['BTC', 'ETH', 'SOL', 'MNT'].includes(String(asset).toUpperCase())) {
-      return res.status(400).json({ error: 'asset must be BTC, ETH, SOL or MNT' });
-    }
-    const decision = await generateDecision({
-      agentTokenId: parseInt(agentTokenId, 10),
-      asset: String(asset).toUpperCase(),
-      duration: Math.max(30, Math.min(300, parseInt(duration, 10) || 60)),
-      strategy,
-    });
-    res.json({ success: true, decision, timestamp: Date.now() });
-  } catch (err) {
-    next(err);
   }
 });
 
@@ -359,17 +200,56 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
+// ── GET /api/agents/demo/decisions — recent on-chain decisions for all bots ──
+// NOTE: must be defined BEFORE /:id/decisions to prevent Express param shadowing
+router.get('/demo/decisions', async (req, res, next) => {
+  try {
+    const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+    const contract = new ethers.Contract(process.env.AGENT_NFT_ADDRESS, AGENT_NFT_WRITE_ABI, provider);
+
+    const results = await Promise.all(
+      [5, 6, 7].map(async tokenId => {
+        try {
+          const decisions = await contract.getRecentDecisions(tokenId, 5);
+          const bot = BOT_CONFIGS[tokenId];
+          return {
+            tokenId,
+            name:     bot.name,
+            strategy: bot.strategy,
+            decisions: decisions.map(d => ({
+              direction:  d.direction,
+              confidence: Number(d.confidence),
+              stake:      Number(d.stake),
+              timestamp:  Number(d.timestamp),
+              wasCorrect: d.wasCorrect,
+              reasoning:  d.reasoning,
+            })),
+          };
+        } catch {
+          return { tokenId, name: BOT_CONFIGS[tokenId].name, decisions: [] };
+        }
+      })
+    );
+
+    res.json({ success: true, bots: results, timestamp: Date.now() });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ── GET /api/agents/:id/decisions - Get agent decision history (on-chain) ───
 router.get('/:id/decisions', async (req, res, next) => {
   try {
     const tokenId = parseInt(req.params.id);
+    if (isNaN(tokenId)) return res.status(400).json({ error: 'Invalid tokenId' });
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
 
     if (tokenId < 1 || tokenId > 9999) {
       return res.status(400).json({ error: 'Invalid tokenId' });
     }
 
-    const contract = getAgentNFTContract();
+    const provider = getProvider();
+    const contract = new ethers.Contract(process.env.AGENT_NFT_ADDRESS, AGENT_NFT_WRITE_ABI, provider);
     const raw = await contract.getRecentDecisions(tokenId, limit);
 
     const decisions = raw.map((d, i) => ({
@@ -382,10 +262,15 @@ router.get('/:id/decisions', async (req, res, next) => {
       pnl: Number(d.pnl),
       reasoning: d.reasoning,
       decisionHash: d.decisionHash,
-      result: d.wasCorrect ? 'WIN' : (Number(d.pnl) !== 0 ? 'LOSS' : 'PENDING'),
+      result: d.wasCorrect ? 'WIN' : (d.pnl !== 0n && d.pnl !== 0 ? 'LOSS' : 'PENDING'),
     }));
 
-    res.json({ tokenId, total: decisions.length, decisions, source: 'chain' });
+    res.json({
+      tokenId,
+      total: decisions.length,
+      decisions,
+      source: 'chain',
+    });
   } catch (error) {
     next(error);
   }
@@ -408,6 +293,225 @@ router.get('/session/info', async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+});
+
+// ── Indicator helpers ────────────────────────────────────────────────────────
+function calcRSI(closes, period = 14) {
+  if (closes.length < period + 1) return null;
+  const changes = closes.slice(1).map((c, i) => c - closes[i]);
+  let avgGain = 0, avgLoss = 0;
+  for (let i = 0; i < period; i++) {
+    const d = changes[changes.length - period + i];
+    if (d > 0) avgGain += d; else avgLoss -= d;
+  }
+  avgGain /= period; avgLoss /= period;
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return parseFloat((100 - 100 / (1 + rs)).toFixed(2));
+}
+
+function calcSMA(closes, period) {
+  if (closes.length < period) return null;
+  return parseFloat((closes.slice(-period).reduce((s, v) => s + v, 0) / period).toFixed(2));
+}
+
+function calcBollinger(closes, period = 20) {
+  if (closes.length < period) return null;
+  const sma = closes.slice(-period).reduce((s, v) => s + v, 0) / period;
+  const std = Math.sqrt(closes.slice(-period).reduce((s, v) => s + (v - sma) ** 2, 0) / period);
+  return {
+    upper:  parseFloat((sma + 2 * std).toFixed(2)),
+    middle: parseFloat(sma.toFixed(2)),
+    lower:  parseFloat((sma - 2 * std).toFixed(2)),
+  };
+}
+
+// ── GET /api/agents/analyze — real klines + indicators + signal ──────────────
+router.get('/analyze', async (req, res, next) => {
+  try {
+    const tokenId = parseInt(req.query.tokenId) || 5;
+    const asset   = (req.query.asset || 'BTC').toUpperCase();
+
+    if (![5, 6, 7].includes(tokenId)) return res.status(400).json({ error: 'Invalid tokenId' });
+    if (!['BTC', 'ETH', 'SOL'].includes(asset)) return res.status(400).json({ error: 'Invalid asset' });
+
+    const bot    = BOT_CONFIGS[tokenId];
+    const symbol = `${asset}USDT`;
+
+    // Fetch 1-min klines (30 candles) from Bybit
+    const kUrl  = `https://api.bybit.com/v5/market/kline?category=spot&symbol=${symbol}&interval=1&limit=30`;
+    const kResp = await fetch(kUrl);
+    const kJson = await kResp.json();
+    // Bybit returns newest-first → reverse
+    const candles = (kJson?.result?.list ?? []).reverse();
+    const closes  = candles.map(c => parseFloat(c[4]));  // index 4 = close
+    const volumes = candles.map(c => parseFloat(c[5]));  // index 5 = volume
+
+    // Fetch ticker for 24h stats
+    const tResp   = await fetch(`https://api.bybit.com/v5/market/tickers?category=spot&symbol=${symbol}`);
+    const tJson   = await tResp.json();
+    const ticker  = tJson?.result?.list?.[0] ?? {};
+    const price   = parseFloat(ticker.lastPrice   ?? closes[closes.length - 1]);
+    const change24h = parseFloat(ticker.price24hPcnt ?? 0);
+
+    // Technical indicators
+    const rsi    = calcRSI(closes, 14);
+    const sma10  = calcSMA(closes, 10);
+    const sma20  = calcSMA(closes, 20);
+    const boll   = calcBollinger(closes, 20);
+    const avgVol = volumes.slice(-10).reduce((s, v) => s + v, 0) / 10;
+    const lastVol = volumes[volumes.length - 1];
+    const volumeSpike = lastVol > avgVol * 1.3;
+
+    // Generate signals per strategy
+    const signals = [];
+    let direction, confidence, reasoning;
+
+    if (bot.strategy === 'momentum') {
+      const aboveSMA10 = sma10 != null && price > sma10;
+      const aboveSMA20 = sma20 != null && price > sma20;
+      const posChange  = change24h > 0;
+      const rsiOk      = rsi != null && rsi > 40 && rsi < 75;
+      signals.push({ label: `Price ${aboveSMA10 ? '>' : '<'} SMA10 ($${sma10})`, bullish: aboveSMA10 });
+      signals.push({ label: `Price ${aboveSMA20 ? '>' : '<'} SMA20 ($${sma20})`, bullish: aboveSMA20 });
+      signals.push({ label: `24h change: ${change24h >= 0 ? '+' : ''}${(change24h * 100).toFixed(2)}%`, bullish: posChange });
+      signals.push({ label: `RSI(14) = ${rsi} (${rsiOk ? 'not extreme' : 'extreme'})`, bullish: rsiOk });
+      if (volumeSpike) signals.push({ label: 'Volume spike (+30%)', bullish: true });
+      const bullCount = signals.filter(s => s.bullish).length;
+      direction  = bullCount >= signals.length / 2 ? 'UP' : 'DOWN';
+      confidence = Math.min(950, 400 + bullCount * 120);
+      reasoning  = `Momentum: ${bullCount}/${signals.length} bullish signals → ${direction}`;
+
+    } else if (bot.strategy === 'mean-reversion') {
+      const overbought  = rsi != null && rsi > 65;
+      const oversold    = rsi != null && rsi < 35;
+      const nearUpper   = boll && price > boll.upper * 0.98;
+      const nearLower   = boll && price < boll.lower * 1.02;
+      signals.push({ label: `RSI(14) = ${rsi} → ${overbought ? 'Overbought' : oversold ? 'Oversold' : 'Neutral'}`, bullish: oversold });
+      signals.push({ label: `Bollinger: price ${nearUpper ? 'near upper band (sell)' : nearLower ? 'near lower band (buy)' : 'in middle range'}`, bullish: nearLower });
+      signals.push({ label: `24h move: ${(change24h * 100).toFixed(2)}% → ${Math.abs(change24h) > 0.02 ? 'Extended, expect reversion' : 'Normal range'}`, bullish: change24h < 0 });
+      const bullCount = signals.filter(s => s.bullish).length;
+      direction  = bullCount >= 2 ? 'UP' : 'DOWN';
+      confidence = Math.min(920, 450 + bullCount * 140);
+      reasoning  = `Mean-Reversion: ${overbought || nearUpper ? 'Extended upside → fade DOWN' : oversold || nearLower ? 'Oversold → bounce UP' : 'Neutral → slight ' + direction}`;
+
+    } else {
+      // neural — weighted blend
+      const smaScore  = (sma10 && price > sma10 ? 1 : -1) + (sma20 && price > sma20 ? 1 : -1);
+      const rsiScore  = rsi != null ? (rsi - 50) / 50 : 0;  // -1..+1
+      const momScore  = Math.max(-1, Math.min(1, change24h * 20));
+      const bollScore = boll ? (price - boll.middle) / (boll.upper - boll.middle) : 0;
+      const composite = smaScore * 0.3 + rsiScore * 0.25 + momScore * 0.35 + bollScore * 0.1;
+      signals.push({ label: `SMA cross score: ${smaScore > 0 ? '+' : ''}${smaScore.toFixed(2)}`, bullish: smaScore > 0 });
+      signals.push({ label: `RSI weight: ${(rsiScore).toFixed(2)} (RSI=${rsi})`, bullish: rsiScore > 0 });
+      signals.push({ label: `Momentum weight: ${momScore.toFixed(2)}`, bullish: momScore > 0 });
+      signals.push({ label: `Bollinger position: ${bollScore.toFixed(2)}`, bullish: bollScore < 0.5 });
+      direction  = composite >= 0 ? 'UP' : 'DOWN';
+      confidence = Math.min(970, Math.round(500 + Math.abs(composite) * 450));
+      reasoning  = `Neural: composite score ${composite.toFixed(3)} → ${direction}`;
+    }
+
+    res.json({
+      success: true,
+      bot:     { tokenId, name: bot.name, strategy: bot.strategy },
+      market:  { asset, symbol, price, change24h, lastVolume: lastVol, avgVolume: parseFloat(avgVol.toFixed(2)) },
+      indicators: { rsi, sma10, sma20, bollinger: boll },
+      signals,
+      decision:  { direction, confidence, stake: 250, reasoning },
+      timestamp: Date.now(),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Admin auth middleware ─────────────────────────────────────────────────────
+function requireAdminAuth(req, res, next) {
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword) return res.status(503).json({ error: 'Admin auth not configured' });
+  const auth = req.headers['authorization'] || '';
+  const b64 = auth.replace('Basic ', '');
+  let pass = '';
+  try { pass = Buffer.from(b64, 'base64').toString('utf8').split(':')[1] || ''; } catch {}
+  if (pass !== adminPassword) {
+    res.set('WWW-Authenticate', 'Basic realm="MindClash Admin"');
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}
+
+// ── POST /api/agents/demo — trigger a real on-chain bot decision ─────────────
+// Protected by IP rate limit (5/10min) instead of admin auth so the UI demo works
+router.post('/demo', demoLimiter, async (req, res, next) => {
+  try {
+    const tokenId = parseInt(req.body.tokenId) || 5;
+    const asset   = (req.body.asset || 'BTC').toUpperCase();
+
+    if (![5, 6, 7].includes(tokenId)) {
+      return res.status(400).json({ error: 'tokenId must be 5, 6 or 7' });
+    }
+    if (!['BTC', 'ETH', 'SOL'].includes(asset)) {
+      return res.status(400).json({ error: 'asset must be BTC, ETH or SOL' });
+    }
+
+    const bot = BOT_CONFIGS[tokenId];
+
+    // Resolve private key: bot-specific first, then shared fallback
+    const privateKey = process.env[bot.envKey] || process.env.AGENT_PRIVATE_KEY;
+    if (!privateKey || privateKey.includes('your_testnet') || privateKey === '0x' + '0'.repeat(64)) {
+      return res.status(503).json({
+        error: 'Bot private key not configured. Set AGENT_ALPHA_PRIVATE_KEY / AGENT_MOMENTUM_PRIVATE_KEY / AGENT_NEURAL_PRIVATE_KEY in .env',
+      });
+    }
+
+    // Fetch current price + 24h change from Bybit
+    const symbol    = `${asset}USDT`;
+    const priceResp = await fetch(`https://api.bybit.com/v5/market/tickers?category=spot&symbol=${symbol}`);
+    const priceJson = await priceResp.json();
+    const ticker    = priceJson?.result?.list?.[0];
+    if (!ticker) return res.status(502).json({ error: 'Price fetch failed' });
+
+    const price     = parseFloat(ticker.lastPrice);
+    const change24h = parseFloat(ticker.price24hPcnt); // e.g. 0.0123 = +1.23%
+
+    // Use unified decision engine (LLM if GROQ_API_KEY set, else rules fallback)
+    const aiResult = await generateDecision({
+      agentTokenId: tokenId,
+      asset,
+      duration: 60,
+      strategy: bot.strategy,
+    });
+
+    const { direction, confidence, reasoning } = aiResult;
+    const stake = 250;
+
+    // Submit on-chain
+    const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+    const wallet   = new ethers.Wallet(privateKey, provider);
+    const contract = new ethers.Contract(
+      process.env.AGENT_NFT_ADDRESS,
+      AGENT_NFT_WRITE_ABI,
+      wallet
+    );
+
+    const tx      = await contract.recordDecision(tokenId, direction, confidence, stake, reasoning);
+    const receipt = await tx.wait();
+
+    const explorerUrl = `${process.env.EXPLORER_URL}/tx/${receipt.hash}`;
+    console.log(`[DEMO] ${bot.name} recorded ${direction} on ${asset} → ${receipt.hash}`);
+
+    res.json({
+      success:  true,
+      bot:      { tokenId, name: bot.name, strategy: bot.strategy },
+      decision: { asset, direction, confidence, stake, reasoning, price },
+      txHash:   receipt.hash,
+      explorerUrl,
+      timestamp: Date.now(),
+    });
+  } catch (err) {
+    console.error('[DEMO] error:', err.message);
+    next(err);
   }
 });
 

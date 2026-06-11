@@ -167,10 +167,30 @@ export default function VerifyPage() {
             </button>
           </div>
 
-          {/* Quick examples */}
+          {/* Quick examples — real on-chain decision hashes */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] text-gray-600 flex items-center gap-1">
+              <Info className="w-3 h-3" />
+              Try a live example:
+            </span>
+            {[
+              { label: 'AlphaPredict (DOWN)', hash: '0x7f70fd4047d479274959c5b56587b5de7d78e1c974cecbe1477d1a0c952b3fdf' },
+              { label: 'NeuralTrader (DOWN)', hash: '0x1860e12822caf6d87c20658da012f528ccfc8697f3352cf90c65c951d3d7673d' },
+              { label: 'MomentumMaster (DOWN)', hash: '0x39bd3902a99b1e2d3a1bfbe3d48d52fbcbc81bc54709433f6c2783c463447e49' },
+            ].map(ex => (
+              <button
+                key={ex.hash}
+                onClick={() => setInput(ex.hash)}
+                className="px-2.5 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-[10px] font-mono text-blue-400 hover:bg-blue-500/20 transition truncate max-w-[180px]"
+                title={ex.hash}
+              >
+                {ex.label}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-2 text-xs text-gray-600">
             <Info className="w-3 h-3" />
-            <span>Tip: Find transaction hashes on</span>
+            <span>Or find more hashes on</span>
             <a
               href={`${EXPLORER}/address/${NFT_ADDR}#internaltx`}
               target="_blank"
