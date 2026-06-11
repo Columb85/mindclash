@@ -34,7 +34,7 @@ export interface SignedCommitment extends PredictionCommitment {
   signature: `0x${string}`;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.mindclash.xyz/api';
 
 async function submitSignature(commitment: SignedCommitment) {
   try {

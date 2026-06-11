@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { HomeIcon, UserIcon, CrownIcon, TargetIcon, AIBrainIcon, SwordIcon } from '@/components/icons/MantleIcons';
+import { UserIcon, CrownIcon, TargetIcon, AIBrainIcon, SwordIcon } from '@/components/icons/MantleIcons';
 import { useQuests } from '@/contexts/QuestsContext';
 
 export type View = 'lobby' | 'game' | 'leaderboard' | 'quests' | 'profile' | 'ai-battle';
@@ -13,10 +13,8 @@ interface NavigationProps {
 }
 
 const MORE_LINKS = [
-  { href: '/duel',         label: '⚔️ Duel',      desc: 'Challenge AI agent', color: '#ef4444' },
   { href: '/gauntlet',     label: '🛡️ Gauntlet',  desc: 'Beat all 3 champions', color: '#f97316' },
   { href: '/showdown',     label: '🔥 Showdown',   desc: 'Head-to-head battle', color: '#f97316' },
-  { href: '/create-agent', label: '✨ Create',      desc: 'Mint AI agent NFT', color: '#eab308' },
   { href: '/leaderboard',  label: '🏆 Rankings',    desc: 'On-chain leaderboard', color: '#f59e0b' },
   { href: '/verify',       label: '✅ Verify',      desc: 'On-chain proofs', color: '#22c55e' },
   { href: '/autonomous',   label: '🤖 Bot Loop',   desc: 'Autonomous agent mode', color: '#06b6d4' },
@@ -83,7 +81,7 @@ export function Navigation({ currentView, onViewChange }: NavigationProps) {
         );
       })}
 
-      {/* Duel quick-link (always visible) */}
+      {/* Quick links — always visible */}
       <div className="w-px h-5 bg-dark-border mx-1" />
       <Link
         href="/duel"
@@ -91,6 +89,13 @@ export function Navigation({ currentView, onViewChange }: NavigationProps) {
       >
         <span>⚔️</span>
         <span className="hidden md:inline">Duel</span>
+      </Link>
+      <Link
+        href="/create-agent"
+        className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 hover:text-yellow-300 transition-all text-xs font-bold"
+      >
+        <span>✨</span>
+        <span className="hidden md:inline">Create Bot</span>
       </Link>
 
       {/* More dropdown */}

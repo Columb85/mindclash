@@ -1,23 +1,69 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Swords, ArrowUp, ArrowDown, Trophy, ExternalLink, Loader2,
-  Timer, Bot, User, RotateCcw, CheckCircle2, AlertCircle,
+  Timer, Bot, User, RotateCcw, CheckCircle2, AlertCircle, Star,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { useAccount } from 'wagmi';
 import { analyzeBotDecision, BotAnalysis } from '@/lib/bot-indicators';
+import { useMyAgent } from '@/hooks/useMyAgent';
+import { AGENT_STRATEGIES } from '@/lib/agent-config';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.mindclash.xyz/api';
 const EXPLORER = 'https://sepolia.mantlescan.xyz';
 
-const AGENTS = [
+const SYSTEM_AGENTS = [
   { tokenId: 5 as const, name: 'AlphaPredict',   strategy: 'Momentum',       color: '#3b82f6' },
   { tokenId: 6 as const, name: 'MomentumMaster', strategy: 'Mean-Reversion', color: '#a855f7' },
   { tokenId: 7 as const, name: 'NeuralTrader',   strategy: 'Neural Net',     color: '#22c55e' },
 ];
 
+type DuelAgent = {
+  tokenId: number;
+  name: string;
+  strategy: string;
+  color: string;
+  isMine?: boolean;
+};
+
+async function fetchAgentDecision(agent: DuelAgent, asset: string, duration: number): Promise<{
+  decision: { direction: string; confidence: number; reasoning: string };
+  signals: BotAnalysis['signals'];
+  market: { price: number };
+}> {
+  if ([5, 6, 7].includes(agent.tokenId)) {
+    const analysis = await analyzeBotDecision(agent.tokenId as 5 | 6 | 7, asset, agent.strategy);
+    return analysis;
+  }
+
+  const strategyId = AGENT_STRATEGIES.find(s =>
+    s.name.toLowerCase() === agent.strategy.toLowerCase() ||
+    s.id === agent.strategy
+  )?.id || 'neural';
+
+  const res = await fetch(`${API_URL}/agents/decide`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ agentTokenId: agent.tokenId, asset, duration, strategy: strategyId }),
+  });
+  const json = await res.json();
+  if (!res.ok || !json.decision) throw new Error(json.error || 'Agent decision failed');
+
+  const d = json.decision;
+  return {
+    decision: {
+      direction: d.direction,
+      confidence: typeof d.confidence === 'number' && d.confidence <= 1 ? d.confidence * 1000 : d.confidence,
+      reasoning: d.reasoning,
+    },
+    signals: [],
+    market: { price: d.price ?? 0 },
+  };
+}
 const ASSETS    = ['BTC', 'ETH', 'SOL'] as const;
 const DURATIONS = [60, 120, 180] as const;
 
@@ -50,18 +96,19 @@ async function fetchPrice(asset: string): Promise<number> {
   return parseFloat(json?.result?.list?.[0]?.lastPrice ?? '0');
 }
 
-/** Fire-and-forget: try to record the decision on-chain via backend */
+/** Fire-and-forget: try to record the agent decision on-chain via backend */
 function tryRecordOnChain(
   tokenId: number,
   asset: string,
-  direction: string,
+  humanDirection: string,
   duration: number,
+  humanAddress: string | undefined,
   setTx: (tx: { hash: string; url: string } | null) => void,
 ) {
   fetch(`${API_URL}/duels`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ agentTokenId: tokenId, asset, humanDirection: direction, duration }),
+    body: JSON.stringify({ agentTokenId: tokenId, asset, humanDirection, duration, humanAddress }),
   })
     .then(r => r.json())
     .then(data => {
@@ -72,8 +119,32 @@ function tryRecordOnChain(
     .catch(() => { /* backend offline — that's fine, duel still works client-side */ });
 }
 
-export default function DuelPage() {
-  const [agentIdx, setAgentIdx] = useState(0);
+function DuelPageInner() {
+  const { address } = useAccount();
+  const searchParams = useSearchParams();
+  const { tokenId: myTokenId, registered } = useMyAgent();
+
+  const opponents = useMemo<DuelAgent[]>(() => {
+    const list: DuelAgent[] = [...SYSTEM_AGENTS];
+    if (myTokenId > 0) {
+      const strat = AGENT_STRATEGIES.find(s => s.id === registered?.strategy);
+      list.unshift({
+        tokenId: myTokenId,
+        name: registered?.name || `My Agent #${myTokenId}`,
+        strategy: strat?.name || registered?.strategy || 'Neural Net',
+        color: '#eab308',
+        isMine: true,
+      });
+    }
+    return list;
+  }, [myTokenId, registered]);
+
+  const preselect = parseInt(searchParams.get('agent') || '0', 10);
+  const initialIdx = preselect > 0
+    ? Math.max(0, opponents.findIndex(a => a.tokenId === preselect))
+    : 0;
+
+  const [agentIdx, setAgentIdx] = useState(initialIdx);
   const [asset, setAsset]       = useState<typeof ASSETS[number]>('BTC');
   const [duration, setDuration] = useState<number>(60);
   const [direction, setDirection] = useState<'UP' | 'DOWN' | null>(null);
@@ -84,23 +155,27 @@ export default function DuelPage() {
   const [countdown, setCountdown] = useState(0);
   const [onChainTx, setOnChainTx] = useState<{ hash: string; url: string } | null>(null);
   const timerRef  = useRef<NodeJS.Timeout | null>(null);
-  const duelRef   = useRef<DuelData | null>(null); // avoid stale closures
+  const duelRef   = useRef<DuelData | null>(null);
 
-  const agent = AGENTS[agentIdx];
+  const agent = opponents[agentIdx] ?? opponents[0];
 
-  // Keep ref in sync
+  useEffect(() => {
+    if (preselect > 0) {
+      const idx = opponents.findIndex(a => a.tokenId === preselect);
+      if (idx >= 0) setAgentIdx(idx);
+    }
+  }, [preselect, opponents]);
+
   useEffect(() => { duelRef.current = duel; }, [duel]);
 
-  // ── Challenge AI ────────────────────────────────────────────────────────────
   const startDuel = useCallback(async () => {
-    if (!direction) return;
+    if (!direction || !agent) return;
     setPhase('submitting');
     setError(null);
     setOnChainTx(null);
 
     try {
-      // 1. Run client-side analysis (same as showdown page — calls Bybit directly)
-      const analysis = await analyzeBotDecision(agent.tokenId, asset, agent.strategy);
+      const analysis = await fetchAgentDecision(agent, asset, duration);
 
       const now   = Math.floor(Date.now() / 1000);
       const d: DuelData = {
@@ -127,13 +202,12 @@ export default function DuelPage() {
       setCountdown(duration);
       setPhase('live');
 
-      // 2. Fire-and-forget: try to record on-chain via backend
-      tryRecordOnChain(agent.tokenId, asset, analysis.decision.direction, duration, setOnChainTx);
+      tryRecordOnChain(agent.tokenId, asset, direction, duration, address, setOnChainTx);
     } catch (e: any) {
       setError(e.message || 'Analysis failed — check network');
       setPhase('setup');
     }
-  }, [agent, asset, direction, duration]);
+  }, [agent, asset, direction, duration, address]);
 
   // ── Countdown ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -225,24 +299,32 @@ export default function DuelPage() {
               {/* Agent selector */}
               <div className="space-y-2">
                 <div className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Choose Your Opponent</div>
-                <div className="grid grid-cols-3 gap-3">
-                  {AGENTS.map((a, i) => (
+                <div className={`grid gap-3 ${opponents.length > 3 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
+                  {opponents.map((a, i) => (
                     <button
                       key={a.tokenId}
                       onClick={() => setAgentIdx(i)}
-                      className={`rounded-xl border p-4 text-center transition ${agentIdx === i ? 'ring-1' : ''}`}
+                      className={`rounded-xl border p-4 text-center transition relative ${agentIdx === i ? 'ring-1' : ''}`}
                       style={{
                         borderColor: agentIdx === i ? `${a.color}60` : 'rgba(255,255,255,0.06)',
                         background:  agentIdx === i ? `${a.color}10` : 'rgba(255,255,255,0.02)',
                         ...(agentIdx === i ? { boxShadow: `0 0 12px ${a.color}15` } : {}),
                       }}
                     >
+                      {a.isMine && (
+                        <Star className="w-3 h-3 text-yellow-400 absolute top-2 right-2" fill="currentColor" />
+                      )}
                       <div className="text-sm font-bold" style={{ color: agentIdx === i ? a.color : '#9ca3af' }}>{a.name}</div>
                       <div className="text-[10px] text-gray-600 mt-0.5">{a.strategy}</div>
                       <div className="text-[10px] text-gray-700 mt-1">Token #{a.tokenId}</div>
                     </button>
                   ))}
                 </div>
+                {myTokenId <= 0 && (
+                  <Link href="/create-agent" className="text-xs text-yellow-500/80 hover:text-yellow-400">
+                    + Create your own agent (1 per wallet)
+                  </Link>
+                )}
               </div>
 
               {/* Asset + Duration */}
@@ -457,5 +539,13 @@ export default function DuelPage() {
         </AnimatePresence>
       </main>
     </div>
+  );
+}
+
+export default function DuelPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#06060a] flex items-center justify-center text-gray-500">Loading…</div>}>
+      <DuelPageInner />
+    </Suspense>
   );
 }

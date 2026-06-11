@@ -94,7 +94,7 @@ export function ShareableDecisionCard({ decision, onClose }: Props) {
                 </div>
               </div>
             </div>
-            <img src="/mindclash-logo.png" alt="MindClash" className="h-6 opacity-60" />
+            <img src="/mindclash-logo.png" alt="MindClash" className="h-6 opacity-80" />
           </div>
 
           {/* Decision display */}

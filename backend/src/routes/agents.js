@@ -7,7 +7,10 @@
 const express = require('express');
 const { ethers } = require('ethers');
 const router = express.Router();
-const { getAllAgentStats, saveAgentsBatch } = require('../db');
+const { getAllAgentStats, saveAgentsBatch, MAX_AGENTS_PER_WALLET,
+        getUserAgentByCreator, getUserAgentByTokenId, getAllUserAgents,
+        insertUserAgent, rowToUserAgent } = require('../db');
+const { generateDecision } = require('../neural-decision');
 
 // ── Contract ABIs (matching actual deployed contracts) ──────────────────────
 const AGENT_NFT_ABI = [
@@ -84,6 +87,182 @@ router.post('/stats', (req, res) => {
   } catch (err) {
     console.error('saveAgentsBatch error:', err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/agents/limits — creation limits ─────────────────────────────────
+router.get('/limits', (_req, res) => {
+  res.json({
+    success: true,
+    maxAgentsPerWallet: MAX_AGENTS_PER_WALLET,
+    timestamp: Date.now(),
+  });
+});
+
+// ── GET /api/agents/mine/:address — user's created agent + quota ─────────────
+router.get('/mine/:address', async (req, res, next) => {
+  try {
+    const creator = req.params.address.toLowerCase();
+    if (!/^0x[0-9a-fA-F]{40}$/.test(creator)) {
+      return res.status(400).json({ error: 'Invalid address' });
+    }
+
+    const row = getUserAgentByCreator.get(creator);
+    let chainTokenId = 0;
+
+    try {
+      const contract = getAgentNFTContract();
+      chainTokenId = Number(await contract.agentToToken(creator));
+    } catch { /* RPC unavailable */ }
+
+    const hasAgent = !!row || chainTokenId > 0;
+    res.json({
+      success: true,
+      data: row ? rowToUserAgent(row) : null,
+      chainTokenId,
+      canCreate: !hasAgent,
+      remaining: hasAgent ? 0 : MAX_AGENTS_PER_WALLET,
+      limit: MAX_AGENTS_PER_WALLET,
+      timestamp: Date.now(),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── GET /api/agents/community — user-created agents (not #5–7) ───────────────
+router.get('/community', (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+  const rows  = getAllUserAgents.all(limit);
+  res.json({
+    success: true,
+    data: rows.map(rowToUserAgent),
+    total: rows.length,
+    timestamp: Date.now(),
+  });
+});
+
+// ── POST /api/agents/register — register after on-chain mint (1 per wallet) ───
+router.post('/register', async (req, res, next) => {
+  try {
+    const {
+      creatorAddress,
+      tokenId,
+      name,
+      strategy,
+      version = '1.0.0',
+      txHash = null,
+    } = req.body ?? {};
+
+    if (!creatorAddress || !tokenId || !name || !strategy) {
+      return res.status(400).json({ error: 'Missing: creatorAddress, tokenId, name, strategy' });
+    }
+
+    const creator = String(creatorAddress).toLowerCase();
+    if (!/^0x[0-9a-fA-F]{40}$/.test(creator)) {
+      return res.status(400).json({ error: 'Invalid creatorAddress' });
+    }
+
+    const validStrategies = ['momentum', 'mean-reversion', 'neural'];
+    if (!validStrategies.includes(strategy)) {
+      return res.status(400).json({ error: 'strategy must be momentum, mean-reversion or neural' });
+    }
+
+    const existing = getUserAgentByCreator.get(creator);
+    if (existing) {
+      return res.status(409).json({
+        error: 'Agent limit reached',
+        message: `Maximum ${MAX_AGENTS_PER_WALLET} agent(s) per wallet`,
+        data: rowToUserAgent(existing),
+      });
+    }
+
+    const tokenIdNum = parseInt(tokenId, 10);
+    if (getUserAgentByTokenId.get(tokenIdNum)) {
+      return res.status(409).json({ error: 'Token ID already registered' });
+    }
+
+    // Verify on-chain ownership when RPC is configured
+    if (process.env.RPC_URL && process.env.AGENT_NFT_ADDRESS) {
+      try {
+        const contract = getAgentNFTContract();
+        const onChainId = Number(await contract.agentToToken(creator));
+        if (onChainId !== tokenIdNum) {
+          return res.status(400).json({
+            error: 'On-chain tokenId mismatch',
+            expected: onChainId,
+            received: tokenIdNum,
+          });
+        }
+        const owner = (await contract.ownerOf(tokenIdNum)).toLowerCase();
+        if (owner !== creator) {
+          return res.status(403).json({ error: 'Wallet does not own this agent NFT' });
+        }
+      } catch (err) {
+        console.warn('[register] on-chain verify skipped:', err.message);
+      }
+    }
+
+    insertUserAgent.run({
+      creator_address: creator,
+      token_id:        tokenIdNum,
+      name:            String(name).trim().slice(0, 32),
+      strategy:        strategy,
+      version:         String(version).slice(0, 16),
+      tx_hash:         txHash,
+      created_at:      Math.floor(Date.now() / 1000),
+    });
+
+    const saved = getUserAgentByCreator.get(creator);
+    res.json({ success: true, data: rowToUserAgent(saved), timestamp: Date.now() });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── POST /api/agents/demo — simulation-only demo decision (public backend, no private keys)
+// The private backend overrides this with real on-chain signing via AGENT_*_PRIVATE_KEY.
+router.post('/demo', async (req, res, next) => {
+  try {
+    const tokenId = parseInt(req.body.tokenId) || 7;
+    const asset   = String(req.body.asset || 'BTC').toUpperCase();
+
+    if (!['BTC', 'ETH', 'SOL', 'MNT'].includes(asset)) {
+      return res.status(400).json({ error: 'asset must be BTC, ETH, SOL or MNT' });
+    }
+
+    const decision = await generateDecision({ agentTokenId: tokenId, asset });
+
+    // Public backend never signs on-chain — indicate simulation mode to the frontend.
+    // The private backend (api.mindclash.xyz) returns txHash when keys are configured.
+    res.json({
+      success:   true,
+      mode:      'simulation',
+      message:   'On-chain signing is disabled on the public API. The private backend handles live transactions.',
+      decision,
+      timestamp: Date.now(),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── POST /api/agents/decide — unified bot decision (LLM optional + rules fallback)
+router.post('/decide', async (req, res, next) => {
+  try {
+    const { agentTokenId = 7, asset = 'BTC', duration = 60, strategy } = req.body ?? {};
+    if (!['BTC', 'ETH', 'SOL', 'MNT'].includes(String(asset).toUpperCase())) {
+      return res.status(400).json({ error: 'asset must be BTC, ETH, SOL or MNT' });
+    }
+    const decision = await generateDecision({
+      agentTokenId: parseInt(agentTokenId, 10),
+      asset: String(asset).toUpperCase(),
+      duration: Math.max(30, Math.min(300, parseInt(duration, 10) || 60)),
+      strategy,
+    });
+    res.json({ success: true, decision, timestamp: Date.now() });
+  } catch (err) {
+    next(err);
   }
 });
 
@@ -186,7 +365,7 @@ router.get('/:id/decisions', async (req, res, next) => {
     const tokenId = parseInt(req.params.id);
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
 
-    if (![5, 6, 7].includes(tokenId)) {
+    if (tokenId < 1 || tokenId > 9999) {
       return res.status(400).json({ error: 'Invalid tokenId' });
     }
 

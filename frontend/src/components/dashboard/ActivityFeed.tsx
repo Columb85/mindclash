@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, TrendingUp, TrendingDown, Trophy, CheckCircle2, Zap } from 'lucide-react';
 import { useActivity, ActivityEvent } from '@/contexts/ActivityContext';
+import { CryptoImg } from '@/components/icons/CryptoIcons';
 import { bybitPriceFeed, AssetSymbol, PriceTick } from '@/lib/bybit-price-feed';
 
 function timeAgo(ts: number) {
@@ -107,11 +108,11 @@ export function ActivityFeed() {
 
 // ── Asset config for ticker ───────────────────────────────────────────────────
 
-const TICKER_ASSETS: { symbol: AssetSymbol; label: string; color: string; icon: string }[] = [
-  { symbol: 'BTC', label: 'Bitcoin',  color: '#f7931a', icon: '₿' },
-  { symbol: 'ETH', label: 'Ethereum', color: '#627eea', icon: 'Ξ' },
-  { symbol: 'SOL', label: 'Solana',   color: '#14f195', icon: '◎' },
-  { symbol: 'MNT', label: 'Mantle',   color: '#00D4AA', icon: 'M' },
+const TICKER_ASSETS: { symbol: AssetSymbol; label: string; color: string }[] = [
+  { symbol: 'BTC', label: 'Bitcoin',  color: '#f7931a' },
+  { symbol: 'ETH', label: 'Ethereum', color: '#627eea' },
+  { symbol: 'SOL', label: 'Solana',   color: '#14f195' },
+  { symbol: 'MNT', label: 'Mantle',   color: '#00D4AA' },
 ];
 
 function formatPrice(price: number, symbol: AssetSymbol): string {
@@ -150,7 +151,7 @@ function PriceCard({ asset, tick }: PriceCardProps) {
         background:  flash === 'up' ? '#22c55e08' : flash === 'down' ? '#ef444408' : 'transparent',
       }}
     >
-      <span className="text-base font-bold" style={{ color: asset.color }}>{asset.icon}</span>
+      <CryptoImg symbol={asset.symbol} className="w-5 h-5" />
       <div>
         <div className="flex items-center gap-1.5">
           <span className="text-xs font-bold text-gray-300">{asset.symbol}</span>

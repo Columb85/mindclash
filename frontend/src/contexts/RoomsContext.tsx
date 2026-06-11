@@ -5,7 +5,7 @@ import { Room, Direction, Prediction } from '@/types/room';
 import { ASSETS } from '@/lib/web3-config';
 import { bybitPriceFeed, AssetSymbol } from '@/lib/bybit-price-feed';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.mindclash.xyz/api';
 
 async function postRoundComplete(room: Room): Promise<void> {
   try {

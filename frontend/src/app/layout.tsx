@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import './globals.css';
 import { Providers } from '@/components/providers';
 import { Toaster } from 'react-hot-toast';
@@ -10,7 +11,8 @@ import { ActivityProvider } from '@/contexts/ActivityContext';
 import { LeaderboardProvider } from '@/contexts/LeaderboardContext';
 import { QuestsProvider } from '@/contexts/QuestsContext';
 import { ClashProvider } from '@/contexts/ClashContext';
-import { Background } from '@/components/layout/Background';
+import { ConditionalBackground } from '@/components/layout/ConditionalBackground';
+import { LandingSplashOverlay } from '@/components/layout/LandingSplashOverlay';
 
 export const metadata: Metadata = {
   title: 'MindClash | Where Minds Collide',
@@ -23,10 +25,27 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = headers().get('x-pathname') ?? '';
+  const isLanding = pathname === '/';
+
   return (
-    <html lang="en" className="dark">
-      <body className="font-sans bg-dark-bg text-white antialiased">
-        <Background />
+    <html lang="en" className="dark" style={{ background: '#000' }}>
+      <head>
+        {/* Instant black paint on landing — runs before first body paint */}
+        {isLanding && (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `document.documentElement.style.background='#000';document.body&&(document.body.style.background='#000');`,
+            }}
+          />
+        )}
+      </head>
+      <body
+        className={`font-sans text-white antialiased${isLanding ? ' landing-page' : ''}`}
+        style={{ background: '#000' }}
+      >
+        {isLanding && <LandingSplashOverlay />}
+        <ConditionalBackground />
         <LanguageProvider>
           <Providers>
             <PlayerProvider>

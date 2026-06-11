@@ -8,7 +8,7 @@ import { useContractRead } from 'wagmi';
 import { formatUnits } from 'viem';
 import { CLASH_TOKEN_ADDRESS, TREASURY_ADDRESS, CLASH_ABI } from '@/contexts/ClashContext';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.mindclash.xyz/api';
 const PROTOCOL_FEE = 0.04;
 
 export function ProtocolStats() {

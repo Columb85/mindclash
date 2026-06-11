@@ -95,7 +95,11 @@ export function BotThinkingPanel({ tokenId, name, strategy, color, asset }: Prop
         });
         const j2 = await r2.json();
         if (j2.success) {
-          setTx({ txHash: j2.txHash, explorerUrl: j2.explorerUrl });
+          // Private backend: returns txHash (on-chain signing with real keys)
+          // Public backend: returns success without txHash (simulation mode)
+          if (j2.txHash) {
+            setTx({ txHash: j2.txHash, explorerUrl: j2.explorerUrl });
+          }
         } else {
           setError(j2.error ?? 'Private key not configured — analysis shown above is real');
         }

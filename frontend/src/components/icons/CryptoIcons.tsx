@@ -5,10 +5,31 @@ interface IconProps {
 }
 
 /**
- * Ultra-premium crypto icons: clean modern circles with brand-accurate
- * gradients, refined inner shadows, and subtle outer glow.
- * Inspired by dYdX / GMX / Polymarket aesthetic.
+ * Real crypto logos via CoinGecko CDN.
+ * CLASH uses a custom SVG (our native token).
  */
+
+const LOCAL_ICON_URLS: Record<string, string> = {
+  BTC:  '/crypto/btc.png',
+  ETH:  '/crypto/eth.png',
+  SOL:  '/crypto/sol.png',
+  MNT:  '/crypto/mnt.png',
+  USDC: '/crypto/usdc.png',
+  USDT: '/crypto/usdt.png',
+};
+
+/** Inline image — uses local static files only, no external requests */
+export function CryptoImg({ symbol, className }: { symbol: string; className?: string }) {
+  const url = LOCAL_ICON_URLS[symbol];
+  if (!url) return <span className={className}>{symbol.slice(0, 1)}</span>;
+  return (
+    <img
+      src={url}
+      alt={symbol}
+      className={`rounded-full object-cover ${className ?? ''}`}
+    />
+  );
+}
 
 function PremiumToken({
   id,
@@ -199,31 +220,24 @@ export const CLASHIcon = ({ className }: IconProps) => (
 );
 
 export const CryptoIcon = ({ symbol, className }: { symbol: string; className?: string }) => {
-  switch (symbol) {
-    case 'BTC':
-      return <BitcoinIcon className={className} />;
-    case 'ETH':
-      return <EthereumIcon className={className} />;
-    case 'SOL':
-      return <SolanaIcon className={className} />;
-    case 'CLASH':
-      return <CLASHIcon className={className} />;
-    case 'USDC':
-      return <USDCIcon className={className} />;
-    case 'USDT':
-      return <USDTIcon className={className} />;
-    default:
-      return (
-        <div
-          className={`${className} flex items-center justify-center rounded-full`}
-          style={{
-            background: 'linear-gradient(135deg, #4B5563, #1F2937)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            boxShadow: '0 0 12px rgba(107,114,128,0.2)',
-          }}
-        >
-          <span className="font-black text-white/80 text-xs">{symbol.slice(0, 2)}</span>
-        </div>
-      );
+  if (symbol === 'CLASH') return <CLASHIcon className={className} />;
+
+  const url = LOCAL_ICON_URLS[symbol];
+  if (url) {
+    return (
+      <img
+        src={url}
+        alt={symbol}
+        className={`rounded-full object-cover ${className ?? ''}`}
+      />
+    );
   }
+
+  return (
+    <div
+      className={`${className ?? ''} flex items-center justify-center rounded-full bg-dark-surface border border-dark-border`}
+    >
+      <span className="font-black text-white/80 text-xs">{symbol.slice(0, 2)}</span>
+    </div>
+  );
 };

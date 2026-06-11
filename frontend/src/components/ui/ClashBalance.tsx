@@ -43,26 +43,3 @@ export function ClashBalance() {
   );
 }
 
-// Compact version for mobile
-export function ClashBalanceCompact() {
-  const { clashBalance, clashPoints, isLoading } = useClash();
-  const { isConnected } = useAccount();
-
-  if (!isConnected || isLoading) {
-    return null;
-  }
-
-  return (
-    <div className="flex items-center gap-2 text-xs">
-      <span className="flex items-center gap-1 text-purple-400">
-        <Coins className="w-3 h-3" />
-        {clashBalance.toLocaleString()}
-      </span>
-      <span className="text-gray-600">|</span>
-      <span className="flex items-center gap-1 text-yellow-400">
-        <Zap className="w-3 h-3" />
-        {clashPoints.toLocaleString()}
-      </span>
-    </div>
-  );
-}

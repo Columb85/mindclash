@@ -88,6 +88,21 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_rounds_resolved    ON rounds(resolved_at DESC);
   CREATE INDEX IF NOT EXISTS idx_signatures_round   ON prediction_signatures(round_id);
   CREATE INDEX IF NOT EXISTS idx_signatures_player  ON prediction_signatures(player);
+
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_predictions_round_address
+    ON predictions(round_id, address);
+
+  CREATE TABLE IF NOT EXISTS user_agents (
+    creator_address TEXT PRIMARY KEY,
+    token_id        INTEGER NOT NULL UNIQUE,
+    name            TEXT    NOT NULL,
+    strategy        TEXT    NOT NULL,
+    version         TEXT    NOT NULL DEFAULT '1.0.0',
+    tx_hash         TEXT,
+    created_at      INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_user_agents_token ON user_agents(token_id);
 `);
 
 // ── Seed / boost agent stats for demo quality ──────────────────────────────
@@ -308,6 +323,37 @@ const getSignaturesByPlayer = db.prepare(
   'SELECT * FROM prediction_signatures WHERE player = ? ORDER BY created_at DESC LIMIT 50'
 );
 
+// ── User-created agents (1 per wallet) ───────────────────────────────────────
+
+const MAX_AGENTS_PER_WALLET = parseInt(process.env.MAX_AGENTS_PER_WALLET || '1', 10);
+
+const getUserAgentByCreator = db.prepare(
+  'SELECT * FROM user_agents WHERE creator_address = ?'
+);
+
+const getUserAgentByTokenId = db.prepare(
+  'SELECT * FROM user_agents WHERE token_id = ?'
+);
+
+const getAllUserAgents = db.prepare(
+  'SELECT * FROM user_agents ORDER BY created_at DESC LIMIT ?'
+);
+
+const insertUserAgent = db.prepare(`
+  INSERT INTO user_agents (creator_address, token_id, name, strategy, version, tx_hash, created_at)
+  VALUES (@creator_address, @token_id, @name, @strategy, @version, @tx_hash, @created_at)
+`);
+
+const rowToUserAgent = (row) => row ? ({
+  creatorAddress: row.creator_address,
+  tokenId:        row.token_id,
+  name:           row.name,
+  strategy:       row.strategy,
+  version:        row.version,
+  txHash:         row.tx_hash,
+  createdAt:      row.created_at,
+}) : null;
+
 // ── Exports ────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -324,6 +370,13 @@ module.exports = {
   upsertAgentStats,
   saveAgentsBatch,
   updateAgentStatsFromRound,
+  // user agents
+  MAX_AGENTS_PER_WALLET,
+  getUserAgentByCreator,
+  getUserAgentByTokenId,
+  getAllUserAgents,
+  insertUserAgent,
+  rowToUserAgent,
   // signatures
   insertSignature,
   getSignaturesByRound,

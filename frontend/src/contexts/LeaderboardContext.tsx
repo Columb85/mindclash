@@ -30,7 +30,7 @@ interface LeaderboardContextType {
 
 const LeaderboardContext = createContext<LeaderboardContextType | undefined>(undefined);
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.mindclash.xyz/api';
 
 function aiAgentToEntry(agent: {
   tokenId: number; name: string; totalDecisions: number;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useRef, useState, useLayoutEffect } from 'react';
 import { motion } from 'framer-motion';
 import { PricePoint } from '@/types/room';
 
@@ -17,7 +17,7 @@ interface PriceChartProps {
 
 /**
  * Premium price chart inspired by TradingView / Bloomberg terminal.
- * - Smooth cubic bezier curves (Catmull-Rom → Bezier)
+ * - Straight segment line (TradingView-style, no spline smoothing)
  * - Gradient fill with multiple opacity stops
  * - Right-side price axis with tick marks
  * - Bottom time axis
@@ -26,29 +26,9 @@ interface PriceChartProps {
  * - Animated drawing
  */
 
-function catmullRomToBezier(points: { x: number; y: number }[]): string {
-  if (points.length < 2) return '';
-  if (points.length === 2) {
-    return `M${points[0].x.toFixed(1)},${points[0].y.toFixed(1)} L${points[1].x.toFixed(1)},${points[1].y.toFixed(1)}`;
-  }
-
-  const tension = 0.3;
-  let d = `M${points[0].x.toFixed(1)},${points[0].y.toFixed(1)}`;
-
-  for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[Math.max(0, i - 1)];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[Math.min(points.length - 1, i + 2)];
-
-    const cp1x = p1.x + (p2.x - p0.x) * tension;
-    const cp1y = p1.y + (p2.y - p0.y) * tension;
-    const cp2x = p2.x - (p3.x - p1.x) * tension;
-    const cp2y = p2.y - (p3.y - p1.y) * tension;
-
-    d += ` C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
-  }
-  return d;
+function linePath(points: { x: number; y: number }[]): string {
+  if (points.length === 0) return '';
+  return points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
 }
 
 export function PriceChart({
@@ -61,7 +41,22 @@ export function PriceChart({
   startTime,
   endTime,
 }: PriceChartProps) {
-  const width = 900;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(900);
+
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => {
+      const w = el.clientWidth;
+      if (w > 0) setWidth(w);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const padL = 0;    // no left axis — clean
   const padR = 60;   // right axis for price labels
   const padT = 24;
@@ -74,7 +69,7 @@ export function PriceChart({
 
   const {
     pathD, areaD, minP, maxP, lastPoint, startX, endX,
-    lineColor, fillColor, priceTicks, timeTicks,
+    fillColor, priceTicks, timeTicks,
   } = useMemo(() => {
     const empty = {
       pathD: '', areaD: '', minP: 0, maxP: 1,
@@ -91,24 +86,37 @@ export function PriceChart({
     const tSpan = Math.max(1, tN - t0);
 
     const prices = history.map(p => p.price);
-    let lo = Math.min(...prices);
-    let hi = Math.max(...prices);
-    if (startPrice != null) { lo = Math.min(lo, startPrice); hi = Math.max(hi, startPrice); }
+
+    // ── Outlier filtering: clamp extreme ticks to ±3% of median ──
+    const sorted = [...prices].sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    const clampRange = median * 0.03; // 3% band
+    const clampedPrices = prices.map(p =>
+      Math.max(median - clampRange, Math.min(median + clampRange, p))
+    );
+
+    let lo = Math.min(...clampedPrices);
+    let hi = Math.max(...clampedPrices);
+    if (startPrice != null) {
+      const clampedStart = Math.max(median - clampRange, Math.min(median + clampRange, startPrice));
+      lo = Math.min(lo, clampedStart);
+      hi = Math.max(hi, clampedStart);
+    }
     const range = Math.max(1e-9, hi - lo);
-    const pad = range * 0.12;
+    const pad = range * 0.15;
     lo -= pad; hi += pad;
     const priceSpan = hi - lo;
 
     const xOf = (t: number) => padL + ((t - t0) / tSpan) * chartW;
     const yOf = (p: number) => padT + (1 - (p - lo) / priceSpan) * chartH;
 
-    const pts = history.map(p => ({ x: xOf(p.t), y: yOf(p.price) }));
+    const pts = history.map((p, i) => ({ x: xOf(p.t), y: yOf(clampedPrices[i]) }));
     // Downsample if too many points for smooth rendering
     const sampled = pts.length > 200
       ? pts.filter((_, i) => i % Math.ceil(pts.length / 200) === 0 || i === pts.length - 1)
       : pts;
 
-    const d = catmullRomToBezier(sampled);
+    const d = linePath(sampled);
     const bottom = padT + chartH;
     const area = `${d} L${sampled[sampled.length - 1].x.toFixed(1)},${bottom} L${sampled[0].x.toFixed(1)},${bottom} Z`;
 
@@ -146,7 +154,7 @@ export function PriceChart({
       lineColor: lc, fillColor: lc,
       priceTicks: pTicks, timeTicks: tTicks,
     };
-  }, [history, startPrice, status, winner, startTime, endTime, height, chartW, chartH, padL, padR, padT, padB]);
+  }, [history, startPrice, status, winner, startTime, endTime, height, width, chartW, chartH, padL, padR, padT, padB]);
 
   const anchorY = useMemo(() => {
     if (anchorPrice == null || maxP === minP) return null;
@@ -155,17 +163,25 @@ export function PriceChart({
   }, [anchorPrice, minP, maxP, chartH, padT]);
 
   const id = 'pc';
+  const neon = '#a855f7';
+  const neonCyan = '#22d3ee';
 
   return (
-    <div className="relative w-full overflow-hidden" style={{ background: '#08080d' }}>
+    <div ref={containerRef} className="relative w-full overflow-hidden" style={{ background: '#08080d' }}>
       <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet"
-        className="w-full" style={{ height }}>
+        className="w-full block" style={{ height }}>
         <defs>
-          {/* Fill gradient — rich multi-stop */}
+          {/* Neon fill gradient (cyan -> purple) */}
           <linearGradient id={`${id}-fill`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={fillColor} stopOpacity="0.28" />
-            <stop offset="40%" stopColor={fillColor} stopOpacity="0.12" />
-            <stop offset="100%" stopColor={fillColor} stopOpacity="0.01" />
+            <stop offset="0%" stopColor={neon} stopOpacity="0.35" />
+            <stop offset="55%" stopColor={neonCyan} stopOpacity="0.10" />
+            <stop offset="100%" stopColor={neonCyan} stopOpacity="0" />
+          </linearGradient>
+
+          {/* Neon line gradient (cyan -> purple) */}
+          <linearGradient id={`${id}-line`} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor={neonCyan} />
+            <stop offset="100%" stopColor={neon} />
           </linearGradient>
 
           {/* Line glow */}
@@ -198,8 +214,9 @@ export function PriceChart({
             <line
               x1={padL} x2={width - padR}
               y1={tick.y} y2={tick.y}
-              stroke="rgba(255,255,255,0.035)"
+              stroke="rgba(255,255,255,0.05)"
               strokeWidth="1"
+              strokeDasharray="3 4"
             />
             {/* Right axis label */}
             <text
@@ -233,22 +250,31 @@ export function PriceChart({
         {/* ═══ ZONES ═══ */}
         {status !== 'resolved' && (
           <>
-            {/* Pre-lock zone */}
+            {/* Pre-lock zone (prediction window) */}
             {startX > padL + 2 && (
               <rect x={padL} y={padT} width={Math.max(0, startX - padL)} height={chartH}
-                fill="rgba(59,130,246,0.03)" />
+                fill="rgba(59,130,246,0.05)" />
+            )}
+            {/* Live zone */}
+            {endX > startX && (
+              <rect x={startX} y={padT} width={Math.max(0, endX - startX)} height={chartH}
+                fill="rgba(239,68,68,0.04)" />
             )}
             {/* Lock line */}
             <line x1={startX} x2={startX} y1={padT} y2={padT + chartH}
-              stroke="rgba(59,130,246,0.25)" strokeWidth="1" strokeDasharray="4 4" />
-            <text x={startX + 4} y={padT + 12} fontSize="8" fill="rgba(59,130,246,0.5)"
-              fontFamily="ui-monospace, monospace">LOCK</text>
+              stroke="rgba(59,130,246,0.55)" strokeWidth="1.5" strokeDasharray="5 3" />
+            <rect x={startX - 22} y={padT} width={44} height={16} rx="3"
+              fill="rgba(59,130,246,0.18)" />
+            <text x={startX} y={padT + 11} textAnchor="middle" fontSize="9" fontWeight="700"
+              fill="rgba(59,130,246,0.9)" fontFamily="ui-monospace, monospace">LOCK</text>
 
             {/* Settle line */}
             <line x1={endX} x2={endX} y1={padT} y2={padT + chartH}
-              stroke="rgba(168,85,247,0.25)" strokeWidth="1" strokeDasharray="4 4" />
-            <text x={endX + 4} y={padT + 12} fontSize="8" fill="rgba(168,85,247,0.5)"
-              fontFamily="ui-monospace, monospace">SETTLE</text>
+              stroke="rgba(168,85,247,0.55)" strokeWidth="1.5" strokeDasharray="5 3" />
+            <rect x={endX - 28} y={padT} width={56} height={16} rx="3"
+              fill="rgba(168,85,247,0.18)" />
+            <text x={endX} y={padT + 11} textAnchor="middle" fontSize="9" fontWeight="700"
+              fill="rgba(168,85,247,0.9)" fontFamily="ui-monospace, monospace">SETTLE</text>
           </>
         )}
 
@@ -274,12 +300,12 @@ export function PriceChart({
           <motion.path
             d={pathD}
             fill="none"
-            stroke={lineColor}
-            strokeWidth="6"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-            opacity="0.15"
-            filter={`url(#${id}-glow2)`}
+            stroke={`url(#${id}-line)`}
+            strokeWidth="7"
+            strokeLinejoin="miter"
+            strokeLinecap="butt"
+            opacity="0.3"
+            filter={`url(#${id}-glow)`}
             initial={{ pathLength: 0 }}
             animate={{ pathLength: 1 }}
             transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -291,10 +317,10 @@ export function PriceChart({
           <motion.path
             d={pathD}
             fill="none"
-            stroke={lineColor}
-            strokeWidth="2"
-            strokeLinejoin="round"
-            strokeLinecap="round"
+            stroke={`url(#${id}-line)`}
+            strokeWidth="2.5"
+            strokeLinejoin="miter"
+            strokeLinecap="butt"
             filter={`url(#${id}-glow)`}
             initial={{ pathLength: 0 }}
             animate={{ pathLength: 1 }}
@@ -302,27 +328,30 @@ export function PriceChart({
           />
         )}
 
-        {/* ═══ CURRENT PRICE DOT ═══ */}
+        {/* ═══ CURRENT PRICE CROSSHAIR + DOT ═══ */}
         {lastPoint && (
           <g>
+            {/* Dashed crosshair from current point to right price axis */}
+            <line x1={padL} x2={width - padR} y1={lastPoint.y} y2={lastPoint.y}
+              stroke={neon} strokeOpacity="0.4" strokeWidth="1" strokeDasharray="4 4" />
             {/* Outer pulse */}
             {status !== 'resolved' && (
               <motion.circle
                 cx={lastPoint.x} cy={lastPoint.y}
                 r="4"
-                fill={lineColor}
+                fill={neon}
                 animate={{ r: [4, 16], opacity: [0.6, 0] }}
                 transition={{ duration: 1.8, repeat: Infinity, ease: 'easeOut' }}
               />
             )}
             {/* Dot */}
-            <circle cx={lastPoint.x} cy={lastPoint.y} r="3.5"
-              fill={lineColor} stroke="#08080d" strokeWidth="2" />
+            <circle cx={lastPoint.x} cy={lastPoint.y} r="4"
+              fill="#fff" stroke={neon} strokeWidth="2.5" filter={`url(#${id}-glow)`} />
             {/* Price label on right axis */}
             <rect x={width - padR + 2} y={lastPoint.y - 9} width={padR - 4} height={18} rx={3}
-              fill={lineColor} opacity="0.9" />
+              fill={neon} opacity="0.95" />
             <text x={width - padR + 8} y={lastPoint.y + 3} fontSize="9" fontWeight="700"
-              fontFamily="ui-monospace, monospace" fill="#08080d">
+              fontFamily="ui-monospace, monospace" fill="#fff">
               {formatPrice(history[history.length - 1]?.price ?? 0)}
             </text>
           </g>
@@ -336,13 +365,13 @@ export function PriceChart({
       {/* ═══ OVERLAY LEGEND ═══ */}
       <div className="absolute top-2 left-3 flex items-center gap-4 text-[10px] pointer-events-none">
         {startPrice != null && (
-          <span className="flex items-center gap-1.5 text-yellow-400/60">
-            <span className="w-1.5 h-1.5 rounded-full bg-yellow-400/60" />
+          <span className="flex items-center gap-1.5 text-yellow-400/80 font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
             Start {formatPrice(startPrice)}
           </span>
         )}
-        <span className="flex items-center gap-1.5" style={{ color: `${lineColor}99` }}>
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: lineColor }} />
+        <span className="flex items-center gap-1.5" style={{ color: `${neon}cc` }}>
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: neon }} />
           Live
         </span>
       </div>

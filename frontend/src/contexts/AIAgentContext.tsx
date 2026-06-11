@@ -195,7 +195,7 @@ function generateDecision(
 }
 
 // ── Backend API URL ───────────────────────────────────────────────────────────
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.mindclash.xyz/api';
 
 // ── Initial agents — must match BOT_PROFILES in RoomsContext and DB names ─────
 const INITIAL_AGENTS: AIAgent[] = [

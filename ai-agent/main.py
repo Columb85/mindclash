@@ -7,25 +7,17 @@ with on-chain logging and ERC-8004 NFT identity.
 """
 
 import asyncio
-import json
 import time
-from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from web3 import Web3
 from loguru import logger
-from pydantic import BaseModel
-import requests
 
 # Configuration
 from config import (
-    MANTLE_RPC_URL,
-    AGENT_REGISTRY_ADDRESS,
-    AGENT_NFT_ADDRESS,
     AI_CONFIG,
     REALCLAW_CONFIG,
 )

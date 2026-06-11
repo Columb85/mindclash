@@ -17,11 +17,19 @@ export function middleware(request: NextRequest) {
   const raw = process.env.MAINTENANCE_MODE?.trim().toLowerCase();
   const maintenance = raw === 'true' || raw === '1' || raw === 'yes';
 
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-pathname', request.nextUrl.pathname);
+
+  const withPathname = (response: NextResponse) => {
+    response.headers.set('x-pathname', request.nextUrl.pathname);
+    return response;
+  };
+
   // Already on /maintenance — let it through to avoid redirect loop
   if (request.nextUrl.pathname === '/maintenance') {
     // If maintenance is OFF and someone hits /maintenance directly → redirect home
-    if (!maintenance) return NextResponse.redirect(new URL('/', request.url));
-    return NextResponse.next();
+    if (!maintenance) return withPathname(NextResponse.redirect(new URL('/', request.url)));
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   // Bypass API routes, static files, and Next.js internals
@@ -32,15 +40,15 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/favicon') ||
     pathname.includes('.')
   ) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   // Rewrite to /maintenance for all page requests when flag is on
   if (maintenance) {
-    return NextResponse.rewrite(new URL('/maintenance', request.url));
+    return withPathname(NextResponse.rewrite(new URL('/maintenance', request.url)));
   }
 
-  return NextResponse.next();
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {

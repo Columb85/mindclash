@@ -39,19 +39,9 @@ export function CountdownDigits({ seconds }: { seconds: number }) {
   const s = Math.max(0, Math.floor(seconds));
   const m = Math.floor(s / 60);
   const sec = s % 60;
-  const text = `${m}:${sec.toString().padStart(2, '0')}`;
   return (
-    <AnimatePresence mode="popLayout">
-      <motion.span
-        key={text}
-        initial={{ y: 8, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: -8, opacity: 0 }}
-        transition={{ duration: 0.2 }}
-        className="inline-block font-mono tabular-nums"
-      >
-        {text}
-      </motion.span>
-    </AnimatePresence>
+    <span className="font-mono tabular-nums tracking-tight">
+      {m}:{sec.toString().padStart(2, '0')}
+    </span>
   );
 }

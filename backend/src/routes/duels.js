@@ -15,6 +15,8 @@
 const express = require('express');
 const { ethers } = require('ethers');
 const router = express.Router();
+const { getUserAgentByTokenId } = require('../db');
+const { generateDecision } = require('../neural-decision');
 
 // ── Contract ABI ──────────────────────────────────────────────────────────────
 const AGENT_NFT_WRITE_ABI = [
@@ -35,71 +37,27 @@ function genId() {
   return `duel_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// ── Indicator helpers ─────────────────────────────────────────────────────────
-function calcRSI(closes, period = 14) {
-  if (closes.length < period + 1) return null;
-  let avgGain = 0, avgLoss = 0;
-  for (let i = closes.length - period; i < closes.length; i++) {
-    const d = closes[i] - closes[i - 1];
-    if (d > 0) avgGain += d; else avgLoss -= d;
-  }
-  avgGain /= period; avgLoss /= period;
-  if (avgLoss === 0) return 100;
-  return parseFloat((100 - 100 / (1 + avgGain / avgLoss)).toFixed(2));
-}
-
-// ── Agent decision logic ────────────────────────────────────────────────────
-async function generateAgentDecision(tokenId, asset) {
-  const bot    = BOT_CONFIGS[tokenId];
-  const symbol = `${asset}USDT`;
-
-  const kResp = await fetch(`https://api.bybit.com/v5/market/kline?category=spot&symbol=${symbol}&interval=1&limit=30`);
-  const kJson = await kResp.json();
-  const candles = (kJson?.result?.list ?? []).reverse();
-  const closes  = candles.map(c => parseFloat(c[4]));
-
-  const tResp = await fetch(`https://api.bybit.com/v5/market/tickers?category=spot&symbol=${symbol}`);
-  const tJson = await tResp.json();
-  const ticker = tJson?.result?.list?.[0] ?? {};
-  const price    = parseFloat(ticker.lastPrice ?? closes[closes.length - 1]);
-  const change24h = parseFloat(ticker.price24hPcnt ?? '0');
-
-  const rsi = calcRSI(closes);
-  const sma10 = closes.length >= 10 ? closes.slice(-10).reduce((s, v) => s + v, 0) / 10 : price;
-  const sma20 = closes.length >= 20 ? closes.slice(-20).reduce((s, v) => s + v, 0) / 20 : price;
-
-  let direction, confidence, reasoning;
-
-  if (bot.strategy === 'momentum') {
-    const bullish = [price > sma10, price > sma20, change24h > 0, rsi != null && rsi > 40 && rsi < 75];
-    const bullCount = bullish.filter(Boolean).length;
-    direction  = bullCount >= 2 ? 'UP' : 'DOWN';
-    confidence = Math.min(950, 400 + bullCount * 130);
-    reasoning  = `Momentum: ${bullCount}/4 bullish signals, RSI=${rsi ?? '-'}, 24h=${(change24h * 100).toFixed(2)}% → ${direction}`;
-  } else if (bot.strategy === 'mean-reversion') {
-    const overbought = rsi != null && rsi > 65;
-    const oversold   = rsi != null && rsi < 35;
-    const extended   = Math.abs(change24h) > 0.015;
-    direction  = (overbought || (change24h > 0.01 && extended)) ? 'DOWN' : (oversold || change24h < -0.01) ? 'UP' : (change24h >= 0 ? 'DOWN' : 'UP');
-    confidence = Math.min(920, 450 + (extended ? 200 : 0) + ((overbought || oversold) ? 150 : 0));
-    reasoning  = `Mean-Reversion: RSI=${rsi ?? '-'}, 24h=${(change24h * 100).toFixed(2)}% → ${direction}`;
-  } else {
-    const smaScore = (price > sma10 ? 1 : -1) + (price > sma20 ? 1 : -1);
-    const rsiScore = rsi != null ? (rsi - 50) / 50 : 0;
-    const momScore = Math.max(-1, Math.min(1, change24h * 20));
-    const composite = smaScore * 0.3 + rsiScore * 0.25 + momScore * 0.35;
-    direction  = composite >= 0 ? 'UP' : 'DOWN';
-    confidence = Math.min(970, Math.round(500 + Math.abs(composite) * 450));
-    reasoning  = `Neural: composite=${composite.toFixed(3)} → ${direction}`;
-  }
-
-  return { direction, confidence, stake: 250, reasoning, price, asset };
+function resolveAgentMeta(tokenId) {
+  const system = BOT_CONFIGS[tokenId];
+  if (system) return { name: system.name, strategy: system.strategy, isUser: false };
+  const user = getUserAgentByTokenId.get(tokenId);
+  if (user) return { name: user.name, strategy: user.strategy, isUser: true };
+  return null;
 }
 
 const ONCHAIN_SIGNING_ENABLED =
   process.env.ENABLE_ONCHAIN_SIGNING === 'true' || process.env.ENABLE_ONCHAIN_SIGNING === '1';
 
 async function submitOnChain(tokenId, decision) {
+  if (!BOT_CONFIGS[tokenId]) {
+    return {
+      txHash: null,
+      mode: 'user-agent',
+      error: null,
+      hint: 'User-created agents: sign recordDecision() from your wallet in the app.',
+    };
+  }
+
   if (!ONCHAIN_SIGNING_ENABLED) {
     return {
       txHash: null,
@@ -134,23 +92,31 @@ async function submitOnChain(tokenId, decision) {
 router.post('/', async (req, res, next) => {
   try {
     const { agentTokenId = 5, asset = 'BTC', humanDirection = 'UP', duration = 60, humanAddress } = req.body;
+    const tokenId = parseInt(agentTokenId, 10);
 
-    if (![5, 6, 7].includes(agentTokenId)) return res.status(400).json({ error: 'agentTokenId must be 5, 6 or 7' });
-    if (!['BTC', 'ETH', 'SOL'].includes(asset.toUpperCase())) return res.status(400).json({ error: 'Invalid asset' });
+    const meta = resolveAgentMeta(tokenId);
+    if (!meta) return res.status(400).json({ error: 'Unknown agent — create one at /create-agent or pick #5, #6, #7' });
+    if (!['BTC', 'ETH', 'SOL', 'MNT'].includes(String(asset).toUpperCase())) return res.status(400).json({ error: 'Invalid asset' });
     if (!['UP', 'DOWN'].includes(humanDirection)) return res.status(400).json({ error: 'humanDirection must be UP or DOWN' });
 
     const duelId = genId();
-    const bot    = BOT_CONFIGS[agentTokenId];
-    const agentDecision = await generateAgentDecision(agentTokenId, asset.toUpperCase());
-    const onChain = await submitOnChain(agentTokenId, agentDecision);
+    const dur = Math.max(30, Math.min(300, parseInt(duration, 10) || 60));
+    const agentDecision = await generateDecision({
+      agentTokenId: tokenId,
+      asset: String(asset).toUpperCase(),
+      duration: dur,
+      strategy: meta.strategy,
+    });
+    const onChain = await submitOnChain(tokenId, agentDecision);
 
     const duel = {
       id: duelId,
-      agentTokenId,
-      agentName: bot.name,
-      agentStrategy: bot.strategy,
-      asset: asset.toUpperCase(),
-      duration: Math.max(30, Math.min(300, duration)),
+      agentTokenId: tokenId,
+      agentName: meta.name,
+      agentStrategy: meta.strategy,
+      isUserAgent: meta.isUser,
+      asset: String(asset).toUpperCase(),
+      duration: dur,
       humanDirection,
       humanAddress: humanAddress || null,
       agentDirection: agentDecision.direction,
@@ -159,7 +125,7 @@ router.post('/', async (req, res, next) => {
       startPrice: agentDecision.price,
       endPrice: null,
       startedAt: Math.floor(Date.now() / 1000),
-      endsAt: Math.floor(Date.now() / 1000) + Math.max(30, Math.min(300, duration)),
+      endsAt: Math.floor(Date.now() / 1000) + dur,
       status: 'live',
       winner: null,
       txHash: onChain.txHash,
