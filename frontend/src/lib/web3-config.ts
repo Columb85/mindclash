@@ -124,8 +124,8 @@ export const ROUND_DURATIONS = [
   { label: '5 MIN', value: 300, icon: '⭐' },
 ] as const;
 
-// ─── Supported chains ─────────────────────────────────────────────────────────
-export const SUPPORTED_CHAINS = [mantleSepolia, mantleMainnet];
+// ─── Supported chains — testnet only until mainnet contracts are deployed ─────
+export const SUPPORTED_CHAINS = [mantleSepolia];
 
 // ─── Wagmi config ─────────────────────────────────────────────────────────────
 const { chains, publicClient } = configureChains(
