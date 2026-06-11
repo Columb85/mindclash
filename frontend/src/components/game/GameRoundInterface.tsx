@@ -141,6 +141,11 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.status]);
 
+  const messages = room ? getMessages(room.id) : [];
+  useEffect(() => {
+    if (chatOpen) chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: 'smooth' });
+  }, [messages.length, chatOpen]);
+
   if (!room) {
     return (
       <div className="glass p-8 rounded-2xl border border-dark-border text-center text-gray-400">
@@ -236,7 +241,6 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
   };
 
   // Chat
-  const messages = getMessages(room.id);
   const handleSendChat = () => {
     const trimmed = chatText.trim();
     if (!trimmed) return;
@@ -248,9 +252,6 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
     });
     setChatText('');
   };
-  useEffect(() => {
-    if (chatOpen) chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages.length, chatOpen]);
 
   const isLive = room.status === 'live';
   const isResolved = room.status === 'resolved';

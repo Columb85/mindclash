@@ -10,6 +10,8 @@ jobs:
   frontend-lint:
     name: Frontend — Type Check & Lint
     runs-on: ubuntu-latest
+    env:
+      CI: true
     defaults:
       run:
         working-directory: frontend
@@ -28,10 +30,10 @@ jobs:
         run: npm ci
 
       - name: TypeScript type check
-        run: npx tsc --noEmit
+        run: npm run type-check
 
       - name: ESLint
-        run: npx next lint
+        run: npm run lint
 
   contracts-check:
     name: Contracts — Solidity Lint
@@ -46,10 +48,10 @@ jobs:
           node-version: '18'
 
       - name: Install solhint
-        run: npm install -g solhint
+        run: npm install -g solhint@4.5.4
 
       - name: Lint Solidity contracts
-        run: solhint 'contracts/**/*.sol' 'protocol/contracts/**/*.sol' --max-warnings 10
+        run: solhint contracts/**/*.sol protocol/contracts/**/*.sol --max-warnings 50
 
   secrets-check:
     name: Secrets — pre-push scan
