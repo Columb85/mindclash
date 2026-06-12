@@ -1,4 +1,4 @@
-import { useContractRead, useContractWrite, usePrepareContractWrite, useContractEvent, useAccount } from 'wagmi';
+import { useContractRead, useContractWrite, useContractEvent, useAccount } from 'wagmi';
 import { toast } from 'react-hot-toast';
 import { useState, useEffect } from 'react';
 import { getContractAddress, CHAIN_IDS } from '@/lib/web3-config';
@@ -122,16 +122,14 @@ export function useRoundEngine(chainId?: number) {
 
 export function useCurrentRound(priceId: string, duration: number, chainId?: number) {
   const { contractAddress, abi } = useRoundEngine(chainId);
-  
-  const { data: roundData, refetch: refetchRound } = useReadContract({
+
+  const { data: roundData, refetch: refetchRound } = useContractRead({
     address: contractAddress as `0x${string}`,
     abi,
     functionName: 'getCurrentRound',
     args: [priceId as `0x${string}`, BigInt(duration)],
-    query: {
-      enabled: !!contractAddress && !!priceId,
-      refetchInterval: 5000, // Refetch every 5 seconds
-    }
+    enabled: !!contractAddress && !!priceId,
+    watch: true,
   });
 
   const roundInfo: RoundInfo | null = roundData ? {
@@ -155,15 +153,13 @@ export function useUserBet(roundId: bigint, chainId?: number) {
   const { address } = useAccount();
   const { contractAddress, abi } = useRoundEngine(chainId);
 
-  const { data: betData, refetch: refetchBet } = useReadContract({
+  const { data: betData, refetch: refetchBet } = useContractRead({
     address: contractAddress as `0x${string}`,
     abi,
     functionName: 'getUserBet',
     args: [roundId, address!],
-    query: {
-      enabled: !!contractAddress && !!address && roundId > 0n,
-      refetchInterval: 10000, // Refetch every 10 seconds
-    }
+    enabled: !!contractAddress && !!address && roundId > 0n,
+    watch: true,
   });
 
   const userBet: UserBet | null = betData ? {
@@ -182,15 +178,13 @@ export function useUserBet(roundId: bigint, chainId?: number) {
 export function useLatestPrice(priceId: string, chainId?: number) {
   const { contractAddress, abi } = useRoundEngine(chainId);
 
-  const { data: price, refetch: refetchPrice } = useReadContract({
+  const { data: price, refetch: refetchPrice } = useContractRead({
     address: contractAddress as `0x${string}`,
     abi,
     functionName: 'getLatestPrice',
     args: [priceId as `0x${string}`],
-    query: {
-      enabled: !!contractAddress && !!priceId,
-      refetchInterval: 2000, // Refetch every 2 seconds for price updates
-    }
+    enabled: !!contractAddress && !!priceId,
+    watch: true,
   });
 
   return {
@@ -202,33 +196,24 @@ export function useLatestPrice(priceId: string, chainId?: number) {
 
 export function usePlaceBet(chainId?: number) {
   const { contractAddress, abi } = useRoundEngine(chainId);
-  const { writeContractAsync, isPending } = useWriteContract();
+  const { writeAsync, isLoading: isPending } = useContractWrite({
+    address: contractAddress as `0x${string}`,
+    abi,
+    functionName: 'placeBet',
+  });
 
   const placeBet = async (
     priceId: string,
     duration: number,
-    position: 0 | 1, // 0 = BULL (UP), 1 = BEAR (DOWN)
+    position: 0 | 1,
     amount: bigint,
     token: string
   ) => {
-    if (!contractAddress) {
-      throw new Error('Contract address not found');
-    }
-
+    if (!contractAddress) throw new Error('Contract address not found');
     try {
-      const hash = await writeContractAsync({
-        address: contractAddress as `0x${string}`,
-        abi,
-        functionName: 'placeBet',
-        args: [
-          priceId as `0x${string}`,
-          BigInt(duration),
-          position,
-          amount,
-          token as `0x${string}`
-        ],
+      const { hash } = await writeAsync({
+        args: [priceId as `0x${string}`, BigInt(duration), position, amount, token as `0x${string}`],
       });
-
       toast.success(`Bet placed! Transaction: ${hash}`);
       return hash;
     } catch (error) {
@@ -238,29 +223,21 @@ export function usePlaceBet(chainId?: number) {
     }
   };
 
-  return {
-    placeBet,
-    isPending,
-  };
+  return { placeBet, isPending };
 }
 
 export function useClaim(chainId?: number) {
   const { contractAddress, abi } = useRoundEngine(chainId);
-  const { writeContractAsync, isPending } = useWriteContract();
+  const { writeAsync, isLoading: isPending } = useContractWrite({
+    address: contractAddress as `0x${string}`,
+    abi,
+    functionName: 'claim',
+  });
 
   const claim = async (roundId: bigint) => {
-    if (!contractAddress) {
-      throw new Error('Contract address not found');
-    }
-
+    if (!contractAddress) throw new Error('Contract address not found');
     try {
-      const hash = await writeContractAsync({
-        address: contractAddress as `0x${string}`,
-        abi,
-        functionName: 'claim',
-        args: [roundId],
-      });
-
+      const { hash } = await writeAsync({ args: [roundId] });
       toast.success(`Winnings claimed! Transaction: ${hash}`);
       return hash;
     } catch (error) {
@@ -270,24 +247,19 @@ export function useClaim(chainId?: number) {
     }
   };
 
-  return {
-    claim,
-    isPending,
-  };
+  return { claim, isPending };
 }
 
 export function useCalculatePayout(roundId: bigint, chainId?: number) {
   const { address } = useAccount();
   const { contractAddress, abi } = useRoundEngine(chainId);
 
-  const { data: payout, refetch: refetchPayout } = useReadContract({
+  const { data: payout, refetch: refetchPayout } = useContractRead({
     address: contractAddress as `0x${string}`,
     abi,
     functionName: 'calculatePayout',
     args: [roundId, address!],
-    query: {
-      enabled: !!contractAddress && !!address && roundId > 0n,
-    }
+    enabled: !!contractAddress && !!address && roundId > 0n,
   });
 
   return {
@@ -302,25 +274,21 @@ export function useRoundEvents(chainId?: number) {
   const { contractAddress, abi } = useRoundEngine(chainId);
   const [events, setEvents] = useState<any[]>([]);
 
-  // Track BetPlaced events
-  useWatchContractEvent({
+  useContractEvent({
     address: contractAddress as `0x${string}`,
     abi,
     eventName: 'BetPlaced',
-    onLogs(logs: any[]) {
-      console.log('New bet placed:', logs);
+    listener(...logs: any[]) {
       setEvents(prev => [...prev, ...logs]);
       toast('New bet placed in the round!', { icon: '🎯' });
     },
   });
 
-  // Track RoundStarted events
-  useWatchContractEvent({
+  useContractEvent({
     address: contractAddress as `0x${string}`,
     abi,
     eventName: 'RoundStarted',
-    onLogs(logs: any[]) {
-      console.log('New round started:', logs);
+    listener(...logs: any[]) {
       setEvents(prev => [...prev, ...logs]);
       toast('New prediction round started!', { icon: '🚀' });
     },
