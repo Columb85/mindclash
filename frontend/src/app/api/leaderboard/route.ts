@@ -51,8 +51,12 @@ const AGENT_NFT_ABI_LB = [
   },
 ] as const;
 
+const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || 'https://rpc.sepolia.mantle.xyz';
+const NFT_ADDRESS = (process.env.NEXT_PUBLIC_AGENT_NFT_ADDRESS || '0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837') as `0x${string}`;
+const EXPLORER_URL = process.env.NEXT_PUBLIC_EXPLORER_URL || 'https://sepolia.mantlescan.xyz';
+
 function getClient() {
-  return createPublicClient({ transport: http(process.env.NEXT_PUBLIC_RPC_URL) });
+  return createPublicClient({ transport: http(RPC_URL) });
 }
 
 // GET /api/leaderboard?sortBy=winRate|pnl|decisions&limit=10
@@ -63,7 +67,7 @@ export async function GET(request: Request) {
 
   try {
     const client = getClient();
-    const address = process.env.NEXT_PUBLIC_AGENT_NFT_ADDRESS as `0x${string}`;
+    const address = NFT_ADDRESS;
     const agents = [];
 
     for (const tokenId of KNOWN_AGENT_IDS) {
@@ -95,7 +99,7 @@ export async function GET(request: Request) {
           winRate,
           isActive,
           createdAt: Number(createdAt),
-          explorerUrl: `${process.env.NEXT_PUBLIC_EXPLORER_URL}/address/${owner}`,
+          explorerUrl: `${EXPLORER_URL}/address/${owner}`,
         });
       } catch {
         // skip
