@@ -41,15 +41,17 @@ export async function GET(request: Request) {
   
   const result: Record<string, PriceTick> = {};
   
-  // Fetch from Bybit Linear (BTC, ETH, SOL)
+  // Fetch from Bybit Linear (BTC, ETH, SOL) — Bybit may be blocked on some cloud IPs
   for (const symbol of symbols) {
     if (LINEAR_SYMBOLS[symbol]) {
       try {
         const res = await fetch(`${BYBIT_LINEAR_REST}&symbol=${LINEAR_SYMBOLS[symbol]}`, {
           headers: { 'Accept': 'application/json' },
-          next: { revalidate: 5 }, // Cache for 5 seconds
+          next: { revalidate: 5 },
         });
-        const data = await res.json();
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        const data = JSON.parse(text);
         const item = data?.result?.list?.[0];
         if (item) {
           result[symbol] = {
@@ -62,12 +64,12 @@ export async function GET(request: Request) {
             timestamp: Date.now(),
           };
         }
-      } catch (e) {
-        console.error(`[API/prices] Failed to fetch ${symbol} from Bybit linear:`, e);
+      } catch {
+        // Bybit blocked or unavailable from this IP — CoinGecko fallback below
       }
     }
   }
-  
+
   // Fetch from Bybit Spot (MNT)
   for (const symbol of symbols) {
     if (SPOT_SYMBOLS[symbol] && !result[symbol]) {
@@ -76,7 +78,9 @@ export async function GET(request: Request) {
           headers: { 'Accept': 'application/json' },
           next: { revalidate: 5 },
         });
-        const data = await res.json();
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        const data = JSON.parse(text);
         const item = data?.result?.list?.[0];
         if (item) {
           result[symbol] = {
@@ -89,13 +93,13 @@ export async function GET(request: Request) {
             timestamp: Date.now(),
           };
         }
-      } catch (e) {
-        console.error(`[API/prices] Failed to fetch ${symbol} from Bybit spot:`, e);
+      } catch {
+        // Bybit blocked or unavailable from this IP — CoinGecko fallback below
       }
     }
   }
-  
-  // Fallback to CoinGecko for any missing
+
+  // CoinGecko fallback for any missing
   const missing = symbols.filter(s => !result[s]);
   if (missing.length > 0) {
     try {
