@@ -702,6 +702,149 @@ export default function LandingPage() {
         </div>
       </Section>
 
+      {/* ── ROADMAP ───────────────────────────────────────────────────────── */}
+      <Section className="py-24 px-6 relative" style={{ zIndex: 1 }}>
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'radial-gradient(ellipse 80% 50% at 20% 60%, rgba(168,85,247,0.04) 0%, transparent 60%)',
+        }} />
+        <div className="container mx-auto max-w-5xl relative">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-16"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-6 text-xs font-bold tracking-wider uppercase"
+              style={{ background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)', color: '#a855f7' }}>
+              <Sparkles className="w-3.5 h-3.5" />
+              What's Next
+            </div>
+            <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
+              Roadmap
+            </h2>
+            <p className="text-gray-400 max-w-xl mx-auto">
+              MindClash is evolving. Here's what's coming as the platform grows beyond the hackathon.
+            </p>
+          </motion.div>
+
+          {/* Timeline */}
+          <div className="relative">
+            {/* Vertical line */}
+            <div className="absolute left-[28px] md:left-1/2 top-0 bottom-0 w-px"
+              style={{ background: 'linear-gradient(to bottom, transparent, rgba(168,85,247,0.3) 10%, rgba(0,212,170,0.3) 50%, rgba(59,130,246,0.3) 90%, transparent)' }}
+            />
+
+            {[
+              {
+                phase: 'Now',
+                label: 'Hackathon Launch',
+                color: '#00D4AA',
+                side: 'left',
+                items: [
+                  { icon: '🤖', text: 'Groq LLM bots making on-chain decisions' },
+                  { icon: '🪙', text: 'ERC-8004 Agent NFTs on Mantle Sepolia' },
+                  { icon: '⚡', text: 'Real-time BTC / ETH / SOL prediction rounds' },
+                  { icon: '✅', text: '6 verified smart contracts deployed' },
+                ],
+              },
+              {
+                phase: 'Q3 2026',
+                label: 'Expanded Predictions',
+                color: '#a855f7',
+                side: 'right',
+                items: [
+                  { icon: '📈', text: 'New asset categories: stocks, commodities, FX pairs' },
+                  { icon: '🔮', text: 'Event-based predictions: token launches, protocol upgrades' },
+                  { icon: '⏱', text: 'Multi-timeframe rounds: 5 min, 1 hour, 24 hour' },
+                  { icon: '🌐', text: 'Mainnet launch on Mantle Network' },
+                ],
+              },
+              {
+                phase: 'Q4 2026',
+                label: 'Social & Quests',
+                color: '#f59e0b',
+                side: 'left',
+                items: [
+                  { icon: '🏆', text: 'On-chain tournament seasons with prize pools' },
+                  { icon: '🎯', text: 'Social quests: challenge friends, beat leaderboards' },
+                  { icon: '🤝', text: 'Referral system with on-chain reward distribution' },
+                  { icon: '🛡', text: 'Guild system — form prediction teams vs AI squads' },
+                ],
+              },
+              {
+                phase: '2027',
+                label: 'Next-Gen AI Agents',
+                color: '#3b82f6',
+                side: 'right',
+                items: [
+                  { icon: '🧠', text: 'On-chain AI reasoning — decision logic fully verifiable' },
+                  { icon: '📊', text: 'Agent evolution: bots learn from historical predictions' },
+                  { icon: '🔗', text: 'Cross-chain agent deployment (Ethereum, Base, Arbitrum)' },
+                  { icon: '🎮', text: 'User-created AI strategies compete in open marketplace' },
+                ],
+              },
+            ].map(({ phase, label, color, side, items }, i) => (
+              <motion.div
+                key={phase}
+                initial={{ opacity: 0, x: side === 'left' ? -40 : 40 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true, margin: '-80px' }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                className={`relative flex items-start gap-6 mb-12 md:mb-16 ${
+                  side === 'right' ? 'md:flex-row-reverse' : ''
+                }`}
+              >
+                {/* Dot on the line */}
+                <div className="relative shrink-0 flex items-center justify-center" style={{ width: 56 }}>
+                  <div className="w-4 h-4 rounded-full border-2 z-10 relative"
+                    style={{ background: color, borderColor: color, boxShadow: `0 0 16px ${color}80` }}
+                  />
+                </div>
+
+                {/* Card — full width on mobile, half on desktop */}
+                <div className={`flex-1 md:max-w-[calc(50%-56px)] ${side === 'right' ? 'md:mr-14' : 'md:ml-0'}`}>
+                  <div
+                    className="rounded-2xl p-6"
+                    style={{
+                      background: `linear-gradient(135deg, ${color}08, transparent)`,
+                      border: `1px solid ${color}25`,
+                    }}
+                  >
+                    {/* Phase badge */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-[11px] font-black tracking-widest uppercase px-2.5 py-1 rounded-lg"
+                        style={{ background: `${color}15`, color, border: `1px solid ${color}30` }}>
+                        {phase}
+                      </span>
+                      {phase === 'Now' && (
+                        <span className="flex items-center gap-1 text-[10px] text-green-400 font-bold">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                          Live
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-lg font-black text-white mb-4">{label}</h3>
+                    <ul className="space-y-2">
+                      {items.map(({ icon, text }) => (
+                        <li key={text} className="flex items-start gap-2.5 text-sm text-gray-400">
+                          <span className="text-base shrink-0 mt-0.5">{icon}</span>
+                          {text}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Spacer on desktop to push card to correct side */}
+                <div className="hidden md:block flex-1" />
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </Section>
+
       {/* ── FINAL CTA ─────────────────────────────────────────────────────── */}
       <Section className="py-32 px-6 relative" style={{ zIndex: 1 }}>
         <div style={{
