@@ -47,6 +47,10 @@ function walk(dir) {
     if (rel.includes('web3-config.ts') || rel.includes('PRICE_FEEDS')) {
       continue;
     }
+    // verify page contains example tx hashes for judges — not private keys
+    if (rel.includes('verify/page.tsx')) {
+      continue;
+    }
     let text;
     try {
       text = fs.readFileSync(full, 'utf8');
