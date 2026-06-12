@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, TrendingUp, TrendingDown, Trophy, CheckCircle2, Zap } from 'lucide-react';
 import { useActivity, ActivityEvent } from '@/contexts/ActivityContext';
-import { CryptoImg } from '@/components/icons/CryptoIcons';
 import { bybitPriceFeed, AssetSymbol, PriceTick } from '@/lib/bybit-price-feed';
+import { CryptoImg } from '@/components/icons/CryptoIcons';
 
 function timeAgo(ts: number) {
   const diff = Math.floor((Date.now() - ts) / 1000);

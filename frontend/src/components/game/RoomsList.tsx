@@ -1,13 +1,11 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingUp, TrendingDown, Users, Play, Eye, Bot, Flame, Zap } from 'lucide-react';
+import { TrendingUp, TrendingDown, Play, Eye, Bot } from 'lucide-react';
 import { useRooms } from '@/contexts/RoomsContext';
-import { useAIAgent } from '@/contexts/AIAgentContext';
 import { ASSETS } from '@/lib/web3-config';
 import { Room, PricePoint } from '@/types/room';
-import Image from 'next/image';
 
 // AI Bot profiles keyed by wallet address (lowercase)
 const BOT_PROFILES_MAP: Record<string, { name: string; avatar: string; gradient: string; taunts: Record<'UP'|'DOWN', string[]> }> = {
@@ -191,7 +189,6 @@ function MiniChart({ priceHistory, isUp }: { priceHistory: PricePoint[]; isUp: b
   let prices = priceHistory.map(p => p.price);
   
   if (prices.length < 2) {
-    // Generate fake data for demo
     const base = 100;
     prices = Array.from({ length: 30 }, (_, i) =>
       base + Math.sin(i * 0.3) * 5 + (Math.random() - 0.5) * 2 + (isUp ? i * 0.2 : -i * 0.1)
@@ -200,22 +197,21 @@ function MiniChart({ priceHistory, isUp }: { priceHistory: PricePoint[]; isUp: b
   
   const priceData = prices;
 
-  const width = 120;
-  const height = 40;
+  const width = 200;
+  const height = 56;
   const padding = 2;
   
   const min = Math.min(...priceData);
   const max = Math.max(...priceData);
   const range = max - min || 1;
   
-  // Create smooth path
   const points = priceData.map((price, i) => {
     const x = padding + (i / (priceData.length - 1)) * (width - padding * 2);
     const y = padding + (1 - (price - min) / range) * (height - padding * 2);
     return { x, y };
   });
 
-  // Create smooth curve using quadratic bezier
+  // Smooth curve using quadratic bezier
   let path = `M ${points[0].x} ${points[0].y}`;
   for (let i = 1; i < points.length; i++) {
     const prev = points[i - 1];
@@ -225,7 +221,6 @@ function MiniChart({ priceHistory, isUp }: { priceHistory: PricePoint[]; isUp: b
   }
   path += ` L ${points[points.length - 1].x} ${points[points.length - 1].y}`;
 
-  // Area fill path
   const areaPath = path + ` L ${width - padding} ${height} L ${padding} ${height} Z`;
   
   const gradientId = `gradient-${Math.random().toString(36).substr(2, 9)}`;
@@ -233,19 +228,14 @@ function MiniChart({ priceHistory, isUp }: { priceHistory: PricePoint[]; isUp: b
   const fillColor = isUp ? '#22c55e' : '#ef4444';
 
   return (
-    <svg width={width} height={height} className="overflow-visible">
+    <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="w-full h-full overflow-visible">
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={fillColor} stopOpacity="0.3" />
+          <stop offset="0%" stopColor={fillColor} stopOpacity="0.25" />
           <stop offset="100%" stopColor={fillColor} stopOpacity="0" />
         </linearGradient>
       </defs>
-      {/* Area fill */}
-      <path
-        d={areaPath}
-        fill={`url(#${gradientId})`}
-      />
-      {/* Line */}
+      <path d={areaPath} fill={`url(#${gradientId})`} />
       <path
         d={path}
         fill="none"
@@ -253,8 +243,8 @@ function MiniChart({ priceHistory, isUp }: { priceHistory: PricePoint[]; isUp: b
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
       />
-      {/* End dot */}
       <circle
         cx={points[points.length - 1].x}
         cy={points[points.length - 1].y}
@@ -299,15 +289,15 @@ export function RoomsList({ onEnterRoom }: RoomsListProps) {
           </div>
         </div>
         
-        <div className="flex gap-1 p-1 bg-[#0d0d14] rounded-xl border border-[#1f1f2e]">
+        <div className="flex gap-1 p-1 bg-white/[0.03] rounded-xl border border-white/[0.06]">
           {(['all', 'open', 'live'] as const).map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all capitalize ${
                 filter === f
-                  ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
-                  : 'text-gray-500 hover:text-gray-300 hover:bg-[#1f1f2e]'
+                  ? 'bg-white/[0.10] text-white'
+                  : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.05]'
               }`}
             >
               {f}
@@ -326,7 +316,7 @@ export function RoomsList({ onEnterRoom }: RoomsListProps) {
           <p className="text-gray-600 text-xs mt-1">New rounds spawn automatically</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           <AnimatePresence mode="popLayout">
             {filtered.map(room => {
               const assetInfo = ASSETS[room.asset];
@@ -345,243 +335,155 @@ export function RoomsList({ onEnterRoom }: RoomsListProps) {
               const anchorPrice = room.startPrice ?? room.currentPrice;
               const priceDelta = anchorPrice ? ((room.currentPrice - anchorPrice) / anchorPrice) * 100 : 0;
               const isUp = priceDelta >= 0;
+              const bots = getRealBotPredictions(room);
+              const primaryBot = bots[0] || null;
 
               return (
                 <motion.div
                   key={room.id}
                   layout
-                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                  whileHover={{ y: -6, transition: { duration: 0.25 } }}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -16 }}
                   onClick={() => onEnterRoom(room)}
-                  className="relative rounded-2xl overflow-hidden cursor-pointer group"
-                  style={{
-                    background: 'linear-gradient(145deg, rgba(20, 20, 31, 0.9) 0%, rgba(13, 13, 20, 0.95) 100%)',
-                  }}
+                  className="relative rounded-2xl overflow-hidden cursor-pointer group border border-white/[0.06] hover:border-white/[0.12] transition-all duration-300"
+                  style={{ background: 'rgba(255,255,255,0.02)' }}
                 >
-                  {/* Animated border gradient */}
-                  <div className="absolute inset-0 rounded-2xl p-[1px] bg-gradient-to-br from-[#2f2f4e] via-[#1f1f2e] to-[#2f2f4e] group-hover:from-blue-500/40 group-hover:via-purple-500/30 group-hover:to-cyan-500/40 transition-all duration-500" />
-                  
-                  {/* Inner container */}
-                  <div className="absolute inset-[1px] rounded-2xl bg-gradient-to-br from-[#14141f] to-[#0d0d14]" />
-                  
-                  {/* Ambient glow effect on hover */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 via-transparent to-purple-500/0 opacity-0 group-hover:opacity-10 transition-opacity duration-500" />
-                  
-                  {/* Shimmer effect on hover */}
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 overflow-hidden">
-                    <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
-                  </div>
-                  
-                  {/* Status indicator with glow */}
-                  <div className={`absolute top-0 left-0 right-0 h-1 ${
-                    isOpen
-                      ? 'bg-gradient-to-r from-yellow-500/80 via-amber-400 to-yellow-500/80'
-                      : 'bg-gradient-to-r from-red-500/80 via-rose-400 to-red-500/80'
+                  {/* Status top line */}
+                  <div className={`absolute top-0 left-0 right-0 h-[2px] ${
+                    isOpen ? 'bg-yellow-400/60' : 'bg-red-400/60'
                   }`}>
-                    {isLive && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-red-500 via-rose-400 to-red-500 animate-pulse" />
-                    )}
+                    {isLive && <div className="absolute inset-0 bg-red-400/80 animate-pulse" />}
                   </div>
-                  
-                  {/* Subtle corner accent */}
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-white/5 to-transparent rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity" />
 
-                  <div className="p-5 relative z-10">
-                    {/* Top section: Asset info + Status */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        {/* Crypto Logo */}
-                        <div className="relative">
-                          <div className="w-12 h-12 rounded-xl bg-[#1f1f2e] p-2 border border-[#2f2f4e]">
-                            <img 
-                              src={logo} 
-                              alt={room.asset}
-                              className="w-full h-full object-contain"
-                            />
-                          </div>
-                          {isLive && (
-                            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-500 border-2 border-[#14141f] animate-pulse" />
-                          )}
-                        </div>
-                        
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg font-bold text-white">{room.asset}</span>
-                            <span className="text-xs text-gray-500">/CLASH</span>
-                          </div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-xs text-gray-500">{room.duration}s round</span>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
-                              isOpen
-                                ? 'bg-yellow-500/20 text-yellow-400'
-                                : 'bg-red-500/20 text-red-400'
-                            }`}>
-                              {isOpen ? 'PREDICT NOW' : 'LIVE'}
-                            </span>
-                          </div>
-                        </div>
+                  {/* Header bar */}
+                  <div className="flex items-center justify-between px-5 pt-4 pb-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-white/[0.05] p-1.5 border border-white/[0.08]">
+                        <img src={logo} alt={room.asset} className="w-full h-full object-contain" />
                       </div>
-                      
-                      {/* Timer */}
+                      <span className="text-sm font-bold text-white">{room.asset}/USDT</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/[0.06] text-gray-400 font-mono">{room.duration}s</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold ${
+                        isOpen ? 'bg-yellow-500/15 text-yellow-400' : 'bg-red-500/15 text-red-400'
+                      }`}>
+                        {isOpen ? 'OPEN' : 'LIVE'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-gray-500 font-mono">
+                        Pool: <span className="text-purple-400 font-bold">{totalPool > 0 ? totalPool.toLocaleString() : '0'}</span> CLASH
+                      </span>
                       <CircularTimer timeLeft={timeLeft} maxTime={maxTime} />
                     </div>
+                  </div>
 
-                    {/* Price + Chart */}
-                    <div className="flex items-end justify-between mb-4">
-                      <div>
-                        <div className="text-2xl font-bold text-white tabular-nums tracking-tight">
-                          ${room.currentPrice.toLocaleString(undefined, { 
+                  {/* Main body: Left (chart) + Right (bets) */}
+                  <div className="flex flex-col md:flex-row">
+
+                    {/* LEFT: Price + Chart */}
+                    <div className="flex-1 px-5 pb-4 border-r border-white/[0.04]">
+                      {/* Price row */}
+                      <div className="flex items-baseline gap-2 mb-2">
+                        <span className="text-xl font-bold text-white tabular-nums">
+                          ${room.currentPrice.toLocaleString(undefined, {
                             minimumFractionDigits: room.asset === 'MNT' ? 4 : 2,
-                            maximumFractionDigits: room.asset === 'MNT' ? 4 : 2 
+                            maximumFractionDigits: room.asset === 'MNT' ? 4 : 2,
                           })}
-                        </div>
-                        <div className={`flex items-center gap-1 text-sm font-semibold ${
-                          isUp ? 'text-green-400' : 'text-red-400'
-                        }`}>
-                          {isUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                        </span>
+                        <span className={`flex items-center gap-0.5 text-xs font-semibold ${isUp ? 'text-green-400' : 'text-red-400'}`}>
+                          {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                           {isUp ? '+' : ''}{priceDelta.toFixed(2)}%
-                        </div>
+                        </span>
                       </div>
-                      
-                      {/* Mini Chart */}
-                      <div className="opacity-80">
+
+                      {/* Sparkline chart — wider */}
+                      <div className="w-full h-[56px]">
                         <MiniChart priceHistory={room.priceHistory || []} isUp={isUp} />
                       </div>
                     </div>
 
-                    {/* VS Bot Indicator — real bot predictions from pool */}
-                    {(() => {
-                      const bots = getRealBotPredictions(room);
-                      if (bots.length === 0) return null;
-                      const primary = bots[0];
-                      return (
-                        <div className="mb-4 rounded-xl bg-gradient-to-r from-[#1a1a2e]/80 to-[#16162a]/80 border border-[#2f2f4e]/50 overflow-hidden">
-                          {/* Header row */}
-                          <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[#2f2f4e]/40 bg-[#0d0d14]/50">
-                            <Bot className="w-3 h-3 text-purple-400" />
-                            <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider">AI Agents In This Round</span>
-                            <span className="ml-auto text-[10px] text-gray-600">{bots.length}/3 bots betting</span>
+                    {/* RIGHT: Predictions & Actions */}
+                    <div className="w-full md:w-[240px] px-4 pb-4 pt-1 flex flex-col justify-between gap-3">
+                      
+                      {/* AI Agent prediction */}
+                      {primaryBot && (
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.05]">
+                          <div className={`w-6 h-6 rounded-md bg-gradient-to-br ${primaryBot.gradient} flex items-center justify-center text-xs shrink-0`}>
+                            {primaryBot.avatar}
                           </div>
-                          {/* Bot rows */}
-                          <div className="p-2 space-y-1.5">
-                            {bots.map((bot, botIdx) => (
-                              <div key={bot.name} className="flex items-center gap-2">
-                                <div className={`relative w-7 h-7 rounded-lg bg-gradient-to-br ${bot.gradient} flex items-center justify-center text-sm shrink-0`}>
-                                  {bot.avatar}
-                                  <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold ${
-                                    bot.direction === 'UP' ? 'bg-green-500' : 'bg-red-500'
-                                  } text-white`}>
-                                    {bot.direction === 'UP' ? '↑' : '↓'}
-                                  </div>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-[11px] font-bold text-white">{bot.name}</span>
-                                    <span className={`text-[9px] px-1 py-0.5 rounded font-bold ${
-                                      bot.direction === 'UP' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-                                    }`}>{bot.direction}</span>
-                                    <span className="text-[9px] text-gray-600 ml-auto">{bot.amount} CLASH</span>
-                                  </div>
-                                  <TypingTaunt text={bot.taunt} delay={botIdx * 600 + 300} />
-                                </div>
-                              </div>
-                            ))}
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[10px] text-gray-500">AI Prediction</div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-bold text-white truncate">{primaryBot.name}</span>
+                              <span className={`text-[9px] px-1 py-0.5 rounded font-bold ${
+                                primaryBot.direction === 'UP' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                              }`}>{primaryBot.direction}</span>
+                            </div>
                           </div>
                         </div>
-                      );
-                    })()}
+                      )}
 
-                    {/* Pool distribution - compact */}
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between text-[10px] mb-1.5">
-                        <span className="text-green-400 font-bold">UP {upPct.toFixed(0)}%</span>
-                        <span className="text-purple-400 font-mono">Pool: {totalPool > 0 ? totalPool.toLocaleString() : '0'} $CLASH</span>
-                        <span className="text-red-400 font-bold">DOWN {(100 - upPct).toFixed(0)}%</span>
-                      </div>
-                      <div className="h-1.5 rounded-full overflow-hidden bg-[#0d0d14] flex">
-                        <motion.div
-                          className="h-full"
-                          style={{ background: 'linear-gradient(90deg, #22c55e, #4ade80)' }}
-                          initial={{ width: 0 }}
-                          animate={{ width: `${upPct}%` }}
-                          transition={{ duration: 0.8 }}
-                        />
-                        <motion.div
-                          className="h-full"
-                          style={{ background: 'linear-gradient(90deg, #f87171, #ef4444)' }}
-                          initial={{ width: 0 }}
-                          animate={{ width: `${100 - upPct}%` }}
-                          transition={{ duration: 0.8 }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Action Buttons - Two big UP/DOWN buttons */}
-                    {isOpen ? (
-                      <div className="flex gap-3">
-                        {/* UP Button */}
-                        <motion.button
-                          whileHover={{ scale: 1.02, boxShadow: '0 0 30px rgba(34, 197, 94, 0.5)' }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={(e) => { e.stopPropagation(); onEnterRoom(room); }}
-                          className="flex-1 relative overflow-hidden rounded-xl py-4 font-bold text-white transition-all"
-                          style={{
-                            background: 'linear-gradient(135deg, #16a34a 0%, #22c55e 50%, #4ade80 100%)',
-                            boxShadow: '0 4px 20px rgba(34, 197, 94, 0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
-                          }}
-                        >
-                          {/* Glow effect */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-transparent to-white/10" />
-                          {/* Pulse ring */}
-                          <div className="absolute inset-0 rounded-xl animate-pulse opacity-30" style={{ boxShadow: 'inset 0 0 20px rgba(255,255,255,0.3)' }} />
-                          
-                          <div className="relative z-10 flex flex-col items-center gap-1">
-                            <TrendingUp className="w-6 h-6" />
-                            <span className="text-lg">UP</span>
-                          </div>
-                        </motion.button>
-                        
-                        {/* DOWN Button */}
-                        <motion.button
-                          whileHover={{ scale: 1.02, boxShadow: '0 0 30px rgba(239, 68, 68, 0.5)' }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={(e) => { e.stopPropagation(); onEnterRoom(room); }}
-                          className="flex-1 relative overflow-hidden rounded-xl py-4 font-bold text-white transition-all"
-                          style={{
-                            background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 50%, #f87171 100%)',
-                            boxShadow: '0 4px 20px rgba(239, 68, 68, 0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
-                          }}
-                        >
-                          {/* Glow effect */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-transparent to-white/10" />
-                          {/* Pulse ring */}
-                          <div className="absolute inset-0 rounded-xl animate-pulse opacity-30" style={{ boxShadow: 'inset 0 0 20px rgba(255,255,255,0.3)' }} />
-                          
-                          <div className="relative z-10 flex flex-col items-center gap-1">
-                            <TrendingDown className="w-6 h-6" />
-                            <span className="text-lg">DOWN</span>
-                          </div>
-                        </motion.button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between pt-3 border-t border-[#1f1f2e]/60">
-                        <div className="flex items-center gap-2 text-xs text-gray-400">
-                          <Users className="w-4 h-4" />
-                          <span>{room.predictions.length} players</span>
+                      {/* Pool distribution bar */}
+                      <div>
+                        <div className="flex items-center justify-between text-[10px] mb-1">
+                          <span className="text-green-400 font-bold">UP {upPct.toFixed(0)}%</span>
+                          <span className="text-red-400 font-bold">DOWN {(100 - upPct).toFixed(0)}%</span>
                         </div>
+                        <div className="h-1.5 rounded-full overflow-hidden bg-white/[0.05] flex">
+                          <motion.div
+                            className="h-full rounded-l-full"
+                            style={{ background: 'linear-gradient(90deg, #22c55e, #4ade80)' }}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${upPct}%` }}
+                            transition={{ duration: 0.8 }}
+                          />
+                          <motion.div
+                            className="h-full rounded-r-full"
+                            style={{ background: 'linear-gradient(90deg, #f87171, #ef4444)' }}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${100 - upPct}%` }}
+                            transition={{ duration: 0.8 }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      {isOpen ? (
+                        <div className="flex gap-2">
+                          <motion.button
+                            whileHover={{ scale: 1.03 }}
+                            whileTap={{ scale: 0.97 }}
+                            onClick={(e) => { e.stopPropagation(); onEnterRoom(room); }}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg font-bold text-sm text-white transition-all"
+                            style={{ background: 'linear-gradient(135deg, #16a34a, #22c55e)' }}
+                          >
+                            <TrendingUp className="w-4 h-4" />
+                            UP
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.03 }}
+                            whileTap={{ scale: 0.97 }}
+                            onClick={(e) => { e.stopPropagation(); onEnterRoom(room); }}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg font-bold text-sm text-white transition-all"
+                            style={{ background: 'linear-gradient(135deg, #dc2626, #ef4444)' }}
+                          >
+                            <TrendingDown className="w-4 h-4" />
+                            DOWN
+                          </motion.button>
+                        </div>
+                      ) : (
                         <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
                           onClick={(e) => { e.stopPropagation(); onEnterRoom(room); }}
-                          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1f1f2e] text-gray-300 hover:bg-[#2a2a3e] transition-colors"
+                          className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-white/[0.06] text-gray-300 hover:bg-white/[0.10] transition-colors text-sm font-semibold"
                         >
                           <Eye className="w-4 h-4" />
-                          <span className="font-semibold">Watch Live</span>
+                          Watch Live
                         </motion.button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </motion.div>
               );

@@ -84,7 +84,7 @@ export default function CreateAgentPage() {
 
   useEffect(() => {
     if (isRecordSuccess) {
-      toast.success('Decision recorded on-chain!');
+      toast.success('Decision recorded on Mantle ✓');
       setPendingDecision(null);
       refetchProfile();
     }
@@ -109,10 +109,10 @@ export default function CreateAgentPage() {
       if (json.success) {
         setPendingDecision(json.decision as DecisionResult);
       } else {
-        toast.error(json.error || 'Failed to get decision');
+        toast.error(json.error || 'AI decision failed');
       }
     } catch {
-      toast.error('Backend unreachable');
+      toast.error('API unreachable — check connection');
     } finally {
       setIsFetchingDecision(false);
     }
@@ -229,7 +229,7 @@ export default function CreateAgentPage() {
     <div className="min-h-screen bg-[#06060a] text-white">
       <header className="border-b border-gray-800/50 bg-[#06060a]/95 backdrop-blur-xl sticky top-0 z-40">
         <div className="container mx-auto px-4 py-4 flex items-center gap-3">
-          <Link href="/" className="text-gray-500 hover:text-white transition text-sm">← Back</Link>
+          <Link href="/app" className="text-gray-500 hover:text-white transition text-sm">← Back to Arena</Link>
           <div className="w-px h-5 bg-gray-800" />
           <Sparkles className="w-5 h-5 text-yellow-400" />
           <h1 className="text-lg font-black">Agent Creator</h1>
@@ -459,12 +459,6 @@ export default function CreateAgentPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Version</label>
-                <input type="text" value={version} onChange={e => setVersion(e.target.value)}
-                  className="w-full bg-gray-900/50 border border-gray-800 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500/50" />
-              </div>
-
               <button onClick={handleMint} disabled={!canMint}
                 className="w-full py-4 rounded-xl font-black text-lg flex items-center justify-center gap-3 disabled:opacity-30"
                 style={{ background: `${strategy.color}20`, border: `1px solid ${strategy.color}40`, color: strategy.color }}>
@@ -505,16 +499,15 @@ export default function CreateAgentPage() {
                   <ExternalLink className="w-4 h-4" /> View transaction
                 </a>
               )}
-              <div className="flex gap-3 justify-center">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Link href="/app"
+                  className="px-6 py-3 rounded-xl font-bold bg-purple-500/20 border border-purple-500/40 text-purple-300 text-sm text-center">
+                  ← Back to Arena
+                </Link>
                 <Link href={`/duel?agent=${mintedTokenId || tokenId}`}
-                  className="px-6 py-3 rounded-xl font-bold bg-red-500/20 border border-red-500/40 text-red-400 text-sm">
+                  className="px-6 py-3 rounded-xl font-bold bg-red-500/20 border border-red-500/40 text-red-400 text-sm text-center">
                   Challenge in Duel →
                 </Link>
-                <button onClick={() => { setPhase('design'); setName(''); refetch(); }}
-                  className="px-6 py-3 rounded-xl border border-gray-700 text-gray-400 text-sm opacity-50 cursor-not-allowed"
-                  title="Limit: 1 agent per wallet">
-                  Create Another
-                </button>
               </div>
               <p className="text-[10px] text-gray-600 flex items-center justify-center gap-1">
                 <AlertCircle className="w-3 h-3" /> Limit {MAX_AGENTS_PER_WALLET}/wallet — no second mint possible

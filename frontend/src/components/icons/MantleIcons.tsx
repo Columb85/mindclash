@@ -81,7 +81,7 @@ export const TradingIcon = ({ className, size = 24, style }: IconProps) => (
   </svg>
 );
 
-// Lightning Bolt - for fast actions
+// Lightning Bolt - for quick actions
 export const BoltIcon = ({ className, size = 24, style }: IconProps) => (
   <svg
     width={size}
@@ -237,7 +237,7 @@ export const ArrowRightIcon = ({ className, size = 24, style }: IconProps) => (
   </svg>
 );
 
-// Check Circle - for success state
+// Check Circle - for success
 export const CheckCircleIcon = ({ className, size = 24, style }: IconProps) => (
   <svg
     width={size}
@@ -259,7 +259,7 @@ export const CheckCircleIcon = ({ className, size = 24, style }: IconProps) => (
   </svg>
 );
 
-// Clock Icon - for time display
+// Clock Icon - for time
 export const ClockIcon = ({ className, size = 24, style }: IconProps) => (
   <svg
     width={size}
@@ -281,7 +281,7 @@ export const ClockIcon = ({ className, size = 24, style }: IconProps) => (
   </svg>
 );
 
-// Trending Up - for growth indicators
+// Trending Up - for growth
 export const TrendUpIcon = ({ className, size = 24, style }: IconProps) => (
   <svg
     width={size}
@@ -309,7 +309,7 @@ export const TrendUpIcon = ({ className, size = 24, style }: IconProps) => (
   </svg>
 );
 
-// Trending Down - for decline indicators
+// Trending Down - for decline
 export const TrendDownIcon = ({ className, size = 24, style }: IconProps) => (
   <svg
     width={size}
@@ -337,7 +337,7 @@ export const TrendDownIcon = ({ className, size = 24, style }: IconProps) => (
   </svg>
 );
 
-// Activity Icon - for activity feed
+// Activity Icon - for activity
 export const ActivityIcon = ({ className, size = 24, style }: IconProps) => (
   <svg
     width={size}
@@ -358,7 +358,7 @@ export const ActivityIcon = ({ className, size = 24, style }: IconProps) => (
   </svg>
 );
 
-// Coins Icon - for token balances
+// Coins Icon - for tokens
 export const CoinsIcon = ({ className, size = 24, style }: IconProps) => (
   <svg
     width={size}
@@ -378,7 +378,7 @@ export const CoinsIcon = ({ className, size = 24, style }: IconProps) => (
   </svg>
 );
 
-// Crown Icon - for leaderboard leaders
+// Crown Icon - for leaders
 export const CrownIcon = ({ className, size = 24, style }: IconProps) => (
   <svg
     width={size}
@@ -452,7 +452,7 @@ export const UserIcon = ({ className, size = 24, style }: IconProps) => (
   </svg>
 );
 
-// Globe Icon - for language selection
+// Globe Icon - for languages
 export const GlobeIcon = ({ className, size = 24, style }: IconProps) => (
   <svg
     width={size}
@@ -473,7 +473,7 @@ export const GlobeIcon = ({ className, size = 24, style }: IconProps) => (
   </svg>
 );
 
-// Sword Icon - for duels and battles
+// Sword Icon - for battles
 export const SwordIcon = ({ className, size = 24, style }: IconProps) => (
   <svg
     width={size}

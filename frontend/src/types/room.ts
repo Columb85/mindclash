@@ -33,5 +33,8 @@ export interface Room {
   downPool: number;
   predictions: Prediction[];
   priceHistory: PricePoint[];
+  agentTxHash?: string;
+  agentExplorerUrl?: string;
+  agentOnChainStatus?: 'pending' | 'confirmed' | 'failed';
 }
 

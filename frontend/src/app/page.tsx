@@ -6,7 +6,11 @@ import { motion, useInView, useScroll, useTransform } from 'framer-motion';
 import {
   Brain, Zap, Shield, TrendingUp, TrendingDown, Trophy,
   ArrowRight, Cpu, Globe, Layers, Users,
-  BarChart2, Lock, Sparkles, Bot, ChevronDown
+  BarChart2, Lock, Sparkles, Bot, ChevronDown,
+  CheckCircle2, Coins, Activity, FileCheck,
+  LineChart, Lightbulb, Timer, Network,
+  Award, Target, Share2, Swords,
+  Eye, BarChart, Link2, Gamepad2
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.mindclash.xyz/api';
@@ -743,10 +747,10 @@ export default function LandingPage() {
                 color: '#00D4AA',
                 side: 'left',
                 items: [
-                  { icon: '🤖', text: 'Groq LLM bots making on-chain decisions' },
-                  { icon: '🪙', text: 'ERC-8004 Agent NFTs on Mantle Sepolia' },
-                  { icon: '⚡', text: 'Real-time BTC / ETH / SOL prediction rounds' },
-                  { icon: '✅', text: '6 verified smart contracts deployed' },
+                  { icon: Bot,          text: 'Groq LLM bots making on-chain decisions' },
+                  { icon: Coins,        text: 'ERC-8004 Agent NFTs on Mantle Sepolia' },
+                  { icon: Activity,     text: 'Real-time BTC / ETH / SOL prediction rounds' },
+                  { icon: FileCheck,    text: '6 verified smart contracts deployed' },
                 ],
               },
               {
@@ -755,10 +759,10 @@ export default function LandingPage() {
                 color: '#a855f7',
                 side: 'right',
                 items: [
-                  { icon: '📈', text: 'New asset categories: stocks, commodities, FX pairs' },
-                  { icon: '🔮', text: 'Event-based predictions: token launches, protocol upgrades' },
-                  { icon: '⏱', text: 'Multi-timeframe rounds: 5 min, 1 hour, 24 hour' },
-                  { icon: '🌐', text: 'Mainnet launch on Mantle Network' },
+                  { icon: LineChart,    text: 'New asset categories: stocks, commodities, FX pairs' },
+                  { icon: Lightbulb,   text: 'Event-based predictions: token launches, protocol upgrades' },
+                  { icon: Timer,        text: 'Multi-timeframe rounds: 5 min, 1 hour, 24 hour' },
+                  { icon: Globe,        text: 'Mainnet launch on Mantle Network' },
                 ],
               },
               {
@@ -767,10 +771,10 @@ export default function LandingPage() {
                 color: '#f59e0b',
                 side: 'left',
                 items: [
-                  { icon: '🏆', text: 'On-chain tournament seasons with prize pools' },
-                  { icon: '🎯', text: 'Social quests: challenge friends, beat leaderboards' },
-                  { icon: '🤝', text: 'Referral system with on-chain reward distribution' },
-                  { icon: '🛡', text: 'Guild system — form prediction teams vs AI squads' },
+                  { icon: Trophy,       text: 'On-chain tournament seasons with prize pools' },
+                  { icon: Target,       text: 'Social quests: challenge friends, beat leaderboards' },
+                  { icon: Share2,       text: 'Referral system with on-chain reward distribution' },
+                  { icon: Swords,       text: 'Guild system — form prediction teams vs AI squads' },
                 ],
               },
               {
@@ -779,10 +783,10 @@ export default function LandingPage() {
                 color: '#3b82f6',
                 side: 'right',
                 items: [
-                  { icon: '🧠', text: 'On-chain AI reasoning — decision logic fully verifiable' },
-                  { icon: '📊', text: 'Agent evolution: bots learn from historical predictions' },
-                  { icon: '🔗', text: 'Cross-chain agent deployment (Ethereum, Base, Arbitrum)' },
-                  { icon: '🎮', text: 'User-created AI strategies compete in open marketplace' },
+                  { icon: Brain,        text: 'On-chain AI reasoning — decision logic fully verifiable' },
+                  { icon: BarChart,     text: 'Agent evolution: bots learn from historical predictions' },
+                  { icon: Link2,        text: 'Cross-chain agent deployment (Ethereum, Base, Arbitrum)' },
+                  { icon: Gamepad2,     text: 'User-created AI strategies compete in open marketplace' },
                 ],
               },
             ].map(({ phase, label, color, side, items }, i) => (
@@ -826,10 +830,20 @@ export default function LandingPage() {
                       )}
                     </div>
                     <h3 className="text-lg font-black text-white mb-4">{label}</h3>
-                    <ul className="space-y-2">
-                      {items.map(({ icon, text }) => (
-                        <li key={text} className="flex items-start gap-2.5 text-sm text-gray-400">
-                          <span className="text-base shrink-0 mt-0.5">{icon}</span>
+                    <ul className="space-y-3">
+                      {items.map(({ icon: Icon, text }) => (
+                        <li key={text} className="flex items-center gap-3 text-sm text-gray-300">
+                          <span
+                            className="shrink-0 flex items-center justify-center rounded-xl w-8 h-8"
+                            style={{
+                              background: `${color}18`,
+                              border: `1px solid ${color}35`,
+                              boxShadow: `0 0 10px ${color}25`,
+                              color,
+                            }}
+                          >
+                            <Icon className="w-4 h-4" />
+                          </span>
                           {text}
                         </li>
                       ))}

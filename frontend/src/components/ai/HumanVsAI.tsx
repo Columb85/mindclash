@@ -8,12 +8,10 @@ import {
   Zap, Shield, Sword, DollarSign, Activity, Wifi
 } from 'lucide-react';
 import { useAIAgent } from '@/contexts/AIAgentContext';
+import { CryptoImg } from '@/components/icons/CryptoIcons';
 
 const ASSET_COLORS: Record<string, string> = {
   BTC: '#f7931a', ETH: '#627eea', SOL: '#14f195', MNT: '#00D4AA',
-};
-const ASSET_ICONS: Record<string, string> = {
-  BTC: '₿', ETH: 'Ξ', SOL: '◎', MNT: 'M',
 };
 
 function formatPrice(price: number, symbol: string): string {
@@ -170,7 +168,7 @@ export function HumanVsAI() {
                             : 'border-dark-border bg-dark-surface text-gray-400 hover:border-gray-500'
                         }`}
                       >
-                        <span style={{ color: ASSET_COLORS[sym] }}>{ASSET_ICONS[sym]}</span>
+                        <CryptoImg symbol={sym} className="w-4 h-4" />
                         <span className="ml-1">{sym}</span>
                         {tick && (
                           <span className={`ml-1 ${isUp ? 'text-green-400' : 'text-red-400'}`}>

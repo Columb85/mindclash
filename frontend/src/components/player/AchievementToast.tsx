@@ -1,14 +1,10 @@
 'use client';
 
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Star, Zap, Target } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Trophy, Star, Zap, Target, X } from 'lucide-react';
+import type { Toast } from 'react-hot-toast';
 import { Achievement } from '@/contexts/PlayerContext';
-
-interface AchievementToastProps {
-  achievement: Achievement | null;
-  onClose?: () => void;
-}
 
 const iconMap: Record<string, React.ElementType> = {
   trophy: Trophy,
@@ -22,63 +18,78 @@ const iconMap: Record<string, React.ElementType> = {
   '🎯':  Target,
 };
 
-const colorMap: Record<Achievement['type'], string> = {
-  bronze:   'from-orange-500 to-orange-700',
-  silver:   'from-gray-400 to-gray-600',
-  gold:     'from-yellow-400 to-yellow-600',
-  platinum: 'from-purple-400 to-purple-600',
+const typeConfig: Record<Achievement['type'], {
+  gradient: string;
+  glow: string;
+  border: string;
+  badge: string;
+}> = {
+  bronze:   { gradient: 'from-orange-500 to-amber-600',   glow: 'rgba(249,115,22,0.25)',  border: 'rgba(249,115,22,0.35)',  badge: '#f97316' },
+  silver:   { gradient: 'from-slate-300 to-slate-500',    glow: 'rgba(148,163,184,0.2)',  border: 'rgba(148,163,184,0.3)', badge: '#94a3b8' },
+  gold:     { gradient: 'from-yellow-400 to-amber-500',   glow: 'rgba(234,179,8,0.3)',    border: 'rgba(234,179,8,0.4)',   badge: '#eab308' },
+  platinum: { gradient: 'from-purple-400 to-violet-600',  glow: 'rgba(168,85,247,0.3)',   border: 'rgba(168,85,247,0.4)',  badge: '#a855f7' },
 };
 
-export function AchievementToast({ achievement, onClose }: AchievementToastProps) {
-  React.useEffect(() => {
-    if (achievement && onClose) {
-      const timer = setTimeout(onClose, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [achievement, onClose]);
+interface AchievementToastProps {
+  achievement: Achievement | null;
+  /** react-hot-toast passes its Toast object when used via toast.custom() */
+  t?: Toast;
+  onClose?: () => void;
+}
 
+export function AchievementToast({ achievement, t, onClose }: AchievementToastProps) {
   if (!achievement) return null;
 
-  const Icon      = iconMap[achievement.icon] ?? Trophy;
-  const gradient  = colorMap[achievement.type] ?? colorMap.gold;
+  const Icon   = iconMap[achievement.icon] ?? Trophy;
+  const config = typeConfig[achievement.type] ?? typeConfig.gold;
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: -100, scale: 0.8 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: -100, scale: 0.8 }}
-        className="fixed top-4 right-4 z-50 max-w-md"
+    <motion.div
+      initial={{ opacity: 0, x: 60, scale: 0.92 }}
+      animate={{
+        opacity: t ? (t.visible ? 1 : 0) : 1,
+        x:       t ? (t.visible ? 0 : 60) : 0,
+        scale:   1,
+      }}
+      transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+      className="pointer-events-auto flex items-start gap-3 rounded-2xl p-4 pr-3"
+      style={{
+        minWidth: 280,
+        maxWidth: 340,
+        background: 'rgba(8, 8, 18, 0.96)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        border: `1px solid ${config.border}`,
+        borderLeft: `3px solid ${config.badge}`,
+        boxShadow: `0 8px 40px rgba(0,0,0,0.6), 0 0 30px ${config.glow}`,
+      }}
+    >
+      {/* Icon */}
+      <div
+        className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
+        style={{ background: `linear-gradient(135deg, ${config.badge}25, ${config.badge}10)`, border: `1px solid ${config.badge}40` }}
       >
-        <div className={`bg-gradient-to-r ${gradient} p-1 rounded-lg shadow-2xl`}>
-          <div className="bg-gray-900 rounded-lg p-4">
-            <div className="flex items-start gap-4">
-              <div className={`bg-gradient-to-br ${gradient} p-3 rounded-full`}>
-                <Icon className="w-6 h-6 text-white" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-white mb-1">
-                  🎉 Achievement Unlocked!
-                </h3>
-                <p className="text-xl font-bold text-white mb-1">
-                  {achievement.title}
-                </p>
-                <p className="text-sm text-gray-300">
-                  {achievement.description}
-                </p>
-              </div>
-              {onClose && (
-                <button
-                  onClick={onClose}
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          </div>
+        <Icon className="w-5 h-5" style={{ color: config.badge }} />
+      </div>
+
+      {/* Text */}
+      <div className="flex-1 min-w-0 pt-0.5">
+        <div className="flex items-center gap-2 mb-0.5">
+          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: config.badge }}>
+            Achievement Unlocked
+          </span>
         </div>
-      </motion.div>
-    </AnimatePresence>
+        <p className="text-sm font-black text-white leading-tight">{achievement.title}</p>
+        <p className="text-[11px] text-gray-400 mt-0.5 leading-tight">{achievement.description}</p>
+      </div>
+
+      {/* Close */}
+      <button
+        onClick={onClose}
+        className="shrink-0 mt-0.5 w-6 h-6 rounded-lg flex items-center justify-center text-gray-600 hover:text-gray-300 hover:bg-white/[0.06] transition-colors"
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </motion.div>
   );
 }

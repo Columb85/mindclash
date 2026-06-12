@@ -58,12 +58,41 @@ export default function RootLayout({
                           {children}
                           <Toaster
                             position="top-right"
+                            gutter={8}
                             toastOptions={{
-                              duration: 4000,
+                              duration: 3500,
                               style: {
-                                background: '#1a1a2e',
-                                color: '#fff',
-                                border: '1px solid #2d2d44',
+                                background: 'rgba(10, 10, 20, 0.92)',
+                                backdropFilter: 'blur(16px)',
+                                WebkitBackdropFilter: 'blur(16px)',
+                                color: '#f1f5f9',
+                                border: '1px solid rgba(255,255,255,0.08)',
+                                borderRadius: '12px',
+                                padding: '10px 14px',
+                                fontSize: '13px',
+                                fontWeight: '500',
+                                boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)',
+                                maxWidth: '340px',
+                              },
+                              success: {
+                                duration: 3000,
+                                style: {
+                                  background: 'rgba(10, 20, 15, 0.95)',
+                                  border: '1px solid rgba(34, 197, 94, 0.25)',
+                                  borderLeft: '3px solid #22c55e',
+                                  boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(34,197,94,0.08)',
+                                },
+                                iconTheme: { primary: '#22c55e', secondary: '#0a0f0a' },
+                              },
+                              error: {
+                                duration: 4500,
+                                style: {
+                                  background: 'rgba(20, 10, 10, 0.95)',
+                                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                                  borderLeft: '3px solid #ef4444',
+                                  boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(239,68,68,0.08)',
+                                },
+                                iconTheme: { primary: '#ef4444', secondary: '#140a0a' },
                               },
                             }}
                           />

@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bot, Play, Pause, TrendingUp, TrendingDown, Activity,
-  Brain, Zap, Clock, DollarSign, Target, BarChart3, Cpu, Wifi
+  Brain, Zap, Clock, DollarSign, Target, BarChart3, Cpu, Wifi, ExternalLink
 } from 'lucide-react';
+import { CryptoImg } from '@/components/icons/CryptoIcons';
 import { useAIAgent } from '@/contexts/AIAgentContext';
+import { LiveAgentDemo } from './LiveAgentDemo';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -26,9 +28,6 @@ function formatPrice(price: number, symbol: string): string {
 const ASSET_COLORS: Record<string, string> = {
   BTC: '#f7931a', ETH: '#627eea', SOL: '#14f195', MNT: '#00D4AA',
 };
-const ASSET_ICONS: Record<string, string> = {
-  BTC: '₿', ETH: 'Ξ', SOL: '◎', MNT: 'M',
-};
 const STRATEGY_LABELS: Record<string, string> = {
   'momentum':       'Momentum',
   'mean-reversion': 'Mean Rev.',
@@ -39,6 +38,22 @@ const STRATEGY_COLORS: Record<string, string> = {
   'mean-reversion': 'text-purple-400 bg-purple-500/10 border-purple-500/30',
   'neural':         'text-green-400 bg-green-500/10 border-green-500/30',
 };
+
+const EXPLORER_URL = process.env.NEXT_PUBLIC_EXPLORER_URL || 'https://sepolia.mantlescan.xyz';
+const NFT_ADDRESS   = process.env.NEXT_PUBLIC_AGENT_NFT_ADDRESS || '0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837';
+
+// Bot wallet addresses — used to build MantleScan links
+const BOT_TOKEN_IDS: Record<string, number> = {
+  AlphaPredict:    5,
+  MomentumMaster:  6,
+  NeuralTrader:    7,
+};
+
+function getMantleScanUrl(agentName: string): string {
+  const tid = BOT_TOKEN_IDS[agentName];
+  if (!tid) return '';
+  return `${EXPLORER_URL}/token/${NFT_ADDRESS}?a=${tid}`;
+}
 
 // AI Agent Avatars and Gradients
 const AGENT_AVATARS: Record<string, { emoji: string; gradient: string; glowColor: string }> = {
@@ -97,9 +112,9 @@ function LivePriceRow({ symbol, price, change }: { symbol: string; price: number
       <div className="flex items-center gap-3">
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold transition-transform group-hover:scale-110"
-          style={{ backgroundColor: `${color}20`, color }}
+          style={{ backgroundColor: `${color}20` }}
         >
-          {ASSET_ICONS[symbol]}
+          <CryptoImg symbol={symbol} className="w-5 h-5" />
         </div>
         <div>
           <span className="text-sm font-bold text-white">{symbol}</span>
@@ -283,6 +298,18 @@ export function AIAgentMonitor() {
                       <div>
                         <div className="font-bold text-white text-sm leading-tight">{agent.name}</div>
                         <div className="text-[10px] text-gray-500 font-mono">v{agent.version}</div>
+                        {getMantleScanUrl(agent.name) && (
+                          <a
+                            href={getMantleScanUrl(agent.name)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            className="inline-flex items-center gap-0.5 text-[9px] text-teal-500 hover:text-teal-300 transition-colors mt-0.5"
+                          >
+                            <ExternalLink className="w-2.5 h-2.5" />
+                            MantleScan
+                          </a>
+                        )}
                       </div>
                     </div>
                     <button
@@ -393,8 +420,38 @@ export function AIAgentMonitor() {
                         {agent.lastDecision.reasoning}
                       </p>
                     )}
+                    {getMantleScanUrl(agent.name) && (
+                      <a
+                        href={getMantleScanUrl(agent.name)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 mt-2 text-[9px] text-teal-600 hover:text-teal-400 transition-colors"
+                      >
+                        <ExternalLink className="w-2.5 h-2.5" />
+                        Verify on-chain
+                      </a>
+                    )}
                   </div>
                 )}
+
+                {/* Follow + Copy Signal CTA */}
+                <div className="mt-3 pt-3 border-t border-dark-border/40 flex gap-2">
+                  <button
+                    onClick={e => { e.stopPropagation(); alert(`Following ${agent.name}! You'll receive signal notifications.`); }}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-500/15 border border-blue-500/30 text-blue-400 text-[11px] font-bold hover:bg-blue-500/25 transition"
+                  >
+                    <Activity className="w-3 h-3" />
+                    Follow
+                  </button>
+                  <button
+                    onClick={e => { e.stopPropagation(); alert(`Copy-trading ${agent.name} signals enabled! 2% performance fee applies.`); }}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-green-500/15 border border-green-500/30 text-green-400 text-[11px] font-bold hover:bg-green-500/25 transition"
+                  >
+                    <Zap className="w-3 h-3" />
+                    Copy Signals
+                  </button>
+                </div>
                 </div>
               </motion.div>
             ))}
@@ -521,6 +578,11 @@ export function AIAgentMonitor() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ═══════════ JUDGE DEMO SECTION ═══════════ */}
+      <div className="rounded-2xl border border-dark-border bg-dark-bg/50 p-5">
+        <LiveAgentDemo />
+      </div>
     </div>
   );
 }
