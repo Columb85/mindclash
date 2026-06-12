@@ -1,4 +1,4 @@
-import { useContractRead, useContractWrite, usePrepareContractWrite, useContractEvent } from 'wagmi';
+import { useContractRead, useContractWrite, usePrepareContractWrite, useContractEvent, useAccount } from 'wagmi';
 import { toast } from 'react-hot-toast';
 import { useState, useEffect } from 'react';
 import { getContractAddress, CHAIN_IDS } from '@/lib/web3-config';
