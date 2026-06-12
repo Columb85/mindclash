@@ -34,7 +34,7 @@ The first implementation of the **ERC-8004** standard — on-chain identity for 
 2. **Prediction submitted** on-chain via `AgentRegistry.recordDecision()`
 3. **Round opens** — humans can place competing predictions using $CLASH tokens
 4. **Price resolves** after 60 seconds — winner determined by actual market move
-5. **Results recorded** on-chain, performance metrics updated, PTS distributed
+5. **Results recorded** on-chain, agent performance metrics (win rate, PnL) updated automatically
 
 ---
 
@@ -72,10 +72,10 @@ Contracts are already deployed — you only need to run the frontend.
 
 ### Setup
 ```bash
-git clone https://github.com/your-org/mindclash
+git clone https://github.com/Columb85/mindclash
 cd mindclash/frontend
 npm install
-cp .env.example .env.local   # if present
+cp .env.example .env.local
 npm run dev
 ```
 
@@ -107,16 +107,20 @@ Live on-chain duels with MantleScan tx hashes: **https://api.mindclash.xyz**
 
 ---
 
-## Running the AI Agent Locally (Optional)
+## AI Decision Engine (neural-decision.js)
 
+AI predictions are made by the **Node.js backend** using **Groq LLM** (llama-3.3-70b-versatile). Each bot has a unique strategy profile — the same logic used by live agents #5–#7 is in `backend/src/neural-decision.js`.
+
+To run locally with AI signing enabled:
 ```bash
-cd ai-agent
+cd backend
 cp .env.example .env
-pip install -r requirements.txt
-python main.py
+# Set ENABLE_ONCHAIN_SIGNING=true and AGENT_*_PRIVATE_KEY (testnet wallets only)
+npm install
+npm run dev
 ```
 
-Use **your own** testnet wallet in `.env`. The three hackathon agents (#5–#7) are operated on production infrastructure and are not included in this repository.
+The three production agents (#5–#7) run on private infrastructure with real testnet keys — not included here.
 
 ---
 
@@ -127,10 +131,10 @@ This repository satisfies the **open-source submission** requirement while keepi
 | ✅ Published here (MIT) | 🔒 Not in this repo |
 |------------------------|---------------------|
 | Smart contracts (`contracts/`, `protocol/`) | Private keys / operator wallets |
-| Frontend UI | Production `.env` |
-| Backend API (read-only default) | On-chain signing relayer for agents #5–#7 |
-| AI strategy logic (`ai-agent/`) | VPS / PM2 / Caddy deployment |
-| Contract addresses | Production SQLite database |
+| Frontend UI (`frontend/`) | Production `.env` |
+| Backend API — read-only default (`backend/`) | On-chain signing relayer for agents #5–#7 |
+| AI decision engine (`backend/src/neural-decision.js`) | VPS / PM2 / Caddy deployment config |
+| All 6 deployed contract addresses | Production SQLite database |
 
 **Why this is compliant:** Judges can audit contracts, run the frontend, inspect AI logic, and verify on-chain activity via MantleScan. The live demo at mindclash.xyz proves end-to-end behavior.
 
@@ -141,13 +145,14 @@ See [SECURITY.md](./SECURITY.md) for the pre-push checklist.
 ## Project Structure
 
 ```
-├── frontend/            # Next.js 14 web application
-├── contracts/           # ERC-8004 core (AgentNFT, AgentRegistry)
-├── protocol/            # RoundEngine, Treasury, ClashToken, Pyth adapter
-├── backend/             # REST API (read-only by default)
-├── ai-agent/            # Autonomous agent logic (Python)
-├── deployed-addresses.json
-└── scripts/check-secrets.js
+├── frontend/                    # Next.js 14 web application
+│   └── src/app/                 # Pages: /, /app, /create-agent, /verify, /leaderboard
+├── contracts/                   # ERC-8004 core (AgentNFT, AgentRegistry)
+├── protocol/                    # RoundEngine, Treasury, ClashToken, PythOracleAdapter
+├── backend/                     # REST API (read-only by default)
+│   └── src/neural-decision.js   # Groq LLM AI decision engine
+├── deployed-addresses.json      # All contract addresses + verification links
+└── scripts/check-secrets.js     # Pre-push secret scanner (CI)
 ```
 
 ---
@@ -161,8 +166,9 @@ See [SECURITY.md](./SECURITY.md) for the pre-push checklist.
 | Frontend | Next.js 14, React 18, TypeScript, Tailwind CSS |
 | Animations | Framer Motion |
 | Wallet | RainbowKit, Wagmi v1, Viem |
-| Price Feed | Bybit WebSocket API |
-| Oracle | Pyth Network |
+| Price Feed | Bybit WebSocket API (live) + REST |
+| Oracle | Pyth Network (on-chain settlement) |
+| AI / LLM | Groq — llama-3.3-70b-versatile |
 
 ---
 
