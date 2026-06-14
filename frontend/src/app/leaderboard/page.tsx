@@ -134,7 +134,7 @@ export default function LeaderboardPage() {
             <span className="logo-mind">Mind</span>
             <span className="logo-clash">Clash</span>
           </Link>
-          <Navigation currentView={currentView} onViewChange={setCurrentView} />
+          <Navigation currentView={currentView} onViewChange={setCurrentView} activePage="leaderboard" />
           <div className="hud-topbar-right">
             <OnlineCounter />
             <ClashBalance />

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { useAccount, useNetwork, useContractWrite, useWaitForTransaction } from 'wagmi';
+import { useAccount, useChainId, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import toast from 'react-hot-toast';
 import { Navigation, View } from '@/components/layout/Navigation';
 import { HudConnectButton } from '@/components/ui/HudConnectButton';
@@ -64,7 +64,7 @@ function shortHash(hash: string): string {
 
 export default function AgentLabPage() {
   const { isConnected } = useAccount();
-  const { chain } = useNetwork();
+  const chainId = useChainId();
   const [currentView, setCurrentView] = useState<View>('lobby');
   const { tokenId, registered, isLoading: isChecking } = useMyAgent();
   const { profile, refetch: refetchProfile } = useAgentProfile(tokenId > 0 ? BigInt(tokenId) : undefined);
@@ -77,16 +77,12 @@ export default function AgentLabPage() {
   const [pendingDecision, setPendingDecision] = useState<PendingDecision | null>(null);
   const [isFetchingDecision, setIsFetchingDecision] = useState(false);
 
-  const { write: writeRecordDecision, data: recordTxData, isLoading: isRecording } = useContractWrite({
-    address: CONTRACTS.mantleSepolia.agentNFT as `0x${string}`,
-    abi: RECORD_DECISION_ABI,
-    functionName: 'recordDecision',
-  });
-  const { isLoading: isWaitingRecord, isSuccess: isRecordSuccess } = useWaitForTransaction({
-    hash: recordTxData?.hash,
+  const { writeContract: writeRecordDecision, data: recordTxHash, isPending: isRecording } = useWriteContract();
+  const { isLoading: isWaitingRecord, isSuccess: isRecordSuccess } = useWaitForTransactionReceipt({
+    hash: recordTxHash,
   });
 
-  const isWrongNetwork = isConnected && chain?.id !== MANTLE_SEPOLIA_ID;
+  const isWrongNetwork = isConnected && chainId !== MANTLE_SEPOLIA_ID;
   const hasAgent = tokenId > 0;
   const displayName = registered?.name || profile?.name || `Agent #${tokenId}`;
   const displayStrategy = AGENT_STRATEGIES.find(s => s.id === registered?.strategy)?.name || registered?.strategy || '—';
@@ -134,7 +130,10 @@ export default function AgentLabPage() {
 
   const handleRecordOnChain = () => {
     if (!pendingDecision || !hasAgent) return;
-    writeRecordDecision?.({
+    writeRecordDecision({
+      address: CONTRACTS.mantleSepolia.agentNFT as `0x${string}`,
+      abi: RECORD_DECISION_ABI,
+      functionName: 'recordDecision',
       args: [
         BigInt(tokenId),
         pendingDecision.direction,
@@ -338,16 +337,16 @@ export default function AgentLabPage() {
                       <><i className="fa-solid fa-signature" /> Sign recordDecision() on-chain</>
                     )}
                   </button>
-                  {recordTxData?.hash && (
+                  {recordTxHash && (
                     <a
-                      href={`${EXPLORER}/tx/${recordTxData.hash}`}
+                      href={`${EXPLORER}/tx/${recordTxHash}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="ca-tx-link"
                       style={{ display: 'inline-flex', marginTop: 10, gap: 4 }}
                     >
                       <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 9 }} />
-                      Pending tx: {recordTxData.hash.slice(0, 22)}…
+                      Pending tx: {recordTxHash.slice(0, 22)}…
                     </a>
                   )}
                 </motion.div>

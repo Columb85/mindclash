@@ -59,7 +59,7 @@ export default function ShowdownPage() {
             <span className="logo-mind">Mind</span>
             <span className="logo-clash">Clash</span>
           </Link>
-          <Navigation currentView={currentView} onViewChange={setCurrentView} />
+          <Navigation currentView={currentView} onViewChange={setCurrentView} activePage="showdown" />
           <div className="hud-topbar-right">
             <OnlineCounter />
             <ClashBalance />

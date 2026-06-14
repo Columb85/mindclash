@@ -1,6 +1,17 @@
-import { configureChains, createConfig } from 'wagmi';
-import { publicProvider } from 'wagmi/providers/public';
-import { getDefaultWallets } from '@rainbow-me/rainbowkit';
+import { http, createConfig } from 'wagmi';
+import { defineChain } from 'viem';
+import { connectorsForWallets } from '@rainbow-me/rainbowkit';
+import {
+  injectedWallet,
+  metaMaskWallet,
+  rabbyWallet,
+  coinbaseWallet,
+  walletConnectWallet,
+  rainbowWallet,
+  trustWallet,
+  braveWallet,
+  okxWallet,
+} from '@rainbow-me/rainbowkit/wallets';
 
 // ─── Chain IDs ────────────────────────────────────────────────────────────────
 export const CHAIN_IDS = {
@@ -9,44 +20,40 @@ export const CHAIN_IDS = {
 } as const;
 
 // ─── Mantle Sepolia (testnet for hackathon) ───────────────────────────────────
-const mantleSepolia = {
+const mantleSepolia = defineChain({
   id: 5003,
   name: 'Mantle Sepolia',
-  network: 'mantle-sepolia',
   nativeCurrency: {
     name: 'Mantle',
     symbol: 'MNT',
     decimals: 18,
   },
   rpcUrls: {
-    public: { http: ['https://rpc.sepolia.mantle.xyz'] },
     default: { http: ['https://rpc.sepolia.mantle.xyz'] },
   },
   blockExplorers: {
     default: { name: 'Mantlescan', url: 'https://sepolia.mantlescan.xyz' },
   },
   testnet: true,
-} as const;
+});
 
 // ─── Mantle Mainnet ───────────────────────────────────────────────────────────
-const mantleMainnet = {
+const mantleMainnet = defineChain({
   id: 5000,
   name: 'Mantle',
-  network: 'mantle',
   nativeCurrency: {
     name: 'Mantle',
     symbol: 'MNT',
     decimals: 18,
   },
   rpcUrls: {
-    public: { http: ['https://rpc.mantle.xyz'] },
     default: { http: ['https://rpc.mantle.xyz'] },
   },
   blockExplorers: {
     default: { name: 'Mantlescan', url: 'https://mantlescan.xyz' },
   },
   testnet: false,
-} as const;
+});
 
 // ─── Contract Addresses (filled after deploy) ─────────────────────────────────
 export const CONTRACT_ADDRESSES = {
@@ -54,8 +61,8 @@ export const CONTRACT_ADDRESSES = {
     roundEngine:   process.env.NEXT_PUBLIC_ROUND_ENGINE_ADDRESS   || '',
     treasury:      process.env.NEXT_PUBLIC_TREASURY_ADDRESS       || '',
     oracleAdapter: process.env.NEXT_PUBLIC_ORACLE_ADAPTER_ADDRESS || '',
-    usdc:          process.env.NEXT_PUBLIC_USDC_ADDRESS           || '0x2c852e740B62308c46DD29B982FBb650D063Bd07', // Mantle Sepolia USDC
-    usdt:          process.env.NEXT_PUBLIC_USDT_ADDRESS           || '0xAE1A6b5b0e7E3e3e3e3e3e3e3e3e3e3e3e3e3e3e', // placeholder
+    usdc:          process.env.NEXT_PUBLIC_USDC_ADDRESS           || '0x2c852e740B62308c46DD29B982FBb650D063Bd07',
+    usdt:          process.env.NEXT_PUBLIC_USDT_ADDRESS           || '0xAE1A6b5b0e7E3e3e3e3e3e3e3e3e3e3e3e3e3e3e',
     agentNFT:      process.env.NEXT_PUBLIC_AGENT_NFT_ADDRESS      || '',
     agentRegistry: process.env.NEXT_PUBLIC_AGENT_REGISTRY_ADDRESS || '',
   },
@@ -63,8 +70,8 @@ export const CONTRACT_ADDRESSES = {
     roundEngine:   '',
     treasury:      '',
     oracleAdapter: '',
-    usdc:          '0x09Bc4E0D864854c6aFB6eB9A9cdF58aC190D0dF9', // USDC on Mantle mainnet
-    usdt:          '0x201EBa5CC46D216Ce6DC03F6a759e8E766e956aE', // USDT on Mantle mainnet
+    usdc:          '0x09Bc4E0D864854c6aFB6eB9A9cdF58aC190D0dF9',
+    usdt:          '0x201EBa5CC46D216Ce6DC03F6a759e8E766e956aE',
     agentNFT:      '',
     agentRegistry: '',
   },
@@ -125,30 +132,45 @@ export const ROUND_DURATIONS = [
   { label: '5 MIN', value: 300, icon: '⭐' },
 ] as const;
 
-// ─── Supported chains — testnet only until mainnet contracts are deployed ─────
-export const SUPPORTED_CHAINS = [mantleSepolia];
+// ─── Supported chains ─────────────────────────────────────────────────────────
+export const SUPPORTED_CHAINS = [mantleSepolia] as const;
 
-// ─── Wagmi config ─────────────────────────────────────────────────────────────
-const { chains, publicClient } = configureChains(
-  SUPPORTED_CHAINS,
-  [publicProvider()]
-);
-
+// ─── Wagmi v2 config ──────────────────────────────────────────────────────────
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'b5ebf3f65b29b6b6ed6ff4e2ba4ebb68';
 
-const { connectors } = getDefaultWallets({
-  appName: 'MindClash',
-  projectId,
-  chains,
-});
+const connectors = connectorsForWallets(
+  [
+    {
+      groupName: 'Popular',
+      wallets: [
+        injectedWallet,
+        rabbyWallet,
+        metaMaskWallet,
+        coinbaseWallet,
+        walletConnectWallet,
+      ],
+    },
+    {
+      groupName: 'More',
+      wallets: [
+        trustWallet,
+        braveWallet,
+        okxWallet,
+        rainbowWallet,
+      ],
+    },
+  ],
+  { appName: 'MindClash', projectId }
+);
 
 export const wagmiConfig = createConfig({
-  autoConnect: false,
-  publicClient,
+  chains: SUPPORTED_CHAINS,
   connectors,
+  transports: {
+    [mantleSepolia.id]: http('https://rpc.sepolia.mantle.xyz'),
+  },
+  ssr: true,
 });
-
-export { chains };
 
 // ─── Utility helpers ──────────────────────────────────────────────────────────
 export function getContractAddress(

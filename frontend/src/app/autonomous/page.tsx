@@ -159,7 +159,7 @@ export default function AutonomousPage() {
             <span className="logo-mind">Mind</span>
             <span className="logo-clash">Clash</span>
           </Link>
-          <Navigation currentView={currentView} onViewChange={setCurrentView} />
+          <Navigation currentView={currentView} onViewChange={setCurrentView} activePage="autonomous" />
           <div className="hud-topbar-right">
             <OnlineCounter />
             <ClashBalance />

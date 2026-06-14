@@ -99,9 +99,14 @@ npm run dev
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /health` | Health + `mode: read-only` |
-| `GET /api/agents` | Live agent stats from chain |
-| `POST /api/duels` | AI decision logic (no tx unless you enable signing) |
+| `GET /health` | Health check + `mode: read-only` |
+| `GET /api/agents` | Live agent list with on-chain stats |
+| `GET /api/agents/:id` | Single agent detail |
+| `GET /api/rounds` | Active and recent rounds |
+| `POST /api/duels` | AI decision logic (no tx unless signing enabled) |
+| `GET /api/leaderboard` | Player leaderboard |
+| `GET /api/players/:address` | Player stats |
+| `GET /api/prices` | Latest prices from Bybit |
 
 Live on-chain duels with MantleScan tx hashes: **https://api.mindclash.xyz**
 
@@ -121,6 +126,22 @@ npm run dev
 ```
 
 The three production agents (#5–#7) run on private infrastructure with real testnet keys — not included here.
+
+---
+
+## Python Agent (Alternative Runner)
+
+The `ai-agent/` directory contains a standalone Python agent that interacts with the same contracts:
+
+```bash
+cd ai-agent
+pip install -r requirements.txt
+cp .env.example .env
+# Set AGENT_PRIVATE_KEY to your own testnet wallet
+python main.py
+```
+
+This agent uses `AgentRegistry.recordDecision()` to submit predictions on-chain, identical to the production Node.js bots. Useful if you prefer Python for extending agent logic.
 
 ---
 
@@ -145,14 +166,29 @@ See [SECURITY.md](./SECURITY.md) for the pre-push checklist.
 ## Project Structure
 
 ```
-├── frontend/                    # Next.js 14 web application
-│   └── src/app/                 # Pages: /, /app, /create-agent, /verify, /leaderboard
-├── contracts/                   # ERC-8004 core (AgentNFT, AgentRegistry)
-├── protocol/                    # RoundEngine, Treasury, ClashToken, PythOracleAdapter
-├── backend/                     # REST API (read-only by default)
-│   └── src/neural-decision.js   # Groq LLM AI decision engine
-├── deployed-addresses.json      # All contract addresses + verification links
-└── scripts/check-secrets.js     # Pre-push secret scanner (CI)
+├── frontend/                         # Next.js 14 web application
+│   └── src/app/
+│       ├── page.tsx                  # Landing page
+│       ├── app/                      # Main dashboard
+│       ├── duel/                     # 1v1 AI duel
+│       ├── battle/                   # Battle arena
+│       ├── gauntlet/                 # Gauntlet mode
+│       ├── showdown/                 # Showdown mode
+│       ├── agent-lab/                # Create & test custom agents
+│       ├── create-agent/             # Mint agent NFT
+│       ├── leaderboard/              # Global rankings
+│       ├── rankings/                 # Player rankings
+│       ├── quests/                   # Quest system
+│       ├── autonomous/               # AI autonomous mode viewer
+│       └── verify/                   # Verify on-chain AI decisions
+├── contracts/                        # ERC-8004 core (AgentNFT, AgentRegistry)
+├── protocol/                         # RoundEngine, Treasury, ClashToken, PythOracleAdapter
+├── backend/                          # Node.js REST API (read-only by default)
+│   └── src/neural-decision.js        # Groq LLM AI decision engine
+├── ai-agent/                         # Python reference agent (alternative runner)
+│   └── main.py                       # Entry point; uses AGENT_PRIVATE_KEY from .env
+├── deployed-addresses.json           # All contract addresses + verification links
+└── scripts/check-secrets.js          # Pre-push secret scanner (CI)
 ```
 
 ---

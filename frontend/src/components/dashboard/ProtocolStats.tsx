@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRooms } from '@/contexts/RoomsContext';
-import { useContractRead } from 'wagmi';
+import { useReadContract } from 'wagmi';
 import { formatUnits } from 'viem';
 import { CLASH_TOKEN_ADDRESS, TREASURY_ADDRESS, CLASH_ABI } from '@/contexts/ClashContext';
 
@@ -40,14 +40,15 @@ export function ProtocolStats() {
   const accumulatedFees = (historicFees ?? 0) + sessionFees;
 
   // ── Real on-chain Treasury $CLASH balance ───────────────────────────────────
-  const { data: treasuryRaw } = useContractRead({
+  const { data: treasuryRaw } = useReadContract({
     address: CLASH_TOKEN_ADDRESS,
     abi: CLASH_ABI,
     functionName: 'balanceOf',
     args: [TREASURY_ADDRESS],
-    watch: false,
-    staleTime: 60_000,
-    cacheTime: 120_000,
+    query: {
+      staleTime: 60_000,
+      gcTime: 120_000,
+    },
   });
   const treasuryBalance = treasuryRaw !== undefined
     ? Math.floor(Number(formatUnits(treasuryRaw as bigint, 18)))

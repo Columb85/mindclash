@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { providers, utils } from 'ethers';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -11,6 +11,7 @@ import { ClashBalance } from '@/components/ui/ClashBalance';
 import { ModeIndicator } from '@/components/ui/ModeIndicator';
 import { OnlineCounter } from '@/components/ui/OnlineCounter';
 
+const API_URL  = process.env.NEXT_PUBLIC_API_URL || 'https://api.mindclash.xyz/api';
 const RPC_URL  = 'https://rpc.sepolia.mantle.xyz';
 const NFT_ADDR = '0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837';
 const EXPLORER = 'https://sepolia.mantlescan.xyz';
@@ -21,10 +22,12 @@ const AGENTS: Record<number, { name: string; color: string }> = {
   7: { name: 'NeuralTrader',   color: '#22c55e' },
 };
 
-const EXAMPLES = [
-  { label: 'AlphaPredict (DOWN)', hash: '0x7f70fd4047d479274959c5b56587b5de7d78e1c974cecbe1477d1a0c952b3fdf' },
-  { label: 'NeuralTrader (DOWN)', hash: '0x1860e12822caf6d87c20658da012f528ccfc8697f3352cf90c65c951d3d7673d' },
-  { label: 'MomentumMaster (DOWN)', hash: '0x39bd3902a99b1e2d3a1bfbe3d48d52fbcbc81bc54709433f6c2783c463447e49' },
+interface ExampleTx { label: string; hash: string }
+
+const FALLBACK_EXAMPLES: ExampleTx[] = [
+  { label: 'AlphaPredict (UP)',     hash: '0xfad4541f5e69220063b18c35786fc0bcac3a3c4c9ecc9cbf11efdeccc493d63f' },
+  { label: 'MomentumMaster (DOWN)', hash: '0xe806b576761a15a40e62f4d9239a96b779ca659bd13996cee7cd20ab90eb12f1' },
+  { label: 'NeuralTrader (UP)',     hash: '0xb8a60acb39dc7bbff097f146142170b51f9357f3309ac3bfe5fd463a1e22289f' },
 ];
 
 interface VerifyResult {
@@ -54,6 +57,42 @@ export default function VerifyPage() {
   const [result, setResult] = useState<VerifyResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [examples, setExamples] = useState<ExampleTx[]>(FALLBACK_EXAMPLES);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const prov = getProvider();
+        const latest = await prov.getBlockNumber();
+        const fromBlock = Math.max(0, latest - 5000);
+        const iface = new utils.Interface([
+          'event DecisionRecorded(uint256 indexed tokenId, string direction, uint256 confidence, uint256 stake, bytes32 decisionHash)',
+        ]);
+        const logs = await prov.getLogs({
+          address: NFT_ADDR,
+          topics: [iface.getEventTopic('DecisionRecorded')],
+          fromBlock,
+          toBlock: 'latest',
+        });
+        if (logs.length > 0) {
+          const recent = logs.slice(-6).reverse();
+          const items: ExampleTx[] = [];
+          const seen = new Set<number>();
+          for (const log of recent) {
+            if (items.length >= 3) break;
+            const parsed = iface.parseLog(log);
+            const tid = Number(parsed.args.tokenId);
+            if (seen.has(tid)) continue;
+            seen.add(tid);
+            const name = AGENTS[tid]?.name || `Agent #${tid}`;
+            const dir = parsed.args.direction;
+            items.push({ label: `${name} (${dir})`, hash: log.transactionHash });
+          }
+          if (items.length > 0) setExamples(items);
+        }
+      } catch { /* fallback to hardcoded */ }
+    })();
+  }, []);
 
   const handleVerify = async () => {
     const hash = input.trim();
@@ -140,7 +179,7 @@ export default function VerifyPage() {
             <span className="logo-mind">Mind</span>
             <span className="logo-clash">Clash</span>
           </Link>
-          <Navigation currentView={currentView} onViewChange={setCurrentView} />
+          <Navigation currentView={currentView} onViewChange={setCurrentView} activePage="verify" />
           <div className="hud-topbar-right">
             <OnlineCounter />
             <ClashBalance />
@@ -197,7 +236,7 @@ export default function VerifyPage() {
             <span style={{ fontSize: 9, color: 'var(--hud-text-3)' }}>
               <i className="fa-solid fa-circle-info" /> Try a live example:
             </span>
-            {EXAMPLES.map(ex => (
+            {examples.map(ex => (
               <button key={ex.hash} type="button" onClick={() => setInput(ex.hash)} className="vf-example-chip" title={ex.hash}>
                 {ex.label}
               </button>

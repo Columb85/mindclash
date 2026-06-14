@@ -99,13 +99,16 @@ function HomeContent() {
     pinRoom(room.id);
   };
 
-  // Deep-link: /app?room=ROOM_ID
+  // Deep-link: /app?room=ROOM_ID or /app?view=profile
   useEffect(() => {
     const roomId = searchParams.get('room');
+    const view = searchParams.get('view');
     if (roomId) {
       setActiveRoomId(roomId);
       setCurrentView('game');
       pinRoom(roomId);
+    } else if (view === 'profile') {
+      setCurrentView('profile');
     }
   }, [searchParams, pinRoom]);
 
@@ -193,102 +196,116 @@ function HomeContent() {
         </div>
 
         {/* ── Main ───────────────────────────────────────────────────────── */}
-        {currentView === 'profile' ? (
-          <>
-            <div className="hud-shell" style={{ paddingTop: 12 }}>
-              <ActiveRoundBanner />
-            </div>
-            <UserProfile userAddress={address} />
-          </>
-        ) : (
-        <main className="hud-shell py-5">
+        <AnimatePresence mode="wait">
+          {currentView === 'profile' && (
+            <motion.div
+              key="profile"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <div className="hud-shell" style={{ paddingTop: 12 }}>
+                <ActiveRoundBanner />
+              </div>
+              <UserProfile userAddress={address} />
+            </motion.div>
+          )}
 
-          {currentView !== 'game' && <ActiveRoundBanner />}
+          {currentView !== 'profile' && (
+            <motion.main
+              key={currentView}
+              className="hud-shell py-5"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              {currentView !== 'game' && <ActiveRoundBanner />}
 
-          {/* ═══ LOBBY ═══════════════════════════════════════════════════ */}
-          {currentView === 'lobby' && (
-            <div className="space-y-5">
+              {/* ═══ LOBBY ═══════════════════════════════════════════════════ */}
+              {currentView === 'lobby' && (
+                <div className="space-y-5">
 
-              {/* 1 · Page title + live status + Quick Join */}
-              <div className="hud-page-hdr">
-                <div>
-                  <h1>Live Rounds</h1>
-                  <p>Predict UP or DOWN · Stake $CLASH · Beat the AI</p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <QuickJoinButton onJoin={handleEnterRoom} />
-                  <div className="hud-page-badges">
-                    {liveCount > 0 && (
-                      <span className="hud-pbadge hud-pbadge-live">
-                        <span className="live-dot" style={{ width: 6, height: 6, background: 'var(--hud-red)', boxShadow: '0 0 6px var(--hud-red)' }} />
-                        {liveCount} LIVE
-                      </span>
-                    )}
-                    {openCount > 0 && (
-                      <span className="hud-pbadge hud-pbadge-open">
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--hud-green)', display: 'inline-block' }} />
-                        {openCount} OPEN
-                      </span>
-                    )}
+                  {/* 1 · Page title + live status + Quick Join */}
+                  <div className="hud-page-hdr">
+                    <div>
+                      <h1>Live Rounds</h1>
+                      <p>Predict UP or DOWN · Stake $CLASH · Beat the AI</p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <QuickJoinButton onJoin={handleEnterRoom} />
+                      <div className="hud-page-badges">
+                        {liveCount > 0 && (
+                          <span className="hud-pbadge hud-pbadge-live">
+                            <span className="live-dot" style={{ width: 6, height: 6, background: 'var(--hud-red)', boxShadow: '0 0 6px var(--hud-red)' }} />
+                            {liveCount} LIVE
+                          </span>
+                        )}
+                        {openCount > 0 && (
+                          <span className="hud-pbadge hud-pbadge-open">
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--hud-green)', display: 'inline-block' }} />
+                            {openCount} OPEN
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Testnet banner */}
+                  <div className="hud-testnet-banner">
+                    <span className="hud-testnet-dot" />
+                    <div className="hud-testnet-main">
+                      <span className="hud-testnet-lbl">TESTNET</span>
+                      <span style={{ marginLeft: 8 }}>Mantle Sepolia (5003) · No real money · Groq LLM bots make live on-chain decisions</span>
+                    </div>
+                    <div className="hud-testnet-tags">
+                      <span className="hud-testnet-tag"><span className="dot" style={{ background: 'var(--hud-green)' }} />Groq AI</span>
+                      <span className="hud-testnet-tag"><span className="dot" style={{ background: 'var(--hud-cyan)' }} />Mantle Chain</span>
+                      <span className="hud-testnet-tag"><span className="dot" style={{ background: 'var(--hud-purple)' }} />Bybit + Pyth</span>
+                    </div>
+                  </div>
+
+                  {/* 2 · Protocol stats bar */}
+                  <ProtocolStats />
+
+                  {/* 3 · Faucet — only show if user has no CLASH yet */}
+                  {clashBalance === 0 && <FaucetPanel />}
+
+                  {/* 4 · Bot Performance + Recent Winners — horizontal row */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+                    <BotComparison />
+                    <RecentWinners />
+                  </div>
+
+                  {/* 5 · PRIMARY: rounds list */}
+                  <RoomsList onEnterRoom={handleEnterRoom} />
+
+                  {/* 6 · SECONDARY: AI monitor (collapsed by default) */}
+                  <AIMonitorSection />
+
+                  {/* 7 · Keyboard hints — small bar at bottom */}
+                  <KeyboardHints />
+
                 </div>
-              </div>
+              )}
 
-              {/* Testnet banner */}
-              <div className="hud-testnet-banner">
-                <span className="hud-testnet-dot" />
-                <div className="hud-testnet-main">
-                  <span className="hud-testnet-lbl">TESTNET</span>
-                  <span style={{ marginLeft: 8 }}>Mantle Sepolia (5003) · No real money · Groq LLM bots make live on-chain decisions</span>
+              {/* ═══ GAME (inside a round) ═══════════════════════════════════ */}
+              {currentView === 'game' && activeRoomId && (
+                <div className="space-y-4">
+                  <button
+                    onClick={handleBackToLobby}
+                    className="hud-btn hud-btn-outline"
+                  >
+                    <i className="fa-solid fa-arrow-left text-xs" />
+                    Back to Lobby
+                  </button>
+                  <GameRoundInterface roomId={activeRoomId} />
                 </div>
-                <div className="hud-testnet-tags">
-                  <span className="hud-testnet-tag"><span className="dot" style={{ background: 'var(--hud-green)' }} />Groq AI</span>
-                  <span className="hud-testnet-tag"><span className="dot" style={{ background: 'var(--hud-cyan)' }} />Mantle Chain</span>
-                  <span className="hud-testnet-tag"><span className="dot" style={{ background: 'var(--hud-purple)' }} />Bybit + Pyth</span>
-                </div>
-              </div>
-
-              {/* 2 · Protocol stats bar */}
-              <ProtocolStats />
-
-              {/* 3 · Faucet — only show if user has no CLASH yet */}
-              {clashBalance === 0 && <FaucetPanel />}
-
-              {/* 4 · Bot Performance + Recent Winners — horizontal row */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
-                <BotComparison />
-                <RecentWinners />
-              </div>
-
-              {/* 5 · PRIMARY: rounds list */}
-              <RoomsList onEnterRoom={handleEnterRoom} />
-
-              {/* 6 · SECONDARY: AI monitor (collapsed by default) */}
-              <AIMonitorSection />
-
-              {/* 7 · Keyboard hints — small bar at bottom */}
-              <KeyboardHints />
-
-            </div>
+              )}
+            </motion.main>
           )}
-
-          {/* ═══ GAME (inside a round) ═══════════════════════════════════ */}
-          {currentView === 'game' && activeRoomId && (
-            <div className="space-y-4">
-              <button
-                onClick={handleBackToLobby}
-                className="hud-btn hud-btn-outline"
-              >
-                <i className="fa-solid fa-arrow-left text-xs" />
-                Back to Lobby
-              </button>
-              <GameRoundInterface roomId={activeRoomId} />
-            </div>
-          )}
-
-
-        </main>
-        )}
+        </AnimatePresence>
 
         <footer className="hud-footer">
           <div className="hud-footer-inner">

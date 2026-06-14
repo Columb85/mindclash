@@ -2,17 +2,17 @@
  * React Hook for interacting with Agent NFT contract
  */
 
-import { useContractRead, useContractWrite, useWaitForTransaction } from 'wagmi';
+import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { AGENT_NFT_ABI, CONTRACTS } from '@/lib/contracts';
 import { Address, parseEther } from 'viem';
 
 export function useAgentProfile(tokenId: bigint | undefined) {
-  const { data, isError, isLoading, refetch } = useContractRead({
+  const { data, isError, isLoading, refetch } = useReadContract({
     address: CONTRACTS.mantleSepolia.agentNFT,
     abi: AGENT_NFT_ABI,
     functionName: 'agentProfiles',
     args: tokenId !== undefined ? [tokenId] : undefined,
-    enabled: !!tokenId && tokenId > 0n,
+    query: { enabled: !!tokenId && tokenId > 0n },
   });
 
   return {
@@ -32,12 +32,12 @@ export function useAgentProfile(tokenId: bigint | undefined) {
 }
 
 export function useAgentTokenId(agentAddress: Address | undefined) {
-  const { data, isError, isLoading } = useContractRead({
+  const { data, isError, isLoading } = useReadContract({
     address: CONTRACTS.mantleSepolia.agentNFT,
     abi: AGENT_NFT_ABI,
     functionName: 'agentToToken',
     args: agentAddress ? [agentAddress] : undefined,
-    enabled: !!agentAddress,
+    query: { enabled: !!agentAddress },
   });
 
   return {
@@ -48,14 +48,10 @@ export function useAgentTokenId(agentAddress: Address | undefined) {
 }
 
 export function useCreateAgent() {
-  const { data, write, isLoading: isWriting } = useContractWrite({
-    address: CONTRACTS.mantleSepolia.agentNFT,
-    abi: AGENT_NFT_ABI,
-    functionName: 'createAgent',
-  });
+  const { data: hash, writeContract, isPending: isWriting } = useWriteContract();
 
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransaction({
-    hash: data?.hash,
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+    hash,
   });
 
   const createAgent = (
@@ -64,7 +60,10 @@ export function useCreateAgent() {
     version: string,
     tokenURI: string
   ) => {
-    write?.({
+    writeContract({
+      address: CONTRACTS.mantleSepolia.agentNFT,
+      abi: AGENT_NFT_ABI,
+      functionName: 'createAgent',
       args: [agentAddress, name, version, tokenURI],
     });
   };
@@ -73,7 +72,7 @@ export function useCreateAgent() {
     createAgent,
     isLoading: isWriting || isConfirming,
     isSuccess,
-    txHash: data?.hash,
+    txHash: hash,
   };
 }
 

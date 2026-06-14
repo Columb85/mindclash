@@ -152,7 +152,7 @@ export default function GauntletPage() {
             <span className="logo-mind">Mind</span>
             <span className="logo-clash">Clash</span>
           </Link>
-          <Navigation currentView={currentView} onViewChange={setCurrentView} />
+          <Navigation currentView={currentView} onViewChange={setCurrentView} activePage="gauntlet" />
           <div className="hud-topbar-right">
             <OnlineCounter />
             <ClashBalance />

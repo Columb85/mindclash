@@ -49,7 +49,7 @@ async function submitSignature(commitment: SignedCommitment) {
 }
 
 export function useSignPrediction() {
-  const { signTypedDataAsync, isLoading } = useSignTypedData();
+  const { signTypedDataAsync, isPending } = useSignTypedData();
 
   const signPrediction = useCallback(async (
     commitment: PredictionCommitment,
@@ -83,5 +83,5 @@ export function useSignPrediction() {
     }
   }, [signTypedDataAsync]);
 
-  return { signPrediction, isSigning: isLoading };
+  return { signPrediction, isSigning: isPending };
 }

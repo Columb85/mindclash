@@ -10,7 +10,7 @@ export type View = 'lobby' | 'game' | 'profile';
 interface NavigationProps {
   currentView: View;
   onViewChange: (view: View) => void;
-  activePage?: 'battle' | 'rankings' | 'quests' | 'duel' | 'create-agent'; // For highlighting external page links
+  activePage?: string;
 }
 
 const NAV_ITEMS: { id: View | 'battle' | 'rankings' | 'quests'; label: string; icon: string; color: string; href?: string }[] = [
@@ -75,11 +75,9 @@ export function Navigation({ currentView, onViewChange, activePage }: Navigation
           // For regular view buttons - don't highlight if we're on an external page (activePage is set)
           const active = !activePage && currentView === id;
           
-          // If on external page, navigate to /app; otherwise switch view
           const handleClick = () => {
             if (activePage) {
-              // Navigate to /app - the view will be handled by the app page
-              router.push('/app');
+              router.push(id === 'profile' ? '/app?view=profile' : '/app');
             } else {
               onViewChange(id as View);
             }

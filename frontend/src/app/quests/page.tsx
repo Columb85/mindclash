@@ -6,6 +6,7 @@ import { HudConnectButton } from '@/components/ui/HudConnectButton';
 import { Navigation, View } from '@/components/layout/Navigation';
 import { LiveTicker } from '@/components/dashboard/ActivityFeed';
 import { ClashBalance } from '@/components/ui/ClashBalance';
+import { OnlineCounter } from '@/components/ui/OnlineCounter';
 import { ModeIndicator } from '@/components/ui/ModeIndicator';
 import { usePlayer, getRank, xpProgressInLevel } from '@/contexts/PlayerContext';
 
@@ -288,6 +289,7 @@ export default function QuestsPage() {
           </Link>
           <Navigation currentView={currentView} onViewChange={setCurrentView} activePage="quests" />
           <div className="hud-topbar-right">
+            <OnlineCounter />
             <ClashBalance />
             {!dailyBonusClaimed && (
               <>

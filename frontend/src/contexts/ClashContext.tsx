@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useAccount, useContractRead } from 'wagmi';
+import { useAccount, useReadContract } from 'wagmi';
 import { formatUnits } from 'viem';
 
 export const CLASH_TOKEN_ADDRESS = '0xFb178c931e5F64bBA180A4419E4E2f216d1eEDDe' as const;
@@ -60,15 +60,16 @@ export function ClashProvider({ children }: { children: ReactNode }) {
   const [clashPoints, setClashPoints] = useState(0);
 
   // ── Real on-chain $CLASH balance ─────────────────────────────────────────────
-  const { data: rawBalance, isLoading: balanceLoading } = useContractRead({
+  const { data: rawBalance, isLoading: balanceLoading } = useReadContract({
     address: CLASH_TOKEN_ADDRESS,
     abi: CLASH_ABI,
     functionName: 'balanceOf',
     args: [address as `0x${string}`],
-    enabled: isConnected && !!address,
-    watch: false,
-    staleTime: 15_000,
-    cacheTime: 60_000,
+    query: {
+      enabled: isConnected && !!address,
+      staleTime: 15_000,
+      gcTime: 60_000,
+    },
   });
 
   const clashBalance = rawBalance !== undefined

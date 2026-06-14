@@ -1,11 +1,11 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { useAccount, useContractRead, useContractWrite, useWaitForTransaction } from 'wagmi';
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { CLASH_TOKEN_ADDRESS, CLASH_ABI } from '@/contexts/ClashContext';
 
-const MANTLE_FAUCET_URL = 'https://faucet.sepolia.mantle.xyz/';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.mindclash.xyz/api';
 const MANTLESCAN_TOKEN  = `https://sepolia.mantlescan.xyz/address/${CLASH_TOKEN_ADDRESS}`;
 
 function formatCooldown(seconds: number): string {
@@ -18,30 +18,76 @@ function formatCooldown(seconds: number): string {
 export function FaucetPanel() {
   const { address, isConnected } = useAccount();
 
+  // ── MNT faucet state ──────────────────────────────────────────────────────
+  const [mntClaiming, setMntClaiming] = useState(false);
+  const [mntDone, setMntDone] = useState(false);
+  const [mntTxHash, setMntTxHash] = useState<string | null>(null);
+  const [mntError, setMntError] = useState<string | null>(null);
+  const [mntCooldown, setMntCooldown] = useState(0);
+
+  useEffect(() => {
+    if (!address) return;
+    fetch(`${API_URL}/faucet/mnt/status?address=${address}`)
+      .then(r => r.json())
+      .then(d => { if (!d.canClaim) setMntCooldown(d.cooldownMin || 0); })
+      .catch(() => {});
+  }, [address]);
+
+  const handleClaimMnt = useCallback(async () => {
+    if (!address || mntClaiming || mntDone || mntCooldown > 0) return;
+    setMntClaiming(true);
+    setMntError(null);
+    try {
+      const res = await fetch(`${API_URL}/faucet/mnt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMntDone(true);
+        setMntTxHash(data.txHash);
+      } else {
+        setMntError(data.error || 'Failed');
+        if (data.cooldownMin) setMntCooldown(data.cooldownMin);
+      }
+    } catch {
+      setMntError('Network error');
+    } finally {
+      setMntClaiming(false);
+    }
+  }, [address, mntClaiming, mntDone, mntCooldown]);
+
+  const mntLabel = useMemo(() => {
+    if (!isConnected) return 'Connect wallet';
+    if (mntClaiming) return 'Sending MNT…';
+    if (mntDone) return 'Received 0.5 MNT ✓';
+    if (mntCooldown > 0) return `Cooldown: ${mntCooldown}m`;
+    return 'Get 0.5 MNT';
+  }, [isConnected, mntClaiming, mntDone, mntCooldown]);
+
   // ── Read canClaimFaucet from contract ───────────────────────────────────────
-  const { data: claimData, refetch } = useContractRead({
+  const { data: claimData, refetch } = useReadContract({
     address: CLASH_TOKEN_ADDRESS,
     abi: CLASH_ABI,
     functionName: 'canClaimFaucet',
     args: [address as `0x${string}`],
-    enabled: isConnected && !!address,
-    watch: false,
+    query: { enabled: isConnected && !!address },
   });
 
   const canClaim   = (claimData as [boolean, bigint] | undefined)?.[0] ?? true;
   const timeLeft   = Number((claimData as [boolean, bigint] | undefined)?.[1] ?? 0);
 
   // ── Write: claimFaucet() ────────────────────────────────────────────────────
-  const { write: doClaimFaucet, data: txData, isLoading: isWriting, error: writeError } = useContractWrite({
-    address: CLASH_TOKEN_ADDRESS,
-    abi: CLASH_ABI,
-    functionName: 'claimFaucet',
+  const { writeContract: doClaimFaucet, data: txHash, isPending: isWriting, error: writeError } = useWriteContract();
+
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+    hash: txHash,
   });
 
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransaction({
-    hash: txData?.hash,
-    onSuccess: () => refetch(),
-  });
+  useEffect(() => {
+    if (isSuccess) refetch();
+  }, [isSuccess, refetch]);
 
   const isBusy = isWriting || isConfirming;
 
@@ -58,7 +104,11 @@ export function FaucetPanel() {
 
   const handleClaimClash = () => {
     if (!isConnected || isBusy || isSuccess || (!canClaim && timeLeft > 0)) return;
-    doClaimFaucet?.();
+    doClaimFaucet({
+      address: CLASH_TOKEN_ADDRESS,
+      abi: CLASH_ABI,
+      functionName: 'claimFaucet',
+    });
   };
 
   return (
@@ -86,16 +136,39 @@ export function FaucetPanel() {
           </a>
         </div>
 
-        {/* Step 1 */}
+        {/* Step 1 — built-in MNT faucet */}
         <div className="faucet-step">
           <span className="step-num">1</span>
           <span className="step-icon blue"><i className="fa-solid fa-droplet" /></span>
           <div className="step-text">
             <div className="st">Get MNT for gas</div>
-            <div className="sd">Mantle Sepolia testnet gas. Free, instant.</div>
+            <div className="sd">
+              {mntDone ? 'MNT sent to your wallet!' : mntError || 'Free testnet gas. One click, instant.'}
+            </div>
           </div>
-          <a className="step-btn blue" href={MANTLE_FAUCET_URL} target="_blank" rel="noopener noreferrer">Open Faucet ↗</a>
+          <motion.button
+            whileTap={{ scale: (!isConnected || mntClaiming || mntDone || mntCooldown > 0) ? 1 : 0.95 }}
+            onClick={handleClaimMnt}
+            disabled={!isConnected || mntClaiming || mntDone || mntCooldown > 0}
+            className={`step-btn ${mntDone ? 'green' : mntCooldown > 0 ? 'gray' : 'blue'}`}
+          >
+            {mntClaiming && <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: 9 }} />}
+            {mntDone && <i className="fa-solid fa-circle-check" style={{ fontSize: 9 }} />}
+            {mntLabel}
+          </motion.button>
         </div>
+        {mntDone && mntTxHash && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px', marginTop: -4, marginBottom: 4 }}>
+            <a
+              href={`https://sepolia.mantlescan.xyz/tx/${mntTxHash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 9, color: 'var(--hud-text-3)', display: 'flex', alignItems: 'center', gap: 4 }}
+            >
+              <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 8 }} /> {mntTxHash.slice(0, 16)}…
+            </a>
+          </div>
+        )}
 
         {/* Step 2 */}
         <div className="faucet-step">
@@ -133,7 +206,7 @@ export function FaucetPanel() {
         </div>
 
         {/* Success tx link */}
-        {isSuccess && txData?.hash && (
+        {isSuccess && txHash && (
           <motion.div
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
@@ -144,7 +217,7 @@ export function FaucetPanel() {
               1 000 CLASH minted on-chain!
             </span>
             <a
-              href={`https://sepolia.mantlescan.xyz/tx/${txData.hash}`}
+              href={`https://sepolia.mantlescan.xyz/tx/${txHash}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{ marginLeft: 'auto', fontFamily: 'var(--hud-font-mono)', fontSize: 9, color: 'var(--hud-text-3)', display: 'flex', alignItems: 'center', gap: 4 }}

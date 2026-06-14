@@ -15,6 +15,7 @@ import { ActiveRoundProvider } from '@/contexts/ActiveRoundContext';
 import { ActiveRoundFloatingPill } from '@/components/game/ActiveRoundFloatingPill';
 import { ConditionalBackground } from '@/components/layout/ConditionalBackground';
 import { LandingSplashOverlay } from '@/components/layout/LandingSplashOverlay';
+import { BodyClassManager } from '@/components/layout/BodyClassManager';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,9 +66,10 @@ export default function RootLayout({
         )}
       </head>
       <body
-        className={`font-sans text-white antialiased${isLanding ? ' landing-page' : ' hud-app'}`}
+        className="font-sans text-white antialiased"
         style={{ background: '#000' }}
       >
+        <BodyClassManager />
         {isLanding && <LandingSplashOverlay />}
         <ConditionalBackground />
         <LanguageProvider>

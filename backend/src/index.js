@@ -23,9 +23,12 @@ const contractsRouter   = require('./routes/contracts');
 const playersRouter     = require('./routes/players');
 const roundsRouter      = require('./routes/rounds');
 const duelsRouter       = require('./routes/duels');
+const faucetRouter      = require('./routes/faucet');
 
 // Initialize DB (creates file + tables on first run)
 require('./db');
+
+const scheduler = require('./scheduler');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -116,6 +119,7 @@ app.use('/api/contracts',   contractsRouter);
 app.use('/api/players',     playersRouter);
 app.use('/api/rounds',      roundsRouter);
 app.use('/api/duels',       duelsRouter);
+app.use('/api/faucet',      faucetRouter);
 
 // ── Online stats endpoint ────────────────────────────────────────────────────
 app.get('/api/stats/online', (req, res) => {
@@ -178,6 +182,8 @@ app.listen(PORT, () => {
   console.log('  GET  /api/leaderboard     - Top agents');
   console.log('  GET  /api/contracts/stats - Protocol stats');
   console.log('═══════════════════════════════════════════════════════\n');
+
+  scheduler.start();
 });
 
 module.exports = app;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useAccount, usePublicClient, useNetwork } from 'wagmi';
+import { useAccount, usePublicClient, useChainId } from 'wagmi';
 import { AGENT_NFT_ABI, CONTRACTS } from '@/lib/contracts';
 
 const MANTLE_SEPOLIA_ID = 5003;
@@ -32,9 +32,9 @@ export interface MyAgentState {
 
 export function useMyAgent(): MyAgentState {
   const { address, isConnected } = useAccount();
-  const { chain } = useNetwork();
+  const chainId = useChainId();
   const publicClient = usePublicClient();
-  const isCorrectNetwork = !isConnected || chain?.id === MANTLE_SEPOLIA_ID;
+  const isCorrectNetwork = !isConnected || chainId === MANTLE_SEPOLIA_ID;
   const [tokenId, setTokenId] = useState(0);
   const [registered, setRegistered] = useState<UserAgentRecord | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -86,7 +86,7 @@ export function useMyAgent(): MyAgentState {
 
   useEffect(() => {
     fetchAll();
-  }, [fetchAll, chain?.id]);
+  }, [fetchAll, chainId]);
 
   const registerAgent = useCallback(async (payload: {
     tokenId: number;

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { useAccount, usePublicClient, useNetwork, useSwitchNetwork, useContractWrite, useWaitForTransaction } from 'wagmi';
+import { useAccount, usePublicClient, useChainId, useSwitchChain, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import toast from 'react-hot-toast';
 import { Navigation, View } from '@/components/layout/Navigation';
 import { HudConnectButton } from '@/components/ui/HudConnectButton';
@@ -71,8 +71,8 @@ function formatConfidence(confidence: number): string {
 
 export default function CreateAgentPage() {
   const { address, isConnected } = useAccount();
-  const { chain } = useNetwork();
-  const { switchNetwork } = useSwitchNetwork();
+  const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
   const publicClient = usePublicClient();
   const { createAgent, isLoading: isMinting, isSuccess, txHash } = useCreateAgent();
   const { tokenId, registered, canCreate, remaining, limit, isLoading: isChecking, refetch, registerAgent } = useMyAgent();
@@ -90,13 +90,9 @@ export default function CreateAgentPage() {
   const [pendingDecision, setPendingDecision] = useState<DecisionResult | null>(null);
   const [isFetchingDecision, setIsFetchingDecision] = useState(false);
 
-  const { write: writeRecordDecision, data: recordTxData, isLoading: isRecording } = useContractWrite({
-    address: CONTRACTS.mantleSepolia.agentNFT as `0x${string}`,
-    abi: RECORD_DECISION_ABI,
-    functionName: 'recordDecision',
-  });
-  const { isLoading: isWaitingRecord, isSuccess: isRecordSuccess } = useWaitForTransaction({
-    hash: recordTxData?.hash,
+  const { writeContract: writeRecordDecision, data: recordTxHash, isPending: isRecording } = useWriteContract();
+  const { isLoading: isWaitingRecord, isSuccess: isRecordSuccess } = useWaitForTransactionReceipt({
+    hash: recordTxHash,
   });
 
   useEffect(() => {
@@ -140,6 +136,9 @@ export default function CreateAgentPage() {
     const nft = CONTRACTS.mantleSepolia.agentNFT;
     if (!nft) { toast.error('Contract address not loaded'); return; }
     writeRecordDecision({
+      address: CONTRACTS.mantleSepolia.agentNFT as `0x${string}`,
+      abi: RECORD_DECISION_ABI,
+      functionName: 'recordDecision',
       args: [
         BigInt(tokenId),
         pendingDecision.direction,
@@ -150,7 +149,7 @@ export default function CreateAgentPage() {
     });
   };
 
-  const isWrongNetwork = isConnected && chain?.id !== MANTLE_SEPOLIA_ID;
+  const isWrongNetwork = isConnected && chainId !== MANTLE_SEPOLIA_ID;
 
   useEffect(() => {
     if (!CONTRACTS.mantleSepolia.agentNFT) {
@@ -292,8 +291,8 @@ export default function CreateAgentPage() {
                 Switch to <strong>Mantle Sepolia</strong> (Chain ID 5003) to create an agent.
               </div>
             </div>
-            {switchNetwork && (
-              <button type="button" onClick={() => switchNetwork(MANTLE_SEPOLIA_ID)} className="hud-btn hud-btn-red">
+            {switchChain && (
+              <button type="button" onClick={() => switchChain({ chainId: MANTLE_SEPOLIA_ID })} className="hud-btn hud-btn-red">
                 Switch
               </button>
             )}
@@ -444,16 +443,16 @@ export default function CreateAgentPage() {
                       Refresh
                     </button>
                   </div>
-                  {recordTxData?.hash && (
+                  {recordTxHash && (
                     <a
-                      href={`${EXPLORER}/tx/${recordTxData.hash}`}
+                      href={`${EXPLORER}/tx/${recordTxHash}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="ca-tx-link"
                       style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 10 }}
                     >
                       <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 9 }} />
-                      {recordTxData.hash.slice(0, 20)}…
+                      {recordTxHash.slice(0, 20)}…
                     </a>
                   )}
                 </motion.div>
