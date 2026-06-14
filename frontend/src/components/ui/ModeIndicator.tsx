@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Wifi, WifiOff, Zap, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { areContractsDeployed, loadDeployedAddresses, CONTRACTS } from '@/lib/contracts';
+import { Tooltip } from './Tooltip';
 
 type Mode = 'demo' | 'live' | 'checking';
 
@@ -34,49 +35,73 @@ export function ModeIndicator() {
 
   if (mode === 'checking') {
     return (
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-500/20 border border-gray-500/30 animate-pulse">
-        <div className="w-2 h-2 rounded-full bg-gray-400" />
-        <span className="text-xs font-medium text-gray-400">Checking...</span>
+      <div
+        className="flex items-center gap-1.5 px-2.5 py-1 animate-pulse"
+        style={{ border: '1px solid var(--hud-border)', background: 'var(--hud-panel)', clipPath: 'polygon(4px 0,100% 0,calc(100% - 4px) 100%,0 100%)' }}
+      >
+        <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--hud-text-dim)' }} />
+        <span style={{ fontFamily: 'var(--hud-font-head)', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--hud-text-dim)' }}>
+          INIT
+        </span>
       </div>
     );
   }
 
   if (mode === 'live') {
     return (
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/20 border border-green-500/30">
-        <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-        </span>
-        <span className="text-xs font-semibold text-green-400">LIVE</span>
-        <Wifi className="w-3 h-3 text-green-400" />
-      </div>
+      <Tooltip text="Connected to Mantle Sepolia · Real on-chain transactions" position="bottom">
+        <div
+          style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '4px 10px',
+            border: '1px solid rgba(0,255,136,.3)',
+            background: 'rgba(0,51,32,.5)',
+            clipPath: 'polygon(4px 0,100% 0,calc(100% - 4px) 100%,0 100%)',
+            fontFamily: 'var(--hud-font-head)',
+            fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
+            color: 'var(--hud-green)',
+          }}
+        >
+          <span className="live-dot" style={{ width: 6, height: 6 }} />
+          LIVE
+        </div>
+      </Tooltip>
     );
   }
 
   return (
     <div className="group relative">
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-yellow-500/20 border border-yellow-500/30 cursor-help">
-        <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
-        <span className="text-xs font-semibold text-yellow-400">DEMO</span>
-        <WifiOff className="w-3 h-3 text-yellow-400" />
+      <div
+        className="cursor-help"
+        style={{
+          display: 'flex', alignItems: 'center', gap: 5,
+          padding: '4px 10px',
+          border: '1px solid rgba(251,191,36,.3)',
+          background: 'rgba(40,30,0,.5)',
+          clipPath: 'polygon(4px 0,100% 0,calc(100% - 4px) 100%,0 100%)',
+          fontFamily: 'var(--hud-font-head)',
+          fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
+          color: 'var(--hud-gold)',
+        }}
+      >
+        <span className="live-dot" style={{ width: 6, height: 6, background: 'var(--hud-gold)', boxShadow: '0 0 6px var(--hud-gold)' }} />
+        DEMO
       </div>
-      
+
       {/* Tooltip */}
-      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 p-3 bg-dark-surface rounded-lg border border-dark-border shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+      <div
+        className="absolute top-full right-0 mt-2 w-64 p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50"
+        style={{ background: 'var(--hud-panel)', border: '1px solid var(--hud-border-hi)', clipPath: 'polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,0 100%)' }}
+      >
         <div className="flex items-start gap-2">
-          <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--hud-gold)' }} />
           <div>
-            <p className="text-xs font-medium text-white mb-1">Demo Mode Active</p>
-            <p className="text-[10px] text-gray-400">
-              Contracts not deployed yet. AI decisions are simulated locally. 
-              Deploy to Mantle Sepolia for real on-chain tracking.
+            <p style={{ fontFamily: 'var(--hud-font-head)', fontSize: 12, fontWeight: 700, color: '#fff', marginBottom: 4 }}>Demo Mode Active</p>
+            <p style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 10, color: 'var(--hud-text-dim)', lineHeight: 1.5 }}>
+              Contracts not deployed. AI decisions are simulated locally. Deploy to Mantle Sepolia for real on-chain tracking.
             </p>
           </div>
         </div>
-        
-        {/* Arrow */}
-        <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-dark-surface border-l border-t border-dark-border rotate-45" />
       </div>
     </div>
   );

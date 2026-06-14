@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense, useRef } from 'react';
 import { useAccount } from 'wagmi';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { ArrowLeft, ChevronDown, ChevronUp, Bot } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { HudConnectButton } from '@/components/ui/HudConnectButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { GameRoundInterface } from '@/components/game/GameRoundInterface';
@@ -12,45 +12,46 @@ import { UserProfile } from '@/components/profile/UserProfile';
 import { Navigation, View } from '@/components/layout/Navigation';
 import { ProtocolStats } from '@/components/dashboard/ProtocolStats';
 import { LiveTicker } from '@/components/dashboard/ActivityFeed';
-import { QuestsPanel } from '@/components/dashboard/QuestsPanel';
-import { Leaderboard } from '@/components/dashboard/Leaderboard';
 import { Room } from '@/types/room';
 import { AIAgentProvider } from '@/contexts/AIAgentContext';
 import { AIAgentMonitor } from '@/components/ai/AIAgentMonitor';
-import { HumanVsAI } from '@/components/ai/HumanVsAI';
 import { ModeIndicator } from '@/components/ui/ModeIndicator';
 import { HowItWorks } from '@/components/ui/HowItWorks';
 import { ClashBalance } from '@/components/ui/ClashBalance';
 import { FaucetPanel } from '@/components/ui/FaucetPanel';
+import { OnlineCounter } from '@/components/ui/OnlineCounter';
+import { QuickJoinButton } from '@/components/ui/QuickJoinButton';
+import { RecentWinners } from '@/components/ui/RecentWinners';
+import { BotComparison } from '@/components/ui/BotComparison';
+import { ActiveRoundBanner } from '@/components/game/ActiveRoundBanner';
+import { useActiveRound } from '@/contexts/ActiveRoundContext';
+import { useKeyboardShortcuts, KeyboardHints } from '@/hooks/useKeyboardShortcuts';
 import { useClash } from '@/contexts/ClashContext';
 import { useRooms } from '@/contexts/RoomsContext';
+import toast from 'react-hot-toast';
 
-/** Collapsible AI Agent Monitor — secondary info, off by default */
+/** Collapsible AI Agent Monitor — matches mockup .ai-section */
 function AIMonitorSection() {
   const [open, setOpen] = useState(false);
   return (
-    <div className="rounded-2xl border border-dark-border overflow-hidden">
+    <div className="hud-ai-section">
       <button
         onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between px-5 py-3.5 bg-dark-surface/40 hover:bg-dark-surface/60 transition-colors"
+        className="hud-ai-toggle"
       >
-        <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-            <Bot className="w-4 h-4 text-white" />
-          </div>
-          <div className="text-left">
-            <span className="text-sm font-bold text-white">AI Agent Monitor</span>
-            <span className="ml-2 text-[10px] text-gray-500">Live decisions · ERC-8004 NFTs</span>
-          </div>
-          <span className="flex w-2 h-2 ml-1">
-            <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-green-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-          </span>
-        </div>
-        {open
-          ? <ChevronUp className="w-4 h-4 text-gray-400" />
-          : <ChevronDown className="w-4 h-4 text-gray-400" />
-        }
+        <span className="hud-ai-toggle-icon">
+          <i className="fa-solid fa-robot" />
+        </span>
+        <span className="hud-ai-toggle-title">AI Agent Monitor</span>
+        <span className="hud-ai-toggle-sub">Live decisions · ERC-8004 NFTs</span>
+        <span className="hud-ai-toggle-live">
+          <span className="live-dot" style={{ width: 6, height: 6 }} />
+          LIVE
+        </span>
+        <i
+          className={`fa-solid fa-chevron-down ml-auto transition-transform duration-200${open ? ' rotate-180' : ''}`}
+          style={{ color: 'var(--hud-text-dim)', fontSize: 12 }}
+        />
       </button>
       <AnimatePresence>
         {open && (
@@ -59,7 +60,7 @@ function AIMonitorSection() {
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="overflow-hidden"
+            className="overflow-hidden hud-ai-body"
           >
             <AIAgentMonitor />
           </motion.div>
@@ -70,11 +71,24 @@ function AIMonitorSection() {
 }
 
 export default function Home() {
+  return (
+    <Suspense>
+      <HomeContent />
+    </Suspense>
+  );
+}
+
+function HomeContent() {
+  const [mounted, setMounted] = useState(false);
   const { address } = useAccount();
   const { clashBalance } = useClash();
   const { rooms } = useRooms();
+  const searchParams = useSearchParams();
+  const { setViewingRoom, pinRoom } = useActiveRound();
   const [currentView, setCurrentView] = useState<View>('lobby');
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
+
+  useEffect(() => { setMounted(true); }, []);
 
   const liveCount  = rooms.filter(r => r.status === 'live').length;
   const openCount  = rooms.filter(r => r.status === 'open').length;
@@ -82,106 +96,155 @@ export default function Home() {
   const handleEnterRoom = (room: Room) => {
     setActiveRoomId(room.id);
     setCurrentView('game');
+    pinRoom(room.id);
   };
+
+  // Deep-link: /app?room=ROOM_ID
+  useEffect(() => {
+    const roomId = searchParams.get('room');
+    if (roomId) {
+      setActiveRoomId(roomId);
+      setCurrentView('game');
+      pinRoom(roomId);
+    }
+  }, [searchParams, pinRoom]);
+
+  // Custom event from ActiveRoundContext when already on /app
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const roomId = (e as CustomEvent<{ roomId: string }>).detail?.roomId;
+      if (roomId) {
+        setActiveRoomId(roomId);
+        setCurrentView('game');
+      }
+    };
+    window.addEventListener('mindclash:return-to-round', handler);
+    return () => window.removeEventListener('mindclash:return-to-round', handler);
+  }, []);
+
+  // Sync viewing room for away-detection
+  useEffect(() => {
+    setViewingRoom(currentView === 'game' ? activeRoomId : null);
+  }, [currentView, activeRoomId, setViewingRoom]);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onQuickJoin: () => {
+      const openRoom = rooms.find(r => r.status === 'open');
+      if (openRoom) {
+        toast(`⚡ Joining ${openRoom.asset || 'BTC'} round...`, { duration: 1500 });
+        handleEnterRoom(openRoom);
+      } else {
+        toast('No open rounds available', { icon: '⏳' });
+      }
+    },
+    onHelp: () => {
+      const helpBtn = document.querySelector('.help-fab') as HTMLButtonElement;
+      if (helpBtn) helpBtn.click();
+    },
+  }, currentView === 'lobby');
 
   const handleBackToLobby = () => {
     setCurrentView('lobby');
-    setActiveRoomId(null);
+    // Keep activeRoomId so user can return via banner; viewingRoom cleared by effect
   };
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen" style={{ background: '#080a0f' }}>
+        <div className="hud-topbar">
+          <div className="hud-topbar-inner">
+            <span className="hud-logo-text">
+              <span className="logo-mind">Mind</span>
+              <span className="logo-clash">Clash</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AIAgentProvider>
       <div className="min-h-screen">
 
-        {/* ── Header ─────────────────────────────────────────────────────── */}
-        <header className="sticky top-0 z-40 backdrop-blur-xl bg-dark-bg/80 border-b border-dark-border">
-          <div className="container mx-auto px-4 py-3">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <Link href="/" className="relative flex items-center group">
-                  <img
-                    src="/mindclash-logo.png"
-                    alt="MindClash"
-                    className="h-16 w-auto object-contain group-hover:opacity-80 transition-opacity"
-                  />
-                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-dark-bg animate-pulse" />
-                </Link>
-              </div>
-
-              <Navigation currentView={currentView} onViewChange={setCurrentView} />
-
-              <div className="flex items-center gap-2">
-                <ClashBalance />
-                <ModeIndicator />
-                <ConnectButton />
-              </div>
+        {/* ── HUD Topbar — sticky only ────────────────────────────────────── */}
+        <header className="hud-topbar">
+          <div className="hud-topbar-inner">
+            <Link href="/" className="hud-logo-text">
+              <span className="logo-mind">Mind</span>
+              <span className="logo-clash">Clash</span>
+            </Link>
+            <Navigation currentView={currentView} onViewChange={setCurrentView} />
+            <div className="hud-topbar-right">
+              <OnlineCounter />
+              <ClashBalance />
+              <ModeIndicator />
+              <HudConnectButton />
             </div>
           </div>
         </header>
 
-        {/* ── Live price ticker ──────────────────────────────────────────── */}
-        <div className="border-b border-dark-border/50 bg-dark-bg/30">
-          <div className="container mx-auto px-4 py-2">
+        {/* ── Ticker bar — scrolls away ────────────────────────────────────── */}
+        <div className="hud-ticker-bar">
+          <div className="hud-shell">
             <LiveTicker />
           </div>
         </div>
 
         {/* ── Main ───────────────────────────────────────────────────────── */}
-        <main className="container mx-auto px-4 py-5">
+        {currentView === 'profile' ? (
+          <>
+            <div className="hud-shell" style={{ paddingTop: 12 }}>
+              <ActiveRoundBanner />
+            </div>
+            <UserProfile userAddress={address} />
+          </>
+        ) : (
+        <main className="hud-shell py-5">
+
+          {currentView !== 'game' && <ActiveRoundBanner />}
 
           {/* ═══ LOBBY ═══════════════════════════════════════════════════ */}
           {currentView === 'lobby' && (
             <div className="space-y-5">
 
-              {/* 1 · Page title + live status */}
-              <div className="flex items-end justify-between gap-4">
+              {/* 1 · Page title + live status + Quick Join */}
+              <div className="hud-page-hdr">
                 <div>
-                  <h2 className="text-2xl font-black text-white tracking-tight">Live Rounds</h2>
-                  <p className="text-sm text-gray-400 mt-0.5">
-                    Predict UP or DOWN · Stake $CLASH · Beat the AI
-                  </p>
+                  <h1>Live Rounds</h1>
+                  <p>Predict UP or DOWN · Stake $CLASH · Beat the AI</p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {liveCount > 0 && (
-                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-500/10 border border-red-500/30 text-xs font-bold text-red-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                      {liveCount} LIVE
-                    </span>
-                  )}
-                  {openCount > 0 && (
-                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-green-500/10 border border-green-500/30 text-xs font-bold text-green-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                      {openCount} open
-                    </span>
-                  )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <QuickJoinButton onJoin={handleEnterRoom} />
+                  <div className="hud-page-badges">
+                    {liveCount > 0 && (
+                      <span className="hud-pbadge hud-pbadge-live">
+                        <span className="live-dot" style={{ width: 6, height: 6, background: 'var(--hud-red)', boxShadow: '0 0 6px var(--hud-red)' }} />
+                        {liveCount} LIVE
+                      </span>
+                    )}
+                    {openCount > 0 && (
+                      <span className="hud-pbadge hud-pbadge-open">
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--hud-green)', display: 'inline-block' }} />
+                        {openCount} OPEN
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* Testnet banner */}
-              <div className="rounded-xl overflow-hidden"
-                style={{ background: 'linear-gradient(135deg, #f59e0b0a, #a855f70a)', border: '1px solid #f59e0b30' }}>
-                <div className="flex items-center gap-3 px-4 py-3">
-                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-xs font-bold text-amber-400">TESTNET</span>
-                    <span className="text-[11px] text-gray-400 ml-2">
-                      Mantle Sepolia (5003) · No real money · Groq LLM bots make live on-chain decisions
-                    </span>
-                  </div>
-                  <div className="hidden sm:flex items-center gap-3 shrink-0 text-[10px] text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                      Groq AI
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                      Mantle Chain
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                      Bybit + Pyth
-                    </span>
-                  </div>
+              <div className="hud-testnet-banner">
+                <span className="hud-testnet-dot" />
+                <div className="hud-testnet-main">
+                  <span className="hud-testnet-lbl">TESTNET</span>
+                  <span style={{ marginLeft: 8 }}>Mantle Sepolia (5003) · No real money · Groq LLM bots make live on-chain decisions</span>
+                </div>
+                <div className="hud-testnet-tags">
+                  <span className="hud-testnet-tag"><span className="dot" style={{ background: 'var(--hud-green)' }} />Groq AI</span>
+                  <span className="hud-testnet-tag"><span className="dot" style={{ background: 'var(--hud-cyan)' }} />Mantle Chain</span>
+                  <span className="hud-testnet-tag"><span className="dot" style={{ background: 'var(--hud-purple)' }} />Bybit + Pyth</span>
                 </div>
               </div>
 
@@ -191,54 +254,45 @@ export default function Home() {
               {/* 3 · Faucet — only show if user has no CLASH yet */}
               {clashBalance === 0 && <FaucetPanel />}
 
-              {/* 4 · PRIMARY: rounds list */}
+              {/* 4 · Bot Performance + Recent Winners — horizontal row */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+                <BotComparison />
+                <RecentWinners />
+              </div>
+
+              {/* 5 · PRIMARY: rounds list */}
               <RoomsList onEnterRoom={handleEnterRoom} />
 
-              {/* 5 · SECONDARY: AI monitor (collapsed by default) */}
+              {/* 6 · SECONDARY: AI monitor (collapsed by default) */}
               <AIMonitorSection />
+
+              {/* 7 · Keyboard hints — small bar at bottom */}
+              <KeyboardHints />
 
             </div>
           )}
-
-          {/* ═══ AI BATTLE ═══════════════════════════════════════════════ */}
-          {currentView === 'ai-battle' && <HumanVsAI />}
 
           {/* ═══ GAME (inside a round) ═══════════════════════════════════ */}
           {currentView === 'game' && activeRoomId && (
             <div className="space-y-4">
               <button
                 onClick={handleBackToLobby}
-                className="inline-flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-white transition-colors bg-dark-surface/50 rounded-lg border border-dark-border hover:border-gray-500"
+                className="hud-btn hud-btn-outline"
               >
-                <ArrowLeft className="w-4 h-4" />
+                <i className="fa-solid fa-arrow-left text-xs" />
                 Back to Lobby
               </button>
               <GameRoundInterface roomId={activeRoomId} />
             </div>
           )}
 
-          {/* ═══ LEADERBOARD ═════════════════════════════════════════════ */}
-          {currentView === 'leaderboard' && <Leaderboard />}
-
-          {/* ═══ QUESTS ══════════════════════════════════════════════════ */}
-          {currentView === 'quests' && (
-            <div className="max-w-4xl mx-auto space-y-5">
-              <div>
-                <h2 className="text-2xl font-black text-white">Quests & Missions</h2>
-                <p className="text-sm text-gray-400 mt-0.5">Complete tasks to earn PTS, climb ranks, unlock rewards</p>
-              </div>
-              <QuestsPanel />
-            </div>
-          )}
-
-          {/* ═══ PROFILE ═════════════════════════════════════════════════ */}
-          {currentView === 'profile' && <UserProfile userAddress={address} />}
 
         </main>
+        )}
 
-        <footer className="border-t border-dark-border/30 mt-16 py-5">
-          <div className="container mx-auto px-4 text-center text-xs text-gray-600">
-            MindClash · Mantle Turing Test Hackathon 2026
+        <footer className="hud-footer">
+          <div className="hud-footer-inner">
+            <span>MindClash · Mantle Turing Test Hackathon 2026</span>
           </div>
         </footer>
 

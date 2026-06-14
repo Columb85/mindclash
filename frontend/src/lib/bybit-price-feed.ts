@@ -105,8 +105,8 @@ class BybitPriceFeed {
           }
         });
       }
-    } catch (e) {
-      console.warn('[PriceFeed] API fetch failed:', e);
+    } catch {
+      // silently handle API fetch failure
     }
     
     return result;
@@ -118,11 +118,7 @@ class BybitPriceFeed {
     if (this.initialized) return;
     this.initialized = true;
     
-    console.log('[PriceFeed] Initializing...');
-    
-    // Fetch initial prices via API proxy
     const prices = await this.fetchOnce(['BTC', 'ETH', 'SOL', 'MNT']);
-    console.log('[PriceFeed] Initial prices loaded:', prices.size, 'assets');
     
     // Notify all listeners of initial prices
     prices.forEach((tick, symbol) => {
@@ -140,8 +136,6 @@ class BybitPriceFeed {
 
   private startPolling() {
     if (this.pollTimer) return;
-    
-    console.log('[PriceFeed] Starting API polling (5s interval)');
     
     const poll = async () => {
       const prices = await this.fetchOnce(['BTC', 'ETH', 'SOL', 'MNT']);
@@ -169,13 +163,11 @@ class BybitPriceFeed {
       this.ws = new WebSocket(BYBIT_WS_URL);
     } catch {
       this.isConnecting = false;
-      console.warn('[PriceFeed] WebSocket connection failed');
       return;
     }
 
     this.ws.onopen = () => {
       this.isConnecting = false;
-      console.log('[PriceFeed] WebSocket connected');
       this.sendSubscription();
       this.startPing();
     };
@@ -210,13 +202,11 @@ class BybitPriceFeed {
 
     this.ws.onerror = () => {
       this.isConnecting = false;
-      console.warn('[PriceFeed] WebSocket error');
     };
 
     this.ws.onclose = () => {
       this.isConnecting = false;
       this.stopPing();
-      console.log('[PriceFeed] WebSocket closed');
       
       // Reconnect after 10 seconds if still have listeners
       if (this.listeners.size > 0) {
@@ -248,7 +238,6 @@ class BybitPriceFeed {
   }
 
   private disconnect() {
-    console.log('[PriceFeed] Disconnecting');
     
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);

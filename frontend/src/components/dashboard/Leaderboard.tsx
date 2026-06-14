@@ -2,86 +2,80 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Crown, Medal, Award, TrendingUp, Users, Trophy } from 'lucide-react';
 import { useLeaderboard, LeaderboardEntry } from '@/contexts/LeaderboardContext';
-import { RankIcon } from '@/components/icons/RankIcon';
 
-function RankMedal({ position }: { position: number }) {
-  if (position === 1) return <Trophy className="w-6 h-6" style={{ color: '#fbbf24' }} />;
-  if (position === 2) return <Medal className="w-6 h-6" style={{ color: '#e5e7eb' }} />;
-  if (position === 3) return <Award className="w-6 h-6" style={{ color: '#f97316' }} />;
-  return <span className="font-bold text-gray-500 text-sm">#{position}</span>;
-}
+function PodiumCard({ entry, position, isFirst }: { entry: LeaderboardEntry; position: number; isFirst?: boolean }) {
+  const colors = {
+    1: { border: 'var(--hud-gold)', bg: 'rgba(251,191,36,0.08)', icon: '👑', medal: 'fa-trophy', medalColor: 'var(--hud-gold)' },
+    2: { border: '#e5e7eb', bg: 'rgba(229,231,235,0.06)', icon: '⚔', medal: 'fa-medal', medalColor: '#e5e7eb' },
+    3: { border: '#f97316', bg: 'rgba(249,115,22,0.06)', icon: '🔥', medal: 'fa-award', medalColor: '#f97316' },
+  }[position] || { border: 'var(--hud-border)', bg: 'transparent', icon: '🏆', medal: 'fa-trophy', medalColor: 'var(--hud-text-dim)' };
 
-function TopCard({ entry, position }: { entry: LeaderboardEntry; position: number }) {
-  const glow = ['#fbbf24', '#e5e7eb', '#f97316'][position - 1];
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: position * 0.05 }}
-      className={`relative p-5 rounded-2xl border-2 overflow-hidden ${entry.isYou ? 'ring-2 ring-blue-500' : ''}`}
-      style={{
-        borderColor: glow,
-        background: `linear-gradient(135deg, ${glow}15, transparent)`,
-      }}
+    <div 
+      className={`podium-card ${position === 1 ? 'gold' : position === 2 ? 'silver' : 'bronze'}${isFirst ? ' first' : ''}${entry.isYou ? ' you' : ''}`}
+      style={{ borderColor: colors.border, background: `linear-gradient(135deg, ${colors.bg}, transparent)` }}
     >
-      <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full blur-2xl opacity-30" style={{ background: glow }} />
-      <div className="relative flex flex-col items-center">
-        <RankMedal position={position} />
-        <div
-          className="mt-2 w-16 h-16 rounded-xl flex items-center justify-center text-3xl mb-2"
-          style={{
-            background: `linear-gradient(135deg, ${entry.rankColor}40, ${entry.rankColor}80)`,
-            border: `2px solid ${entry.rankColor}`,
-          }}
-        >
-          <RankIcon rankId={entry.rankId} size={32} />
-        </div>
-        <div className="text-sm font-bold text-white truncate max-w-full">{entry.name}</div>
-        <div className="text-xs" style={{ color: entry.rankColor }}>{entry.rankName} · LVL {entry.level}</div>
-        <div className="mt-3 text-2xl font-black text-white">{entry.netProfit.toLocaleString()}</div>
-        <div className="text-[10px] text-gray-400 uppercase">Net profit</div>
-        <div className="mt-2 flex gap-3 text-[10px] text-gray-400">
-          <span>{entry.wins}W</span>
-          <span>{entry.winRate.toFixed(0)}% WR</span>
-        </div>
+      <div className="p-medal" style={{ color: colors.medalColor }}>
+        <i className={`fa-solid ${colors.medal}`} />
       </div>
-    </motion.div>
+      <div 
+        className="p-rank-icon"
+        style={{ 
+          background: colors.bg, 
+          borderColor: colors.border, 
+          color: colors.border 
+        }}
+      >
+        {colors.icon}
+      </div>
+      <div className="p-name">{entry.name}</div>
+      <div className="p-rank-lbl" style={{ color: entry.rankColor }}>{entry.rankName} · LVL {entry.level}</div>
+      <div className="p-profit">{entry.netProfit >= 0 ? '+' : ''}{entry.netProfit.toLocaleString()}</div>
+      <div className="p-profit-lbl">Net profit</div>
+      <div className="p-meta">
+        <span>{entry.wins}W</span>
+        <span>{entry.winRate.toFixed(0)}% WR</span>
+      </div>
+    </div>
   );
 }
 
-function Row({ entry, position }: { entry: LeaderboardEntry; position: number }) {
+function TableRow({ entry, position }: { entry: LeaderboardEntry; position: number }) {
+  const avatars = ['⚡', '🎯', '🛡', '💀', '🌿', '🔮', '⭐', '🎲'];
+  const avatar = avatars[(position - 4) % avatars.length];
+  
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className={`grid grid-cols-[40px_1fr_80px_80px_110px_110px] items-center gap-3 px-4 py-3 rounded-lg hover:bg-dark-surface/50 transition-colors ${
-        entry.isYou ? 'bg-blue-500/10 border border-blue-500/40' : ''
-      }`}
-    >
-      <div className="text-center font-mono text-sm text-gray-500">#{position}</div>
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center" style={{ background: entry.rankColor + '20', color: entry.rankColor }}>
-          <RankIcon rankId={entry.rankId} size={16} />
-        </span>
-        <div className="min-w-0">
-          <div className="font-bold text-white truncate text-sm flex items-center gap-2">
+    <div className={`lb-tr${entry.isYou ? ' you' : ''}`}>
+      <div className="num">{position}</div>
+      <div className="lb-player">
+        <div 
+          className="lb-pav" 
+          style={{ 
+            background: `${entry.rankColor}15`, 
+            borderColor: entry.rankColor, 
+            color: entry.rankColor 
+          }}
+        >
+          {avatar}
+        </div>
+        <div>
+          <div className="lb-pname">
             {entry.name}
-            {entry.isYou && <span className="px-1.5 py-0.5 text-[9px] bg-blue-500 text-white rounded">YOU</span>}
+            {entry.isYou && <span className="you-tag">YOU</span>}
           </div>
-          <div className="text-[10px]" style={{ color: entry.rankColor }}>
+          <div className="lb-prank" style={{ color: entry.rankColor }}>
             {entry.rankName} · LVL {entry.level}
           </div>
         </div>
       </div>
-      <div className="text-sm text-white text-right font-semibold">{entry.wins}</div>
-      <div className="text-sm text-white text-right">{entry.winRate.toFixed(1)}%</div>
-      <div className="text-sm text-right font-semibold text-gray-300">{entry.volume.toLocaleString()}</div>
-      <div className={`text-right font-bold ${entry.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+      <div className="stat">{entry.wins}</div>
+      <div className="stat">{entry.winRate.toFixed(1)}%</div>
+      <div className="stat">{entry.volume.toLocaleString()}</div>
+      <div className={`stat profit ${entry.netProfit >= 0 ? 'pos' : 'neg'}`}>
         {entry.netProfit >= 0 ? '+' : ''}{entry.netProfit.toLocaleString()}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -93,34 +87,30 @@ export function Leaderboard() {
   const myRank = tab === 'daily' ? yourRank.daily : tab === 'weekly' ? yourRank.weekly : yourRank.allTime;
 
   const top3 = data.slice(0, 3);
-  const rest = data.slice(3, 50);
+  const rest = data.slice(3, 15);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="glass p-6 rounded-2xl border border-dark-border flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center">
-            <Crown className="w-6 h-6 text-white" />
-          </div>
+      <div className="lb-page-hdr">
+        <div className="lb-hdr-l">
+          <div className="lb-crown"><i className="fa-solid fa-crown" /></div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Leaderboard</h1>
-            <p className="text-sm text-gray-400">Top predictors across the protocol</p>
+            <h1>Leaderboard</h1>
+            <p>Top predictors across the protocol</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/30">
-            <div className="text-[10px] text-blue-400 uppercase">Your rank</div>
-            <div className="text-xl font-bold text-white">{myRank > 0 ? `#${myRank}` : '—'}</div>
+        <div className="lb-hdr-r">
+          <div className="your-rank">
+            <div className="lbl">Your rank</div>
+            <div className="val">{myRank > 0 ? `#${myRank}` : '—'}</div>
           </div>
-          <div className="flex gap-1 bg-dark-surface p-1 rounded-lg">
+          <div className="lb-tabs">
             {(['daily', 'weekly', 'allTime'] as const).map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`px-4 py-1.5 text-xs font-semibold rounded-md transition ${
-                  tab === t ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'
-                }`}
+                className={`lb-tab${tab === t ? ' a' : ''}`}
               >
                 {t === 'allTime' ? 'All Time' : t.charAt(0).toUpperCase() + t.slice(1)}
               </button>
@@ -129,38 +119,39 @@ export function Leaderboard() {
         </div>
       </div>
 
-      {/* Top 3 podium */}
-      <div className="grid md:grid-cols-3 gap-4">
-        {[top3[1], top3[0], top3[2]].map((entry, i) => {
-          if (!entry) return null;
-          const originalPos = [2, 1, 3][i];
-          return (
-            <div key={entry.id} className={i === 1 ? 'md:-translate-y-3' : ''}>
-              <TopCard entry={entry} position={originalPos} />
-            </div>
-          );
-        })}
+      {/* Disclaimer */}
+      <div className="lb-disclaimer">
+        <div className="lb-disc-icon"><i className="fa-solid fa-ranking-star" /></div>
+        <div className="lb-disc-content">
+          <strong>Climb the Leaderboard</strong>
+          <span>Win predictions to earn net profit. Higher profit = higher rank. Top players earn exclusive rewards and recognition. Rankings reset daily/weekly — compete in your preferred timeframe!</span>
+        </div>
+      </div>
+
+      {/* Podium (2nd, 1st, 3rd order) */}
+      <div className="podium">
+        {top3[1] && <PodiumCard entry={top3[1]} position={2} />}
+        {top3[0] && <PodiumCard entry={top3[0]} position={1} isFirst />}
+        {top3[2] && <PodiumCard entry={top3[2]} position={3} />}
       </div>
 
       {/* Table */}
-      <div className="glass rounded-2xl border border-dark-border overflow-hidden">
-        <div className="grid grid-cols-[40px_1fr_80px_80px_110px_110px] gap-3 px-4 py-3 border-b border-dark-border text-[10px] uppercase text-gray-500 font-semibold bg-dark-surface/50">
-          <div className="text-center">#</div>
+      <div className="lb-table">
+        <div className="lb-th">
+          <div>#</div>
           <div>Player</div>
-          <div className="text-right">Wins</div>
-          <div className="text-right">Win %</div>
-          <div className="text-right">Volume</div>
-          <div className="text-right">Net Profit</div>
+          <div>Wins</div>
+          <div>Win %</div>
+          <div>Volume</div>
+          <div>Net Profit</div>
         </div>
-        <div className="divide-y divide-dark-border/50">
-          {rest.map((entry, i) => (
-            <Row key={entry.id + i} entry={entry} position={i + 4} />
-          ))}
-        </div>
+        {rest.map((entry, i) => (
+          <TableRow key={entry.id} entry={entry} position={i + 4} />
+        ))}
       </div>
 
-      <div className="text-center text-xs text-gray-500">
-        <Users className="w-3 h-3 inline mr-1" />
+      <div className="lb-foot">
+        <i className="fa-solid fa-users" />
         Updated live · Based on net profit in selected period
       </div>
     </div>

@@ -1,243 +1,339 @@
 'use client';
 
-import { useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { User, Trophy, Target, Flame, TrendingUp, Zap, Award, Percent, Coins, BarChart3 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { usePlayer, getRank, xpProgressInLevel, RANKS } from '@/contexts/PlayerContext';
-import { RankIcon } from '@/components/icons/RankIcon';
+import { useLeaderboard } from '@/contexts/LeaderboardContext';
+import {
+  AVATAR_PRESETS,
+  AVATAR_STORAGE_KEY,
+  avatarUrl,
+  getAvatarById,
+} from '@/lib/profileAvatars';
 
 interface UserProfileProps {
   userAddress?: string;
 }
 
+const RANK_FA: Record<string, string> = {
+  rookie: 'fa-seedling',
+  scout: 'fa-binoculars',
+  analyst: 'fa-chart-line',
+  trader: 'fa-briefcase',
+  strategist: 'fa-bullseye',
+  oracle: 'fa-gem',
+  legend: 'fa-crown',
+};
+
+function formatWalletAddress(address: string): string {
+  const normalized = address.trim();
+  if (normalized.length <= 9) return normalized;
+  return `${normalized.slice(0, 6)}.....${normalized.slice(-3)}`;
+}
+
 export function UserProfile({ userAddress }: UserProfileProps) {
-  const { stats, resetStats } = usePlayer();
+  const { stats } = usePlayer();
+  const { yourRank, allTime } = useLeaderboard();
   const rank = useMemo(() => getRank(stats.level), [stats.level]);
   const { current, needed, pct } = xpProgressInLevel(stats.xp);
   const totalResolved = stats.wins + stats.losses + stats.ties;
   const winRate = totalResolved > 0 ? (stats.wins / totalResolved) * 100 : 0;
-  const nextRank = RANKS.find(r => r.minLevel > stats.level);
+  const nextLevel = stats.level + 1;
+  const netProfit = stats.totalWon - stats.totalStaked;
+
+  const [savedAvatarId, setSavedAvatarId] = useState('cyber');
+  const [pendingAvatarId, setPendingAvatarId] = useState('cyber');
+  const [avatarOpen, setAvatarOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(AVATAR_STORAGE_KEY);
+      if (stored && AVATAR_PRESETS.some(p => p.id === stored)) {
+        setSavedAvatarId(stored);
+        setPendingAvatarId(stored);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  const savedAvatar = getAvatarById(savedAvatarId);
+
+  const formattedAddress = userAddress ? formatWalletAddress(userAddress) : null;
+
+  const displayName = formattedAddress ?? savedAvatar.name;
+  const shortAddr = formattedAddress ?? 'Connect wallet';
+
+  const globalRank = yourRank.allTime;
+  const globalRankLabel = globalRank > 0 ? `#${globalRank} Global` : 'Unranked';
 
   const achievements = Object.values(stats.achievements);
   const unlockedCount = achievements.filter(a => a.unlocked).length;
 
-  return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      {/* Profile Hero */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass p-8 rounded-2xl border border-dark-border relative overflow-hidden"
-      >
-        <div
-          className="absolute inset-0 opacity-20"
-          style={{
-            background: `radial-gradient(ellipse at top, ${rank.color}60, transparent 60%)`,
-          }}
-        />
-        <div className="relative flex items-center gap-6 flex-wrap">
-          <motion.div
-            animate={{
-              boxShadow: [
-                `0 0 20px ${rank.color}40`,
-                `0 0 40px ${rank.color}80`,
-                `0 0 20px ${rank.color}40`,
-              ],
-            }}
-            transition={{ duration: 3, repeat: Infinity }}
-            className="w-24 h-24 rounded-2xl flex items-center justify-center text-white"
-            style={{
-              background: `linear-gradient(135deg, ${rank.color}40, ${rank.color}80)`,
-              border: `2px solid ${rank.color}`,
-            }}
-          >
-            <RankIcon rankId={rank.id} size={48} />
-          </motion.div>
+  const myAgents = useMemo(
+    () => allTime.filter(e => e.isAI).slice(0, 2),
+    [allTime],
+  );
 
-          <div className="flex-1 min-w-[250px]">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-3xl font-bold text-white">
-                {userAddress ? `${userAddress.slice(0, 6)}...${userAddress.slice(-4)}` : 'Demo Predictor'}
-              </h1>
-              <span
-                className="px-3 py-1 rounded-full text-sm font-bold border"
-                style={{
-                  color: rank.color,
-                  borderColor: rank.color + '60',
-                  background: rank.color + '20',
-                }}
-              >
+  const handleSaveAvatar = () => {
+    if (pendingAvatarId === savedAvatarId) return;
+    setSavedAvatarId(pendingAvatarId);
+    try { localStorage.setItem(AVATAR_STORAGE_KEY, pendingAvatarId); } catch { /* ignore */ }
+  };
+
+  return (
+    <div className="prof-wrap">
+      {/* ── Profile Hero ── */}
+      <div className="prof-hero">
+        <div className="hud-shell prof-hero-inner">
+          <div className="prof-av-wrap">
+            <div className="prof-av">
+              <img src={avatarUrl(savedAvatar)} alt={savedAvatar.name} />
+            </div>
+            <button
+              type="button"
+              className="prof-av-edit"
+              title="Change avatar"
+              onClick={() => setAvatarOpen(v => !v)}
+            >
+              <i className="fa-solid fa-pen" />
+            </button>
+          </div>
+
+          <div className="prof-hero-main">
+            <div className="prof-name">{displayName}</div>
+            <div className="prof-addr">
+              <span>{shortAddr}</span>
+              {userAddress && (
+                <a
+                  href={`https://sepolia.mantlescan.xyz/address/${userAddress}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <i className="fa-solid fa-arrow-up-right-from-square" />
+                  Explorer
+                </a>
+              )}
+            </div>
+            <div className="prof-badges">
+              <span className="prof-badge rank">
+                <i className="fa-solid fa-crown" />
                 {rank.name}
               </span>
+              <span className="prof-badge lvl">
+                <i className="fa-solid fa-star" />
+                LVL {stats.level}
+              </span>
+              <span className="prof-badge rank">
+                <i className="fa-solid fa-hashtag" />
+                {globalRankLabel}
+              </span>
+              <span className="prof-badge net">
+                <i className="fa-solid fa-link" />
+                Mantle Sepolia
+              </span>
             </div>
-            <div className="mt-2 text-gray-300">Level {stats.level}</div>
-
-            <div className="mt-3 max-w-md">
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="text-gray-400">{current} / {needed} PTS</span>
-                {nextRank && (
-                  <span className="text-gray-400">
-                    Next: <span style={{ color: nextRank.color }}>{nextRank.name}</span> at lvl {nextRank.minLevel}
-                  </span>
-                )}
+            <div className="prof-xp">
+              <div className="prof-xp-labels">
+                <span>{current} / {needed} PTS → LVL {nextLevel}</span>
+                <span>{Math.round(pct)}%</span>
               </div>
-              <div className="relative h-3 bg-dark-bg rounded-full overflow-hidden">
-                <motion.div
-                  className="absolute inset-y-0 left-0 rounded-full"
-                  style={{ background: `linear-gradient(90deg, ${rank.color}, #a78bfa)` }}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${pct}%` }}
-                  transition={{ duration: 0.8, ease: 'easeOut' }}
-                />
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                  animate={{ x: ['-100%', '100%'] }}
-                  transition={{ duration: 2.5, repeat: Infinity, ease: 'linear' }}
-                />
+              <div className="prof-xp-track">
+                <div className="prof-xp-fill" style={{ width: `${pct}%` }} />
               </div>
             </div>
           </div>
 
-          {stats.currentStreak >= 2 && (
-            <motion.div
-              initial={{ scale: 0, rotate: -20 }}
-              animate={{ scale: 1, rotate: 0 }}
-              className="flex flex-col items-center px-4 py-3 rounded-xl bg-orange-500/10 border border-orange-500/40"
-            >
-              <Flame className="w-8 h-8 text-orange-400" />
-              <div className="text-xl font-bold text-white">{stats.currentStreak}</div>
-              <div className="text-[10px] text-orange-400 uppercase">Win streak</div>
-            </motion.div>
+          <div className="prof-streak-box">
+            <div className="prof-streak-val">
+              {stats.currentStreak}{' '}
+              <i className="fa-solid fa-fire" style={{ fontSize: 14, color: 'var(--hud-gold)' }} />
+            </div>
+            <div className="prof-streak-lbl">Win Streak</div>
+            <div className="prof-streak-best">Best: {stats.bestStreak}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Main Content ── */}
+      <div className="hud-shell prof-body">
+
+        {/* Avatar picker */}
+        <div className="prof-av-section">
+          <button
+            type="button"
+            className={`prof-av-hd${avatarOpen ? ' open' : ''}`}
+            onClick={() => setAvatarOpen(v => !v)}
+            aria-expanded={avatarOpen}
+          >
+            <span className="prof-av-hd-icon">
+              <i className="fa-solid fa-image" />
+            </span>
+            <span className="prof-av-hd-text">
+              <span className="prof-av-hd-title">Choose Avatar</span>
+              <span className="prof-av-hd-sub">{avatarOpen ? 'Hide presets' : 'Click to change your avatar'}</span>
+            </span>
+            <span className="prof-av-hd-meta">
+              Current: <em>{savedAvatar.name}</em>
+            </span>
+            <i className={`fa-solid fa-chevron-down prof-av-chevron${avatarOpen ? ' open' : ''}`} />
+          </button>
+          {!avatarOpen ? null : (
+            <div className="prof-av-body">
+              <div className="prof-av-grid">
+                {AVATAR_PRESETS.map(p => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={`prof-av-opt${pendingAvatarId === p.id ? ' sel' : ''}`}
+                    title={p.name}
+                    onClick={() => setPendingAvatarId(p.id)}
+                  >
+                    <img src={avatarUrl(p)} alt={p.name} />
+                  </button>
+                ))}
+              </div>
+              <div className="prof-av-actions">
+                <button
+                  type="button"
+                  className="hud-btn prof-save-btn"
+                  disabled={pendingAvatarId === savedAvatarId}
+                  onClick={handleSaveAvatar}
+                >
+                  Save Avatar
+                </button>
+                <span className="prof-av-hint">DiceBear presets · stored locally</span>
+              </div>
+            </div>
           )}
         </div>
-      </motion.div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard icon={Target} label="Predictions" value={stats.totalPredictions.toLocaleString()} color="#3b82f6" />
-        <StatCard icon={Trophy} label="Wins" value={stats.wins.toLocaleString()} color="#22c55e" />
-        <StatCard icon={Percent} label="Win Rate" value={`${winRate.toFixed(1)}%`} color="#a78bfa" />
-        <StatCard icon={Coins} label="Total Won" value={stats.totalWon.toFixed(0)} color="#f59e0b" />
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Detailed stats */}
-        <div className="glass p-6 rounded-xl border border-dark-border">
-          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-blue-500" />
-            Performance
-          </h3>
-          <div className="space-y-3 text-sm">
-            <StatRow label="Wins" value={stats.wins} color="text-green-400" />
-            <StatRow label="Losses" value={stats.losses} color="text-red-400" />
-            <StatRow label="Ties" value={stats.ties} color="text-gray-400" />
-            <StatRow label="Best streak" value={stats.bestStreak} color="text-orange-400" />
-            <StatRow label="Total staked" value={stats.totalStaked.toFixed(2)} color="text-white" />
-            <StatRow label="Net profit" value={(stats.totalWon - stats.totalStaked).toFixed(2)} color={stats.totalWon - stats.totalStaked >= 0 ? 'text-green-400' : 'text-red-400'} />
-            <StatRow label="Total PTS" value={stats.xp.toLocaleString()} color="text-blue-400" />
+        {/* Stats grid */}
+        <div className="prof-stats-grid">
+          <div className="prof-stat-card">
+            <i className="fa-solid fa-bullseye prof-sc-icon cyan" />
+            <div className="prof-sc-label">Predictions</div>
+            <div className="prof-sc-val cyan">{stats.totalPredictions.toLocaleString()}</div>
+            <div className="prof-sc-sub">Total rounds played</div>
           </div>
-          <button
-            onClick={resetStats}
-            className="mt-4 text-xs text-gray-500 hover:text-gray-300 underline"
-          >
-            Reset progress
-          </button>
+          <div className="prof-stat-card">
+            <i className="fa-solid fa-trophy prof-sc-icon green" />
+            <div className="prof-sc-label">Wins</div>
+            <div className="prof-sc-val green">{stats.wins.toLocaleString()}</div>
+            <div className="prof-sc-sub">{winRate.toFixed(1)}% win rate</div>
+          </div>
+          <div className="prof-stat-card">
+            <i className="fa-solid fa-percent prof-sc-icon purple" />
+            <div className="prof-sc-label">Win Rate</div>
+            <div className="prof-sc-val purple">{winRate.toFixed(0)}%</div>
+            <div className="prof-sc-sub">{winRate >= 51 ? 'Above avg (51%)' : 'Below avg (51%)'}</div>
+          </div>
+          <div className="prof-stat-card">
+            <i className="fa-solid fa-coins prof-sc-icon gold" />
+            <div className="prof-sc-label">Total Won</div>
+            <div className="prof-sc-val gold">{stats.totalWon.toFixed(0)}</div>
+            <div className="prof-sc-sub">CLASH tokens</div>
+          </div>
         </div>
 
-        {/* Achievements */}
-        <div className="glass p-6 rounded-xl border border-dark-border">
-          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2 justify-between">
-            <span className="flex items-center gap-2">
-              <Award className="w-5 h-5 text-yellow-500" />
+        {/* Performance + Achievements */}
+        <div className="prof-two-col">
+          <div className="hud-section-panel">
+            <div className="prof-sec-hd">
+              <i className="fa-solid fa-chart-bar" style={{ color: 'var(--hud-cyan)' }} />
+              Performance
+            </div>
+            <div className="prof-perf-row"><span className="k">Wins</span><span className="v green">{stats.wins}</span></div>
+            <div className="prof-perf-row"><span className="k">Losses</span><span className="v red">{stats.losses}</span></div>
+            <div className="prof-perf-row"><span className="k">Ties</span><span className="v">{stats.ties}</span></div>
+            <div className="prof-perf-row"><span className="k">Best streak</span><span className="v gold">{stats.bestStreak}</span></div>
+            <div className="prof-perf-row"><span className="k">Total staked</span><span className="v">{stats.totalStaked.toFixed(0)}</span></div>
+            <div className="prof-perf-row">
+              <span className="k">Net profit</span>
+              <span className={`v ${netProfit >= 0 ? 'green' : 'red'}`}>
+                {netProfit >= 0 ? '+' : ''}{netProfit.toFixed(0)}
+              </span>
+            </div>
+            <div className="prof-perf-row"><span className="k">Total PTS</span><span className="v cyan">{stats.xp.toLocaleString()}</span></div>
+          </div>
+
+          <div className="hud-section-panel">
+            <div className="prof-sec-hd">
+              <i className="fa-solid fa-medal" style={{ color: 'var(--hud-gold)' }} />
               Achievements
-            </span>
-            <span className="text-sm text-gray-400 font-normal">{unlockedCount} / {achievements.length}</span>
-          </h3>
-          <div className="grid grid-cols-2 gap-2">
-            {achievements.map(a => (
-              <motion.div
-                key={a.id}
-                whileHover={{ scale: 1.03 }}
-                className={`p-3 rounded-lg border text-sm transition ${
-                  a.unlocked
-                    ? 'bg-yellow-500/10 border-yellow-500/40'
-                    : 'bg-dark-bg border-dark-border opacity-50'
-                }`}
-              >
-                <div className="flex items-start gap-2">
-                  <span className="text-2xl">{a.unlocked ? a.icon : '🔒'}</span>
-                  <div className="min-w-0">
-                    <div className={`font-bold text-xs ${a.unlocked ? 'text-yellow-400' : 'text-gray-400'}`}>
-                      {a.title}
-                    </div>
-                    <div className="text-[10px] text-gray-500 leading-tight">{a.description}</div>
+              <span className="prof-ach-count">{unlockedCount} / {achievements.length}</span>
+            </div>
+            <div className="prof-ach-grid">
+              {achievements.map(a => (
+                <div key={a.id} className={`prof-ach-item${a.unlocked ? ' on' : ''}`}>
+                  <span>{a.unlocked ? a.icon : '🔒'}</span>
+                  <div className="prof-ach-title">{a.title}</div>
+                  <div className="prof-ach-desc">{a.description}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Ranks */}
+        <div className="hud-section-panel">
+          <div className="prof-sec-hd">
+            <i className="fa-solid fa-arrow-trend-up" style={{ color: 'var(--hud-purple)' }} />
+            Ranks Overview
+          </div>
+          <div className="prof-rank-grid">
+            {RANKS.map(r => {
+              const achieved = stats.level >= r.minLevel;
+              const isCurrent = r.id === rank.id;
+              return (
+                <div
+                  key={r.id}
+                  className={`prof-rank-cell${achieved ? ' on' : ' off'}${isCurrent ? ' cur' : ''}`}
+                  style={{
+                    borderColor: achieved ? r.color : undefined,
+                    color: achieved ? r.color : undefined,
+                  }}
+                >
+                  <i className={`fa-solid ${RANK_FA[r.id] ?? 'fa-star'}`} />
+                  <div className="prof-rank-name">{r.name}</div>
+                  <div className="prof-rank-lvl">Lvl {r.minLevel}+</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* AI Agents */}
+        <div className="hud-section-panel">
+          <div className="prof-sec-hd">
+            <i className="fa-solid fa-robot" style={{ color: 'var(--hud-purple)' }} />
+            AI Agents
+          </div>
+          <div className="prof-agents-grid">
+            {myAgents.map(agent => (
+              <div key={agent.id} className="prof-agent-card">
+                <div className="prof-agent-name">{agent.name.replace('🤖 ', '')}</div>
+                <div className="prof-agent-nft">
+                  {agent.tokenId ? `NFT #${String(agent.tokenId).padStart(3, '0')}` : 'System Agent'}
+                </div>
+                <div className="prof-agent-stats">
+                  <div>
+                    <span className="k">Decisions</span>
+                    <div className="v cyan">{agent.predictions}</div>
+                  </div>
+                  <div>
+                    <span className="k">Win Rate</span>
+                    <div className="v green">{agent.winRate.toFixed(0)}%</div>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             ))}
+            <Link href="/create-agent" className="prof-agent-create">
+              <i className="fa-solid fa-plus" />
+              <div>Create Agent</div>
+            </Link>
           </div>
         </div>
-      </div>
 
-      {/* Ranks overview */}
-      <div className="glass p-6 rounded-xl border border-dark-border">
-        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-purple-500" />
-          Ranks
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-          {RANKS.map(r => {
-            const achieved = stats.level >= r.minLevel;
-            const isCurrent = r.id === rank.id;
-            return (
-              <div
-                key={r.id}
-                className={`p-3 rounded-lg text-center border-2 transition ${
-                  isCurrent ? 'ring-2 ring-offset-2 ring-offset-dark-bg' : ''
-                }`}
-                style={{
-                  borderColor: achieved ? r.color : '#1f2937',
-                  background: achieved ? r.color + '15' : 'transparent',
-                  opacity: achieved ? 1 : 0.4,
-                  ...(isCurrent ? { '--tw-ring-color': r.color } as any : {}),
-                }}
-              >
-                <div className="mb-1 flex justify-center" style={{ color: achieved ? r.color : '#6b7280' }}><RankIcon rankId={r.id} size={28} /></div>
-                <div className="text-xs font-bold" style={{ color: achieved ? r.color : '#6b7280' }}>
-                  {r.name}
-                </div>
-                <div className="text-[10px] text-gray-500">Lvl {r.minLevel}+</div>
-              </div>
-            );
-          })}
-        </div>
       </div>
-    </div>
-  );
-}
-
-function StatCard({ icon: Icon, label, value, color }: { icon: any; label: string; value: string; color: string }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -3 }}
-      className="glass p-5 rounded-xl border border-dark-border"
-    >
-      <div className="flex items-center justify-between mb-3">
-        <Icon className="w-5 h-5" style={{ color }} />
-        <span className="text-xs text-gray-400">{label}</span>
-      </div>
-      <div className="text-2xl font-bold text-white">{value}</div>
-    </motion.div>
-  );
-}
-
-function StatRow({ label, value, color }: { label: string; value: number | string; color: string }) {
-  return (
-    <div className="flex items-center justify-between p-3 bg-dark-bg/60 rounded-lg">
-      <span className="text-gray-400">{label}</span>
-      <span className={`font-bold ${color}`}>{value}</span>
     </div>
   );
 }

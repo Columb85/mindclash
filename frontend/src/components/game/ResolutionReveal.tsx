@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, TrendingDown, X, Trophy, Frown, Bot, Zap, Loader2, CheckCircle2, Lock, Radio, Calculator, Coins } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { Direction } from '@/types/room';
 import type { BotResult } from './GameRoundInterface';
 
@@ -73,8 +74,50 @@ export function ResolutionReveal({
     return () => clearInterval(timer);
   }, [open, phase, ptsGained]);
 
+  // Confetti on win
+  const fireConfetti = useCallback(() => {
+    const duration = 2500;
+    const end = Date.now() + duration;
+    const colors = ['#00ff88', '#fbbf24', '#00e5ff', '#a855f7'];
+    
+    const frame = () => {
+      confetti({
+        particleCount: 3,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.7 },
+        colors,
+      });
+      confetti({
+        particleCount: 3,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.7 },
+        colors,
+      });
+      if (Date.now() < end) requestAnimationFrame(frame);
+    };
+    frame();
+    
+    // Big burst in the center
+    setTimeout(() => {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors,
+      });
+    }, 200);
+  }, []);
+
+  useEffect(() => {
+    if (phase === 'reveal' && userOutcome === 'win') {
+      fireConfetti();
+    }
+  }, [phase, userOutcome, fireConfetti]);
+
   const beatenBots = botResults.filter(b => b.beat);
-  const showBots = botResults.length > 0;
+  const showBots = false; // Hide bot results for now
 
   const winnerConfig = {
     UP:   { color: '#22c55e', glow: 'rgba(34,197,94,0.35)', icon: TrendingUp, label: 'UP WINS' },
@@ -97,21 +140,21 @@ export function ResolutionReveal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
           onClick={isResolving ? undefined : onClose}
         >
           <motion.div
             key={phase}
-            initial={{ scale: 0.85, y: 24, opacity: 0 }}
-            animate={{ scale: 1, y: 0, opacity: 1 }}
-            exit={{ scale: 0.92, opacity: 0 }}
-            transition={{ type: 'spring', damping: 20, stiffness: 260 }}
+            initial={{ scale: 0.5, y: 40, opacity: 0, rotateX: -15 }}
+            animate={{ scale: 1, y: 0, opacity: 1, rotateX: 0 }}
+            exit={{ scale: 0.8, y: -20, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 350 }}
             onClick={e => e.stopPropagation()}
-            className="relative w-full max-w-md rounded-2xl border-2 p-8 overflow-hidden"
+            className="relative w-full max-w-xs rounded-xl border-2 p-5 overflow-hidden"
             style={{
               borderColor: isResolving ? resolveBorder : winnerConfig.color,
-              background: `radial-gradient(ellipse at top, ${isResolving ? resolveGlow : winnerConfig.glow}, #0a0a0f 70%)`,
-              boxShadow: `0 0 60px ${isResolving ? resolveGlow : winnerConfig.glow}`,
+              background: `linear-gradient(180deg, ${isResolving ? resolveGlow : winnerConfig.glow}, #0a0a0f 60%)`,
+              boxShadow: `0 0 80px ${isResolving ? resolveGlow : winnerConfig.glow}, 0 20px 40px rgba(0,0,0,0.5)`,
             }}
           >
             {/* Animated rays background — only in reveal */}
@@ -148,45 +191,45 @@ export function ResolutionReveal({
                   <motion.div
                     initial={{ scale: 0, rotate: -180 }}
                     animate={{ scale: 1, rotate: 0 }}
-                    transition={{ type: 'spring', delay: 0.15, damping: 12 }}
-                    className="w-24 h-24 mx-auto mb-4 rounded-2xl flex items-center justify-center"
+                    transition={{ type: 'spring', delay: 0.1, damping: 14, stiffness: 200 }}
+                    className="w-16 h-16 mx-auto mb-3 rounded-xl flex items-center justify-center"
                     style={{
-                      background: `${winnerConfig.color}20`,
+                      background: `${winnerConfig.color}25`,
                       border: `2px solid ${winnerConfig.color}`,
-                      boxShadow: `0 0 40px ${winnerConfig.glow}`,
+                      boxShadow: `0 0 30px ${winnerConfig.glow}`,
                     }}
                   >
-                    <Icon className="w-14 h-14" style={{ color: winnerConfig.color }} />
+                    <Icon className="w-9 h-9" style={{ color: winnerConfig.color }} />
                   </motion.div>
 
                   <motion.div
-                    initial={{ y: 20, opacity: 0 }}
+                    initial={{ y: 15, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.35 }}
-                    className="text-4xl font-black tracking-wider mb-2"
+                    transition={{ delay: 0.25 }}
+                    className="text-2xl font-black tracking-wider mb-1"
                     style={{ color: winnerConfig.color, textShadow: `0 0 20px ${winnerConfig.glow}` }}
                   >
                     {winnerConfig.label}
                   </motion.div>
 
                   <motion.div
-                    initial={{ y: 20, opacity: 0 }}
+                    initial={{ y: 15, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                    className="text-sm text-gray-300 mb-6"
+                    transition={{ delay: 0.35 }}
+                    className="text-xs text-gray-400 mb-4"
                   >
-                    <div className="flex items-center justify-center gap-4">
+                    <div className="flex items-center justify-center gap-3">
                       <div>
-                        <div className="text-[10px] text-gray-500 uppercase">Start</div>
-                        <div className="font-bold">${startPrice.toFixed(2)}</div>
+                        <div className="text-[9px] text-gray-500 uppercase">Start</div>
+                        <div className="font-bold text-gray-300">${startPrice.toFixed(2)}</div>
                       </div>
                       <div className="text-gray-600">→</div>
                       <div>
-                        <div className="text-[10px] text-gray-500 uppercase">End</div>
-                        <div className="font-bold">${endPrice.toFixed(2)}</div>
+                        <div className="text-[9px] text-gray-500 uppercase">End</div>
+                        <div className="font-bold text-gray-300">${endPrice.toFixed(2)}</div>
                       </div>
                       <div
-                        className="ml-2 px-2 py-1 rounded-lg text-xs font-bold"
+                        className="px-2 py-0.5 rounded text-[10px] font-bold"
                         style={{ background: `${winnerConfig.color}20`, color: winnerConfig.color }}
                       >
                         {diff >= 0 ? '+' : ''}{diffPct.toFixed(2)}%
@@ -266,66 +309,65 @@ export function ResolutionReveal({
               {/* ── User outcome ── */}
               {userOutcome && (
                 <motion.div
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: showBots ? 0.85 : 0.7 }}
-                  className={`p-4 rounded-xl border-2 ${
+                  initial={{ y: 15, opacity: 0, scale: 0.95 }}
+                  animate={{ y: 0, opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.45, type: 'spring', damping: 20 }}
+                  className={`p-3 rounded-lg border ${
                     userOutcome === 'win'
-                      ? 'bg-green-500/10 border-green-500/40'
+                      ? 'bg-green-500/15 border-green-500/50'
                       : userOutcome === 'tie'
                         ? 'bg-gray-500/10 border-gray-500/40'
                         : 'bg-red-500/10 border-red-500/40'
                   }`}
                 >
                   {userOutcome === 'win' ? (
-                    <div className="flex items-center gap-3">
-                      <Trophy className="w-8 h-8 text-green-500" />
+                    <div className="flex items-center gap-2">
+                      <Trophy className="w-6 h-6 text-green-400" />
                       <div className="text-left flex-1">
-                        <div className="text-sm text-green-400 font-semibold">You won</div>
-                        <div className="text-2xl font-black text-white">
-                          +{(userPayout - userStake).toFixed(2)} {token}
+                        <div className="text-[10px] text-green-400 font-semibold uppercase">You won!</div>
+                        <div className="text-lg font-black text-white leading-tight">
+                          +{(userPayout - userStake).toFixed(2)} <span className="text-sm text-gray-400">{token}</span>
                         </div>
-                        <div className="text-xs text-gray-400">Total: {userPayout.toFixed(2)} {token}</div>
                       </div>
                       {ptsGained > 0 && (
                         <motion.div
-                          initial={{ scale: 0.5, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          transition={{ delay: showBots ? 1.0 : 0.85, type: 'spring', damping: 10 }}
-                          className="flex flex-col items-center px-3 py-2 rounded-xl bg-blue-500/10 border border-blue-500/30"
+                          initial={{ scale: 0, rotate: -20 }}
+                          animate={{ scale: 1, rotate: 0 }}
+                          transition={{ delay: 0.6, type: 'spring', damping: 12 }}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-500/20 border border-yellow-500/40"
                         >
-                          <Zap className="w-4 h-4 text-blue-400 mb-0.5" />
-                          <span className="text-lg font-black text-blue-400 tabular-nums">+{displayPts}</span>
-                          <span className="text-[10px] text-blue-500 font-bold">PTS</span>
+                          <Zap className="w-3.5 h-3.5 text-yellow-400" />
+                          <span className="text-sm font-black text-yellow-400 tabular-nums">+{displayPts}</span>
+                          <span className="text-[9px] text-yellow-500 font-bold">XP</span>
                         </motion.div>
                       )}
                     </div>
                   ) : userOutcome === 'tie' ? (
                     <div className="flex items-center justify-between">
-                      <div className="text-center">
-                        <div className="text-sm font-semibold text-gray-300">Stake refunded</div>
-                        <div className="text-xl font-bold text-white">{userStake.toFixed(2)} {token}</div>
+                      <div>
+                        <div className="text-[10px] font-semibold text-gray-400 uppercase">Tie — Refunded</div>
+                        <div className="text-base font-bold text-white">{userStake.toFixed(2)} {token}</div>
                       </div>
                       {ptsGained > 0 && (
-                        <div className="flex flex-col items-center px-3 py-2 rounded-xl bg-blue-500/10 border border-blue-500/30">
-                          <Zap className="w-4 h-4 text-blue-400 mb-0.5" />
-                          <span className="text-lg font-black text-blue-400 tabular-nums">+{displayPts}</span>
-                          <span className="text-[10px] text-blue-500 font-bold">PTS</span>
+                        <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-500/20 border border-yellow-500/40">
+                          <Zap className="w-3.5 h-3.5 text-yellow-400" />
+                          <span className="text-sm font-black text-yellow-400 tabular-nums">+{displayPts}</span>
+                          <span className="text-[9px] text-yellow-500 font-bold">XP</span>
                         </div>
                       )}
                     </div>
                   ) : (
-                    <div className="flex items-center gap-3">
-                      <Frown className="w-8 h-8 text-red-500" />
+                    <div className="flex items-center gap-2">
+                      <Frown className="w-6 h-6 text-red-400" />
                       <div className="text-left flex-1">
-                        <div className="text-sm text-red-400 font-semibold">You lost</div>
-                        <div className="text-2xl font-black text-white">-{userStake.toFixed(2)} {token}</div>
+                        <div className="text-[10px] text-red-400 font-semibold uppercase">You lost</div>
+                        <div className="text-lg font-black text-white leading-tight">-{userStake.toFixed(2)} <span className="text-sm text-gray-400">{token}</span></div>
                       </div>
                       {ptsGained > 0 && (
-                        <div className="flex flex-col items-center px-3 py-2 rounded-xl bg-blue-500/10 border border-blue-500/30">
-                          <Zap className="w-4 h-4 text-blue-400 mb-0.5" />
-                          <span className="text-lg font-black text-blue-400 tabular-nums">+{displayPts}</span>
-                          <span className="text-[10px] text-blue-500 font-bold">PTS</span>
+                        <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-500/20 border border-yellow-500/40">
+                          <Zap className="w-3.5 h-3.5 text-yellow-400" />
+                          <span className="text-sm font-black text-yellow-400 tabular-nums">+{displayPts}</span>
+                          <span className="text-[9px] text-yellow-500 font-bold">XP</span>
                         </div>
                       )}
                     </div>
@@ -334,13 +376,22 @@ export function ResolutionReveal({
               )}
 
                   <motion.button
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: showBots ? 1.1 : 0.9 }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6 }}
                     onClick={onClose}
-                    className="mt-6 w-full py-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold hover:opacity-90 transition"
+                    className="mt-4 w-full py-2.5 rounded-lg text-sm font-bold transition-all"
+                    style={{
+                      background: userOutcome === 'win' 
+                        ? 'linear-gradient(135deg, #00ff88, #00cc6a)' 
+                        : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                      color: userOutcome === 'win' ? '#001a0d' : '#fff',
+                      boxShadow: userOutcome === 'win' 
+                        ? '0 4px 20px rgba(0,255,136,0.3)' 
+                        : '0 4px 20px rgba(99,102,241,0.3)',
+                    }}
                   >
-                    Continue
+                    {userOutcome === 'win' ? '🎉 Claim & Continue' : 'Continue'}
                   </motion.button>
                 </>
               )}

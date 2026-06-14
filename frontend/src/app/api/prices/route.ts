@@ -29,8 +29,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json(data);
-  } catch (e) {
-    console.error('[API/prices] Backend unreachable:', e);
+  } catch {
     return NextResponse.json(
       { success: false, error: 'Price feed unavailable', data: {} },
       { status: 502 }

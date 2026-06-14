@@ -95,7 +95,6 @@ export function ClashProvider({ children }: { children: ReactNode }) {
     const newPoints = clashPoints + amount;
     setClashPoints(newPoints);
     localStorage.setItem(`clash_points_${address}`, newPoints.toString());
-    console.log(`[Clash Points] +${amount} for ${reason}. Total: ${newPoints}`);
   };
 
   return (

@@ -1,5 +1,6 @@
 import { configureChains, createConfig } from 'wagmi';
 import { publicProvider } from 'wagmi/providers/public';
+import { getDefaultWallets } from '@rainbow-me/rainbowkit';
 
 // ─── Chain IDs ────────────────────────────────────────────────────────────────
 export const CHAIN_IDS = {
@@ -133,9 +134,18 @@ const { chains, publicClient } = configureChains(
   [publicProvider()]
 );
 
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'b5ebf3f65b29b6b6ed6ff4e2ba4ebb68';
+
+const { connectors } = getDefaultWallets({
+  appName: 'MindClash',
+  projectId,
+  chains,
+});
+
 export const wagmiConfig = createConfig({
   autoConnect: false,
   publicClient,
+  connectors,
 });
 
 export { chains };

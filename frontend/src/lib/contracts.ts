@@ -83,6 +83,32 @@ export const AGENT_NFT_ABI = [
     ],
     "stateMutability": "view",
     "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "tokenId", "type": "uint256" },
+      { "internalType": "uint256", "name": "limit", "type": "uint256" }
+    ],
+    "name": "getRecentDecisions",
+    "outputs": [
+      {
+        "components": [
+          { "internalType": "string", "name": "direction", "type": "string" },
+          { "internalType": "uint256", "name": "confidence", "type": "uint256" },
+          { "internalType": "uint256", "name": "stake", "type": "uint256" },
+          { "internalType": "uint256", "name": "timestamp", "type": "uint256" },
+          { "internalType": "bool", "name": "wasCorrect", "type": "bool" },
+          { "internalType": "int256", "name": "pnl", "type": "int256" },
+          { "internalType": "string", "name": "reasoning", "type": "string" },
+          { "internalType": "bytes32", "name": "decisionHash", "type": "bytes32" }
+        ],
+        "internalType": "struct AgentNFT.Decision[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   }
 ] as const;
 
@@ -178,8 +204,8 @@ export async function loadDeployedAddresses() {
         return true;
       }
     }
-  } catch (error) {
-    console.warn('Could not load deployed addresses:', error);
+  } catch {
+    // deployed addresses unavailable
   }
   return false;
 }

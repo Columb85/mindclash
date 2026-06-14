@@ -15,8 +15,6 @@
 const express = require('express');
 const { ethers } = require('ethers');
 const router = express.Router();
-const { getUserAgentByTokenId } = require('../db');
-const { generateDecision } = require('../neural-decision');
 
 // ── Contract ABI ──────────────────────────────────────────────────────────────
 const AGENT_NFT_WRITE_ABI = [
@@ -37,40 +35,76 @@ function genId() {
   return `duel_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function resolveAgentMeta(tokenId) {
-  const system = BOT_CONFIGS[tokenId];
-  if (system) return { name: system.name, strategy: system.strategy, isUser: false };
-  const user = getUserAgentByTokenId.get(tokenId);
-  if (user) return { name: user.name, strategy: user.strategy, isUser: true };
-  return null;
+// ── Indicator helpers ─────────────────────────────────────────────────────────
+function calcRSI(closes, period = 14) {
+  if (closes.length < period + 1) return null;
+  let avgGain = 0, avgLoss = 0;
+  for (let i = closes.length - period; i < closes.length; i++) {
+    const d = closes[i] - closes[i - 1];
+    if (d > 0) avgGain += d; else avgLoss -= d;
+  }
+  avgGain /= period; avgLoss /= period;
+  if (avgLoss === 0) return 100;
+  return parseFloat((100 - 100 / (1 + avgGain / avgLoss)).toFixed(2));
 }
 
-const ONCHAIN_SIGNING_ENABLED =
-  process.env.ENABLE_ONCHAIN_SIGNING === 'true' || process.env.ENABLE_ONCHAIN_SIGNING === '1';
+// ── Agent decision logic (same as /agents/analyze but returns decision only) ──
+async function generateAgentDecision(tokenId, asset) {
+  const bot    = BOT_CONFIGS[tokenId];
+  const symbol = `${asset}USDT`;
 
+  // Fetch klines from Bybit
+  const kResp = await fetch(`https://api.bybit.com/v5/market/kline?category=spot&symbol=${symbol}&interval=1&limit=30`);
+  const kJson = await kResp.json();
+  const candles = (kJson?.result?.list ?? []).reverse();
+  const closes  = candles.map(c => parseFloat(c[4]));
+
+  // Ticker
+  const tResp = await fetch(`https://api.bybit.com/v5/market/tickers?category=spot&symbol=${symbol}`);
+  const tJson = await tResp.json();
+  const ticker = tJson?.result?.list?.[0] ?? {};
+  const price    = parseFloat(ticker.lastPrice ?? closes[closes.length - 1]);
+  const change24h = parseFloat(ticker.price24hPcnt ?? '0');
+
+  // Indicators
+  const rsi = calcRSI(closes);
+  const sma10 = closes.length >= 10 ? closes.slice(-10).reduce((s, v) => s + v, 0) / 10 : price;
+  const sma20 = closes.length >= 20 ? closes.slice(-20).reduce((s, v) => s + v, 0) / 20 : price;
+
+  let direction, confidence, reasoning;
+
+  if (bot.strategy === 'momentum') {
+    const bullish = [price > sma10, price > sma20, change24h > 0, rsi != null && rsi > 40 && rsi < 75];
+    const bullCount = bullish.filter(Boolean).length;
+    direction  = bullCount >= 2 ? 'UP' : 'DOWN';
+    confidence = Math.min(950, 400 + bullCount * 130);
+    reasoning  = `Momentum: ${bullCount}/4 bullish signals, RSI=${rsi ?? '-'}, 24h=${(change24h * 100).toFixed(2)}% → ${direction}`;
+  } else if (bot.strategy === 'mean-reversion') {
+    const overbought = rsi != null && rsi > 65;
+    const oversold   = rsi != null && rsi < 35;
+    const extended   = Math.abs(change24h) > 0.015;
+    direction  = (overbought || (change24h > 0.01 && extended)) ? 'DOWN' : (oversold || change24h < -0.01) ? 'UP' : (change24h >= 0 ? 'DOWN' : 'UP');
+    confidence = Math.min(920, 450 + (extended ? 200 : 0) + ((overbought || oversold) ? 150 : 0));
+    reasoning  = `Mean-Reversion: RSI=${rsi ?? '-'}, 24h=${(change24h * 100).toFixed(2)}%, ${overbought ? 'overbought' : oversold ? 'oversold' : 'neutral'} → fade to ${direction}`;
+  } else {
+    const smaScore = (price > sma10 ? 1 : -1) + (price > sma20 ? 1 : -1);
+    const rsiScore = rsi != null ? (rsi - 50) / 50 : 0;
+    const momScore = Math.max(-1, Math.min(1, change24h * 20));
+    const composite = smaScore * 0.3 + rsiScore * 0.25 + momScore * 0.35;
+    direction  = composite >= 0 ? 'UP' : 'DOWN';
+    confidence = Math.min(970, Math.round(500 + Math.abs(composite) * 450));
+    reasoning  = `Neural: composite=${composite.toFixed(3)}, SMA=${smaScore}, RSI=${(rsiScore).toFixed(2)}, Mom=${momScore.toFixed(2)} → ${direction}`;
+  }
+
+  return { direction, confidence, stake: 250, reasoning, price, asset };
+}
+
+// ── Submit agent decision on-chain ────────────────────────────────────────────
 async function submitOnChain(tokenId, decision) {
-  if (!BOT_CONFIGS[tokenId]) {
-    return {
-      txHash: null,
-      mode: 'user-agent',
-      error: null,
-      hint: 'User-created agents: sign recordDecision() from your wallet in the app.',
-    };
-  }
-
-  if (!ONCHAIN_SIGNING_ENABLED) {
-    return {
-      txHash: null,
-      mode: 'read-only',
-      error: null,
-      hint: 'On-chain signing is disabled in this repo. Live duels with tx: https://api.mindclash.xyz/api/duels',
-    };
-  }
-
   const bot = BOT_CONFIGS[tokenId];
   const privateKey = process.env[bot.envKey] || process.env.AGENT_PRIVATE_KEY;
   if (!privateKey || privateKey.includes('your_testnet') || privateKey === '0x' + '0'.repeat(64)) {
-    return { txHash: null, error: 'Bot private key not configured (set ENABLE_ONCHAIN_SIGNING=true + keys in .env)' };
+    return { txHash: null, error: 'Bot private key not configured' };
   }
 
   try {
@@ -89,59 +123,84 @@ async function submitOnChain(tokenId, decision) {
   }
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// POST /api/duels — Create a duel, agent makes on-chain decision
+// Body: { agentTokenId: 5|6|7, asset: 'BTC'|'ETH'|'SOL', humanDirection: 'UP'|'DOWN', duration: 60 }
+// ══════════════════════════════════════════════════════════════════════════════
 router.post('/', async (req, res, next) => {
   try {
     const { agentTokenId = 5, asset = 'BTC', humanDirection = 'UP', duration = 60, humanAddress } = req.body;
-    const tokenId = parseInt(agentTokenId, 10);
 
-    const meta = resolveAgentMeta(tokenId);
-    if (!meta) return res.status(400).json({ error: 'Unknown agent — create one at /create-agent or pick #5, #6, #7' });
-    if (!['BTC', 'ETH', 'SOL', 'MNT'].includes(String(asset).toUpperCase())) return res.status(400).json({ error: 'Invalid asset' });
+    if (![5, 6, 7].includes(agentTokenId)) return res.status(400).json({ error: 'agentTokenId must be 5, 6 or 7' });
+    if (!['BTC', 'ETH', 'SOL', 'MNT'].includes(asset.toUpperCase())) return res.status(400).json({ error: 'Invalid asset' });
     if (!['UP', 'DOWN'].includes(humanDirection)) return res.status(400).json({ error: 'humanDirection must be UP or DOWN' });
 
     const duelId = genId();
-    const dur = Math.max(30, Math.min(300, parseInt(duration, 10) || 60));
-    const agentDecision = await generateDecision({
-      agentTokenId: tokenId,
-      asset: String(asset).toUpperCase(),
-      duration: dur,
-      strategy: meta.strategy,
-    });
-    const onChain = await submitOnChain(tokenId, agentDecision);
+    const bot    = BOT_CONFIGS[agentTokenId];
 
+    // 1. Agent analyzes market and generates decision
+    const agentDecision = await generateAgentDecision(agentTokenId, asset.toUpperCase());
+
+    // 2. Submit on-chain
+    const onChain = await submitOnChain(agentTokenId, agentDecision);
+
+    // 3. Store duel
     const duel = {
-      id: duelId,
-      agentTokenId: tokenId,
-      agentName: meta.name,
-      agentStrategy: meta.strategy,
-      isUserAgent: meta.isUser,
-      asset: String(asset).toUpperCase(),
-      duration: dur,
+      id:             duelId,
+      agentTokenId,
+      agentName:      bot.name,
+      agentStrategy:  bot.strategy,
+      asset:          asset.toUpperCase(),
+      duration:       Math.max(30, Math.min(300, duration)),
       humanDirection,
-      humanAddress: humanAddress || null,
+      humanAddress:   humanAddress || null,
       agentDirection: agentDecision.direction,
       agentConfidence: agentDecision.confidence,
       agentReasoning: agentDecision.reasoning,
-      startPrice: agentDecision.price,
-      endPrice: null,
-      startedAt: Math.floor(Date.now() / 1000),
-      endsAt: Math.floor(Date.now() / 1000) + dur,
-      status: 'live',
-      winner: null,
-      txHash: onChain.txHash,
-      explorerUrl: onChain.explorerUrl || null,
-      txError: onChain.error || null,
-      mode: onChain.mode || (onChain.txHash ? 'on-chain' : 'read-only'),
-      liveApiHint: onChain.hint || null,
+      startPrice:     agentDecision.price,
+      endPrice:       null,
+      startedAt:      Math.floor(Date.now() / 1000),
+      endsAt:         Math.floor(Date.now() / 1000) + Math.max(30, Math.min(300, duration)),
+      status:         'live', // live | resolved
+      winner:         null,   // 'human' | 'agent' | 'tie'
+      txHash:         onChain.txHash,
+      explorerUrl:    onChain.explorerUrl || null,
+      txError:        onChain.error || null,
     };
 
     duels.set(duelId, duel);
-    res.json({ success: true, duel });
+
+    console.log(`[DUEL] Created ${duelId}: ${humanDirection} vs ${bot.name} ${agentDecision.direction} on ${asset} (${duration}s)`);
+
+    res.json({
+      success: true,
+      duel: {
+        id:              duel.id,
+        agentName:       duel.agentName,
+        agentStrategy:   duel.agentStrategy,
+        agentDirection:  duel.agentDirection,
+        agentConfidence: duel.agentConfidence,
+        agentReasoning:  duel.agentReasoning,
+        humanDirection:  duel.humanDirection,
+        asset:           duel.asset,
+        startPrice:      duel.startPrice,
+        duration:        duel.duration,
+        startedAt:       duel.startedAt,
+        endsAt:          duel.endsAt,
+        txHash:          duel.txHash,
+        explorerUrl:     duel.explorerUrl,
+        txError:         duel.txError,
+      },
+    });
   } catch (err) {
+    console.error('[DUEL] create error:', err.message);
     next(err);
   }
 });
 
+// ══════════════════════════════════════════════════════════════════════════════
+// POST /api/duels/:id/resolve — Resolve a duel by checking current price
+// ══════════════════════════════════════════════════════════════════════════════
 router.post('/:id/resolve', async (req, res, next) => {
   try {
     const duel = duels.get(req.params.id);
@@ -153,18 +212,29 @@ router.post('/:id/resolve', async (req, res, next) => {
       return res.status(400).json({ error: 'Duel still in progress', remainingSeconds: duel.endsAt - now });
     }
 
+    // Fetch current price
     const symbol  = `${duel.asset}USDT`;
     const tResp   = await fetch(`https://api.bybit.com/v5/market/tickers?category=spot&symbol=${symbol}`);
     const tJson   = await tResp.json();
     const ticker  = tJson?.result?.list?.[0];
     const endPrice = ticker ? parseFloat(ticker.lastPrice) : duel.startPrice;
+
+    // Determine actual direction
     const actualDirection = endPrice > duel.startPrice ? 'UP' : endPrice < duel.startPrice ? 'DOWN' : 'TIE';
 
+    // Determine winner
     let winner;
-    if (actualDirection === 'TIE') winner = 'tie';
-    else if (duel.humanDirection === actualDirection && duel.agentDirection !== actualDirection) winner = 'human';
-    else if (duel.agentDirection === actualDirection && duel.humanDirection !== actualDirection) winner = 'agent';
-    else winner = 'tie';
+    if (actualDirection === 'TIE') {
+      winner = 'tie';
+    } else if (duel.humanDirection === actualDirection && duel.agentDirection !== actualDirection) {
+      winner = 'human';
+    } else if (duel.agentDirection === actualDirection && duel.humanDirection !== actualDirection) {
+      winner = 'agent';
+    } else if (duel.humanDirection === actualDirection && duel.agentDirection === actualDirection) {
+      winner = 'tie'; // both right
+    } else {
+      winner = 'tie'; // both wrong
+    }
 
     duel.endPrice = endPrice;
     duel.status   = 'resolved';
@@ -172,18 +242,26 @@ router.post('/:id/resolve', async (req, res, next) => {
     duel.resolvedAt = now;
     duel.priceChange = ((endPrice - duel.startPrice) / duel.startPrice * 100).toFixed(4);
 
+    console.log(`[DUEL] Resolved ${duel.id}: price ${duel.startPrice} → ${endPrice} (${actualDirection}), winner=${winner}`);
+
     res.json({ success: true, duel });
   } catch (err) {
     next(err);
   }
 });
 
+// ══════════════════════════════════════════════════════════════════════════════
+// GET /api/duels/:id — Get duel status
+// ══════════════════════════════════════════════════════════════════════════════
 router.get('/:id', (req, res) => {
   const duel = duels.get(req.params.id);
   if (!duel) return res.status(404).json({ error: 'Duel not found' });
   res.json({ success: true, duel });
 });
 
+// ══════════════════════════════════════════════════════════════════════════════
+// GET /api/duels — List recent duels
+// ══════════════════════════════════════════════════════════════════════════════
 router.get('/', (req, res) => {
   const all = Array.from(duels.values()).sort((a, b) => b.startedAt - a.startedAt).slice(0, 20);
   res.json({ success: true, duels: all, total: duels.size });

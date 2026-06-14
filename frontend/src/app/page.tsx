@@ -46,10 +46,10 @@ function useLiveStats(): Stats {
       const l = lb.status === 'fulfilled' ? lb.value : null;
       const c = cs.status === 'fulfilled' ? cs.value : null;
       setStats(prev => ({
-        totalRounds:    c?.stats?.totalRounds    ?? prev.totalRounds,
-        totalAgents:    l?.stats?.totalAgents    ?? prev.totalAgents,
-        totalPlayers:   c?.stats?.totalPlayers   ?? prev.totalPlayers,
-        totalDecisions: l?.stats?.totalDecisions ?? prev.totalDecisions,
+        totalRounds:    c?.roundEngine?.totalRounds ?? prev.totalRounds,
+        totalAgents:    l?.stats?.totalAgents       ?? prev.totalAgents,
+        totalPlayers:   l?.stats?.totalPlayers      ?? prev.totalPlayers,
+        totalDecisions: l?.stats?.totalDecisions    ?? prev.totalDecisions,
       }));
     });
   }, []);

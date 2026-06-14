@@ -2,10 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Import Mantle Theme */
+/* Import Mantle Theme (landing + base) */
 @import '../styles/mantle-theme.css';
-
-/* System fonts — no external requests */
+/* HUD overrides — scoped to body.hud-app only */
+@import '../styles/hud-app-theme.css';
 
 * {
   box-sizing: border-box;
@@ -16,7 +16,7 @@
 html,
 body {
   max-width: 100vw;
-  overflow-x: hidden;
+  overflow-x: clip; /* clip preserves sticky, hidden breaks it */
 }
 
 body {
@@ -26,6 +26,7 @@ body {
 
 body.landing-page {
   background: #000000 !important;
+  font-weight: 400;
 }
 
 a {
@@ -347,3 +348,6 @@ a {
     background: rgba(20, 20, 30, 0.95);
   }
 }
+
+/* HUD-specific overrides live in hud-app-theme.css (body.hud-app scope only).
+   Nothing HUD-related goes here — this file must stay landing-safe. */

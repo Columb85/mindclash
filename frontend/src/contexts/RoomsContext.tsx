@@ -54,6 +54,8 @@ const TRACKS: Track[] = [
   { asset: 'ETH', duration: 300, token: 'CLASH' },
   { asset: 'SOL', duration: 60,  token: 'CLASH' },
   { asset: 'SOL', duration: 180, token: 'CLASH' },
+  { asset: 'MNT', duration: 60,  token: 'CLASH' },
+  { asset: 'MNT', duration: 180, token: 'CLASH' },
 ];
 
 const PREDICTION_WINDOW = 120; // seconds players have to predict before round goes live

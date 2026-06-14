@@ -323,6 +323,17 @@ const getSignaturesByPlayer = db.prepare(
   'SELECT * FROM prediction_signatures WHERE player = ? ORDER BY created_at DESC LIMIT 50'
 );
 
+// ── Recent wins helper ──────────────────────────────────────────────────────
+
+const getRecentWins = db.prepare(`
+  SELECT p.address, p.amount, r.asset, r.resolved_at AS time
+  FROM predictions p
+  JOIN rounds r ON r.id = p.round_id
+  WHERE p.correct = 1
+  ORDER BY r.resolved_at DESC
+  LIMIT ?
+`);
+
 // ── User-created agents (1 per wallet) ───────────────────────────────────────
 
 const MAX_AGENTS_PER_WALLET = parseInt(process.env.MAX_AGENTS_PER_WALLET || '1', 10);
@@ -377,6 +388,8 @@ module.exports = {
   getAllUserAgents,
   insertUserAgent,
   rowToUserAgent,
+  // recent wins
+  getRecentWins,
   // signatures
   insertSignature,
   getSignaturesByRound,

@@ -54,8 +54,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       const data = await translationFiles[lang]();
       setTranslations(data);
       setIsLoaded(true);
-    } catch (error) {
-      console.error('Failed to load translations:', error);
+    } catch {
       // Fallback to English if loading fails
       if (lang !== 'en') {
         loadTranslations('en');

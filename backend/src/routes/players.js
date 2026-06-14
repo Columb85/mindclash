@@ -6,6 +6,7 @@
  */
 
 const express = require('express');
+const { ethers } = require('ethers');
 const router  = express.Router();
 const { getPlayer, upsertPlayer, getTopPlayers } = require('../db');
 
@@ -19,9 +20,12 @@ router.get('/leaderboard', (req, res) => {
 // ── GET /api/players/:address/stats ──────────────────────────────────────────
 router.get('/:address/stats', (req, res) => {
   const address = req.params.address.toLowerCase();
-  const row     = getPlayer.get(address);
+  if (!ethers.isAddress(address)) {
+    return res.status(400).json({ error: 'Invalid wallet address' });
+  }
+  const row = getPlayer.get(address);
   if (!row) {
-    return res.json({ success: true, data: null }); // new player — no record yet
+    return res.json({ success: true, data: null });
   }
   res.json({ success: true, data: row, timestamp: Date.now() });
 });
@@ -29,7 +33,10 @@ router.get('/:address/stats', (req, res) => {
 // ── POST /api/players/:address/stats ─────────────────────────────────────────
 router.post('/:address/stats', (req, res) => {
   const address = req.params.address.toLowerCase();
-  const body    = req.body;
+  if (!ethers.isAddress(address)) {
+    return res.status(400).json({ error: 'Invalid wallet address' });
+  }
+  const body = req.body;
 
   if (!body || typeof body !== 'object') {
     return res.status(400).json({ error: 'Invalid body' });
@@ -37,15 +44,15 @@ router.post('/:address/stats', (req, res) => {
 
   upsertPlayer.run({
     address,
-    xp:                parseInt(body.xp)                ?? 0,
-    level:             parseInt(body.level)             ?? 1,
-    total_predictions: parseInt(body.totalPredictions)  ?? 0,
-    wins:              parseInt(body.wins)              ?? 0,
-    losses:            parseInt(body.losses)            ?? 0,
-    ties:              parseInt(body.ties)              ?? 0,
-    total_staked:      parseFloat(body.totalStaked)     ?? 0,
-    total_won:         parseFloat(body.totalWon)        ?? 0,
-    best_streak:       parseInt(body.bestStreak)        ?? 0,
+    xp:                parseInt(body.xp)                || 0,
+    level:             parseInt(body.level)             || 1,
+    total_predictions: parseInt(body.totalPredictions)  || 0,
+    wins:              parseInt(body.wins)              || 0,
+    losses:            parseInt(body.losses)            || 0,
+    ties:              parseInt(body.ties)              || 0,
+    total_staked:      parseFloat(body.totalStaked)     || 0,
+    total_won:         parseFloat(body.totalWon)        || 0,
+    best_streak:       parseInt(body.bestStreak)        || 0,
     updated_at:        Math.floor(Date.now() / 1000),
   });
 

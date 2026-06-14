@@ -7,7 +7,7 @@
 const express = require('express');
 const { ethers } = require('ethers');
 const router = express.Router();
-const { getTopPlayers, getAllAgentStats, db } = require('../db');
+const { getTopPlayers, getAllAgentStats, getRecentWins, db } = require('../db');
 
 // ── Contract ABIs ───────────────────────────────────────────────────────────
 const AGENT_NFT_ABI = [
@@ -154,6 +154,9 @@ router.get('/stats', async (req, res, next) => {
       }
     }
     
+    const playerRow = db.prepare('SELECT COUNT(*) as cnt FROM players WHERE total_predictions > 0').get();
+    const totalPlayers = playerRow?.cnt || 0;
+
     res.json({
       success: true,
       stats: {
@@ -161,6 +164,7 @@ router.get('/stats', async (req, res, next) => {
         activeAgents,
         totalDecisions,
         totalWins,
+        totalPlayers,
         overallWinRate: totalDecisions > 0 
           ? ((totalWins / totalDecisions) * 100).toFixed(2) + '%'
           : '0.00%',
@@ -211,6 +215,19 @@ router.get('/agents', (req, res) => {
     totalPnL:         a.total_pnl.toFixed(2),
   }));
   res.json({ success: true, data: ranked, timestamp: Date.now() });
+});
+
+// ── GET /api/leaderboard/recent-wins — recent winning predictions ────────────
+router.get('/recent-wins', (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+  const rows = getRecentWins.all(limit);
+  const winners = rows.map(r => ({
+    address: r.address,
+    amount: r.amount,
+    asset: r.asset,
+    time: r.time * 1000,
+  }));
+  res.json({ success: true, winners, timestamp: Date.now() });
 });
 
 // ── GET /api/leaderboard/human-vs-ai - Compare human and AI performance ─────

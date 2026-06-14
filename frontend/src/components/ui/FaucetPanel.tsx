@@ -1,8 +1,7 @@
 'use client';
 
-import { ReactNode, useMemo } from 'react';
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Droplets, ExternalLink, CheckCircle2, Loader2, Coins, Zap, Gift, Clock } from 'lucide-react';
 import { useAccount, useContractRead, useContractWrite, useWaitForTransaction } from 'wagmi';
 import { CLASH_TOKEN_ADDRESS, CLASH_ABI } from '@/contexts/ClashContext';
 
@@ -14,13 +13,6 @@ function formatCooldown(seconds: number): string {
   const m = Math.floor((seconds % 3600) / 60);
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
-}
-
-interface Step {
-  icon: ReactNode;
-  title: string;
-  desc: string;
-  action?: { label: string; href?: string; onClick?: () => void; disabled?: boolean; variant?: 'blue' | 'purple' | 'green' | 'gray' };
 }
 
 export function FaucetPanel() {
@@ -69,159 +61,113 @@ export function FaucetPanel() {
     doClaimFaucet?.();
   };
 
-  const steps: Step[] = [
-    {
-      icon: <Droplets className="w-5 h-5 text-blue-400" />,
-      title: 'Get MNT for gas',
-      desc: 'Mantle Sepolia testnet gas. Free, instant.',
-      action: { label: 'Open Faucet ↗', href: MANTLE_FAUCET_URL, variant: 'blue' },
-    },
-    {
-      icon: <Gift className="w-5 h-5 text-purple-400" />,
-      title: 'Claim 1 000 $CLASH',
-      desc: !canClaim && timeLeft > 0
-        ? `On-chain faucet · next claim in ${formatCooldown(timeLeft)}`
-        : 'On-chain faucet · once per 24h · ClashToken contract',
-      action: {
-        label: claimButtonLabel,
-        onClick: handleClaimClash,
-        disabled: !isConnected || isBusy || isSuccess || (!canClaim && timeLeft > 0),
-        variant: claimVariant,
-      },
-    },
-    {
-      icon: <Zap className="w-5 h-5 text-yellow-400" />,
-      title: 'Place your first prediction',
-      desc: 'Minimum 10 CLASH. Beat the bots, earn PTS.',
-    },
-  ];
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="relative rounded-2xl overflow-hidden border border-[#2f2f4e]/60"
-      style={{ background: 'linear-gradient(135deg, rgba(20,20,31,0.95) 0%, rgba(13,13,20,0.98) 100%)' }}
+      className="hud-panel overflow-hidden"
+      style={{ clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' }}
     >
-      {/* Top glow bar */}
-      <div className="h-[2px] w-full bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500" />
+      {/* Purple → gold → cyan gradient line (matches mockup .faucet::before) */}
+      <div style={{ height: 2, background: 'linear-gradient(90deg,#a855f7,#fbbf24,#00e5ff)', display: 'block' }} />
 
-      <div className="p-5">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-              <Coins className="w-5 h-5 text-white" />
-            </div>
+      <div className="faucet-inner">
+        {/* Header — matches mockup .faucet-hdr */}
+        <div className="faucet-hdr">
+          <div className="faucet-hdr-left">
+            <div className="faucet-icon"><i className="fa-solid fa-coins" /></div>
             <div>
-              <h3 className="text-sm font-bold text-white">Get Started — Free Tokens</h3>
-              <p className="text-[10px] text-gray-500">Mantle Sepolia Testnet · No real money needed</p>
+              <h3>Get Started — Free Tokens</h3>
+              <p>Mantle Sepolia Testnet · No real money needed</p>
             </div>
           </div>
-          <a
-            href={MANTLESCAN_TOKEN}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-purple-400 transition-colors"
-          >
-            <ExternalLink className="w-3 h-3" />
-            $CLASH
+          <a className="faucet-link" href={MANTLESCAN_TOKEN} target="_blank" rel="noopener noreferrer">
+            <i className="fa-solid fa-arrow-up-right-from-square" /> $CLASH on Mantlescan
           </a>
         </div>
 
-        {/* Steps */}
-        <div className="space-y-3">
-          {steps.map((step, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-4 p-3 rounded-xl bg-[#0d0d14]/60 border border-[#1f1f2e]/80"
-            >
-              {/* Step number */}
-              <div className="shrink-0 w-6 h-6 rounded-full bg-[#1f1f2e] flex items-center justify-center text-[10px] font-bold text-gray-400">
-                {i + 1}
-              </div>
-
-              {/* Icon */}
-              <div className="shrink-0">{step.icon}</div>
-
-              {/* Text */}
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-white">{step.title}</p>
-                <p className="text-[10px] text-gray-500 truncate">{step.desc}</p>
-              </div>
-
-              {/* Action */}
-              {step.action && (
-                step.action.href ? (
-                  <a
-                    href={step.action.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold text-white bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 transition-all"
-                  >
-                    {step.action.label}
-                  </a>
-                ) : (
-                  <motion.button
-                    whileTap={{ scale: step.action.disabled ? 1 : 0.95 }}
-                    onClick={step.action.onClick}
-                    disabled={step.action.disabled}
-                    className={`shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 ${
-                      step.action.variant === 'green'
-                        ? 'bg-green-500/20 text-green-400 border border-green-500/30 cursor-default'
-                        : step.action.variant === 'gray'
-                        ? 'bg-[#1f1f2e] text-gray-500 border border-[#2f2f3e] cursor-not-allowed'
-                        : step.action.disabled
-                        ? 'bg-[#1f1f2e] text-gray-500 cursor-not-allowed'
-                        : 'text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500'
-                    }`}
-                  >
-                    {(isWriting || isConfirming) && <Loader2 className="w-3 h-3 animate-spin" />}
-                    {isSuccess && <CheckCircle2 className="w-3 h-3" />}
-                    {!canClaim && timeLeft > 0 && !isBusy && !isSuccess && <Clock className="w-3 h-3" />}
-                    {step.action.label}
-                  </motion.button>
-                )
-              )}
-            </div>
-          ))}
+        {/* Step 1 */}
+        <div className="faucet-step">
+          <span className="step-num">1</span>
+          <span className="step-icon blue"><i className="fa-solid fa-droplet" /></span>
+          <div className="step-text">
+            <div className="st">Get MNT for gas</div>
+            <div className="sd">Mantle Sepolia testnet gas. Free, instant.</div>
+          </div>
+          <a className="step-btn blue" href={MANTLE_FAUCET_URL} target="_blank" rel="noopener noreferrer">Open Faucet ↗</a>
         </div>
 
-        {/* Tx link after successful claim */}
+        {/* Step 2 */}
+        <div className="faucet-step">
+          <span className="step-num">2</span>
+          <span className="step-icon purple"><i className="fa-solid fa-gift" /></span>
+          <div className="step-text">
+            <div className="st">Claim 1 000 $CLASH</div>
+            <div className="sd">
+              {!canClaim && timeLeft > 0
+                ? `On-chain faucet · next claim in ${formatCooldown(timeLeft)}`
+                : 'On-chain faucet · once per 24h · ClashToken contract'}
+            </div>
+          </div>
+          <motion.button
+            whileTap={{ scale: (!isConnected || isBusy || isSuccess || (!canClaim && timeLeft > 0)) ? 1 : 0.95 }}
+            onClick={handleClaimClash}
+            disabled={!isConnected || isBusy || isSuccess || (!canClaim && timeLeft > 0)}
+            className={`step-btn ${claimVariant === 'green' ? 'green' : claimVariant === 'gray' ? 'gray' : 'purple'}`}
+          >
+            {(isWriting || isConfirming) && <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: 9 }} />}
+            {isSuccess && <i className="fa-solid fa-circle-check" style={{ fontSize: 9 }} />}
+            {!canClaim && timeLeft > 0 && !isBusy && !isSuccess && <i className="fa-solid fa-clock" style={{ fontSize: 9 }} />}
+            {!isConnected ? 'Connect wallet' : claimButtonLabel}
+          </motion.button>
+        </div>
+
+        {/* Step 3 */}
+        <div className="faucet-step">
+          <span className="step-num">3</span>
+          <span className="step-icon gold"><i className="fa-solid fa-bolt" /></span>
+          <div className="step-text">
+            <div className="st">Place your first prediction</div>
+            <div className="sd">Minimum 10 CLASH. Beat the bots, earn PTS.</div>
+          </div>
+        </div>
+
+        {/* Success tx link */}
         {isSuccess && txData?.hash && (
           <motion.div
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500/10 border border-green-500/30"
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', marginTop: 8, background: 'var(--hud-green-dim)', border: '1px solid rgba(57,255,144,0.3)' }}
           >
-            <CheckCircle2 className="w-3.5 h-3.5 text-green-400 shrink-0" />
-            <span className="text-[11px] text-green-400 font-semibold">1 000 CLASH minted on-chain!</span>
+            <i className="fa-solid fa-circle-check" style={{ fontSize: 11, color: 'var(--hud-green)' }} />
+            <span style={{ fontFamily: 'var(--hud-font-head)', fontSize: 12, fontWeight: 700, color: 'var(--hud-green)', letterSpacing: '0.04em' }}>
+              1 000 CLASH minted on-chain!
+            </span>
             <a
               href={`https://sepolia.mantlescan.xyz/tx/${txData.hash}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="ml-auto flex items-center gap-1 text-[10px] text-gray-400 hover:text-green-400 transition-colors"
+              style={{ marginLeft: 'auto', fontFamily: 'var(--hud-font-mono)', fontSize: 9, color: 'var(--hud-text-3)', display: 'flex', alignItems: 'center', gap: 4 }}
             >
-              <ExternalLink className="w-3 h-3" />
-              Tx
+              <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 9 }} /> Tx
             </a>
           </motion.div>
         )}
 
-        {/* Error hint */}
+        {/* Error */}
         {writeError && (
-          <p className="mt-2 text-[10px] text-red-400 px-1">
+          <p style={{ marginTop: 8, fontFamily: 'var(--hud-font-mono)', fontSize: 10, color: 'var(--hud-red)' }}>
             {writeError.message?.includes('cooldown') ? 'Faucet cooldown not expired yet.' : 'Transaction rejected.'}
           </p>
         )}
 
-        {/* Network info footer */}
-        <div className="mt-4 flex items-center gap-4 pt-3 border-t border-[#1f1f2e]/60 text-[10px] text-gray-600">
+        {/* Footer */}
+        <div className="faucet-foot">
           <span>Chain: Mantle Sepolia (5003)</span>
           <span>·</span>
           <span>RPC: rpc.sepolia.mantle.xyz</span>
           <span>·</span>
-          <span className="text-gray-500">No real funds at risk</span>
+          <span style={{ color: 'var(--hud-text-dim)' }}>No real funds at risk</span>
         </div>
       </div>
     </motion.div>

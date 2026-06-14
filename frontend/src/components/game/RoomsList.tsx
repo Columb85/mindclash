@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingUp, TrendingDown, Play, Eye, Bot } from 'lucide-react';
+// Icons via Font Awesome (loaded globally for hud-app pages)
 import { useRooms } from '@/contexts/RoomsContext';
 import { ASSETS } from '@/lib/web3-config';
 import { Room, PricePoint } from '@/types/room';
@@ -94,15 +94,15 @@ function TypingTaunt({ text, delay = 0 }: { text: string; delay?: number }) {
   }, [text, delay]);
 
   return (
-    <span className="text-[10px] text-gray-400 italic">
+    <span style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 10, color: 'var(--hud-text-dim)', fontStyle: 'italic' }}>
       &ldquo;
       {phase === 'waiting' ? (
-        // Thinking dots
         <span className="inline-flex gap-0.5 items-end ml-0.5">
           {[0, 1, 2].map(i => (
             <motion.span
               key={i}
-              className="inline-block w-1 h-1 rounded-full bg-gray-500"
+              className="inline-block w-1 h-1 rounded-full"
+              style={{ background: 'var(--hud-text-dim)' }}
               animate={{ opacity: [0.3, 1, 0.3] }}
               transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.2 }}
             />
@@ -113,7 +113,8 @@ function TypingTaunt({ text, delay = 0 }: { text: string; delay?: number }) {
           {displayed}
           {phase === 'typing' && (
             <motion.span
-              className="inline-block w-[1px] h-[10px] bg-gray-400 ml-[1px] align-middle"
+              className="inline-block w-[1px] h-[10px] ml-[1px] align-middle"
+              style={{ background: 'var(--hud-text-dim)' }}
               animate={{ opacity: [1, 0] }}
               transition={{ duration: 0.5, repeat: Infinity }}
             />
@@ -129,12 +130,12 @@ interface RoomsListProps {
   onEnterRoom: (room: Room) => void;
 }
 
-// Real crypto logos from CoinGecko CDN
+// Local crypto logos from /public/crypto/
 const CRYPTO_LOGOS: Record<string, string> = {
-  BTC: 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
-  ETH: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
-  SOL: 'https://assets.coingecko.com/coins/images/4128/small/solana.png',
-  MNT: 'https://assets.coingecko.com/coins/images/30980/small/mantle.png',
+  BTC: '/crypto/btc.png',
+  ETH: '/crypto/eth.png',
+  SOL: '/crypto/sol.png',
+  MNT: '/crypto/mnt.svg',
 };
 
 // Animated Circular Timer Component
@@ -186,12 +187,14 @@ function CircularTimer({ timeLeft, maxTime }: { timeLeft: number; maxTime: numbe
 // Professional TradingView-style Mini Chart
 function MiniChart({ priceHistory, isUp }: { priceHistory: PricePoint[]; isUp: boolean }) {
   // Convert PricePoint[] to number[] for charting
-  let prices = priceHistory.map(p => p.price);
+  const prices = priceHistory.map(p => p.price);
   
-  if (prices.length < 2) {
-    const base = 100;
-    prices = Array.from({ length: 30 }, (_, i) =>
-      base + Math.sin(i * 0.3) * 5 + (Math.random() - 0.5) * 2 + (isUp ? i * 0.2 : -i * 0.1)
+  // Show loading spinner until we have enough data points for a meaningful chart
+  if (prices.length < 5) {
+    return (
+      <div className="chart-loading">
+        <div className="chart-spinner" />
+      </div>
     );
   }
   
@@ -224,8 +227,8 @@ function MiniChart({ priceHistory, isUp }: { priceHistory: PricePoint[]; isUp: b
   const areaPath = path + ` L ${width - padding} ${height} L ${padding} ${height} Z`;
   
   const gradientId = `gradient-${Math.random().toString(36).substr(2, 9)}`;
-  const lineColor = isUp ? '#22c55e' : '#ef4444';
-  const fillColor = isUp ? '#22c55e' : '#ef4444';
+  const lineColor = isUp ? 'var(--hud-green, #39ff90)' : 'var(--hud-red, #ff3355)';
+  const fillColor = isUp ? 'var(--hud-green, #39ff90)' : 'var(--hud-red, #ff3355)';
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="w-full h-full overflow-visible">
@@ -256,10 +259,13 @@ function MiniChart({ priceHistory, isUp }: { priceHistory: PricePoint[]; isUp: b
   );
 }
 
+const INITIAL_ROOMS_SHOWN = 4;
+
 export function RoomsList({ onEnterRoom }: RoomsListProps) {
   const { rooms, prices } = useRooms();
   const [filter, setFilter] = useState<'all' | 'open' | 'live'>('all');
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     const i = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
@@ -268,37 +274,32 @@ export function RoomsList({ onEnterRoom }: RoomsListProps) {
 
   const visible = rooms.filter(r => r.status !== 'resolved');
   const filtered = filter === 'all' ? visible : visible.filter(r => r.status === filter);
+  const displayedRooms = expanded ? filtered : filtered.slice(0, INITIAL_ROOMS_SHOWN);
+  const hasMore = filtered.length > INITIAL_ROOMS_SHOWN;
 
   // Count by status
   const openCount = visible.filter(r => r.status === 'open').length;
   const liveCount = visible.filter(r => r.status === 'live').length;
 
   return (
-    <div className="space-y-4">
-      {/* Header with filters */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h3 className="text-lg font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">MindClash Arena</h3>
-          <div className="flex items-center gap-2 text-xs">
-            <span className="px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
-              {openCount} Open
-            </span>
-            <span className="px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
-              {liveCount} Live
-            </span>
+    <div className="space-y-3">
+      {/* Header with filters — matches mockup .arena-hdr */}
+      <div className="arena-hdr">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span className="hud-section-title">MindClash Arena</span>
+          <div className="arena-counts">
+            <span className="hud-badge hud-badge-gold">{openCount} Open</span>
+            <span className="hud-badge hud-badge-red">{liveCount} Live</span>
           </div>
         </div>
-        
-        <div className="flex gap-1 p-1 bg-white/[0.03] rounded-xl border border-white/[0.06]">
+
+        {/* Filter tabs — matches mockup .filters / .fp */}
+        <div style={{ display: 'flex', gap: 4, padding: 3, background: 'var(--hud-panel-2)', border: '1px solid var(--hud-border)' }}>
           {(['all', 'open', 'live'] as const).map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all capitalize ${
-                filter === f
-                  ? 'bg-white/[0.10] text-white'
-                  : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.05]'
-              }`}
+              className={`fp${filter === f ? ' active' : ''}`}
             >
               {f}
             </button>
@@ -308,30 +309,33 @@ export function RoomsList({ onEnterRoom }: RoomsListProps) {
 
       {/* Grid */}
       {filtered.length === 0 ? (
-        <div className="text-center py-16">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-[#1f1f2e] to-[#0d0d14] flex items-center justify-center">
-            <Play className="w-8 h-8 text-gray-600" />
-          </div>
-          <p className="text-gray-500 text-sm">No active rounds</p>
-          <p className="text-gray-600 text-xs mt-1">New rounds spawn automatically</p>
+        <div className="text-center py-16 hud-panel" style={{ border: '1px solid var(--hud-border)' }}>
+          <i className="fa-solid fa-satellite-dish text-3xl mb-4 block" style={{ color: 'var(--hud-text-dim)' }} />
+          <p style={{ fontFamily: 'var(--hud-font-head)', color: 'var(--hud-text-dim)', letterSpacing: '0.06em', textTransform: 'uppercase', fontSize: 13 }}>
+            No active rounds
+          </p>
+          <p style={{ fontFamily: 'var(--hud-font-mono)', color: 'var(--hud-text-dim)', fontSize: 10, marginTop: 4 }}>
+            New rounds spawn automatically
+          </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
           <AnimatePresence mode="popLayout">
-            {filtered.map(room => {
+            {displayedRooms.map(room => {
               const assetInfo = ASSETS[room.asset];
               const logo = CRYPTO_LOGOS[room.asset];
               const totalPool = room.upPool + room.downPool;
               const upPct = totalPool ? (room.upPool / totalPool) * 100 : 50;
               const isOpen = room.status === 'open';
               const isLive = room.status === 'live';
-              
-              const timeLeft = isOpen 
+
+              const timeLeft = isOpen
                 ? Math.max(0, room.startTime - now)
                 : Math.max(0, room.endTime - now);
-              
+
               const maxTime = isOpen ? 30 : room.duration;
-              
+
               const anchorPrice = room.startPrice ?? room.currentPrice;
               const priceDelta = anchorPrice ? ((room.currentPrice - anchorPrice) / anchorPrice) * 100 : 0;
               const isUp = priceDelta >= 0;
@@ -346,101 +350,93 @@ export function RoomsList({ onEnterRoom }: RoomsListProps) {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -16 }}
                   onClick={() => onEnterRoom(room)}
-                  className="relative rounded-2xl overflow-hidden cursor-pointer group border border-white/[0.06] hover:border-white/[0.12] transition-all duration-300"
-                  style={{ background: 'rgba(255,255,255,0.02)' }}
+                  className="hud-room-card"
+                  style={{
+                    clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)',
+                    ...(isLive ? { borderColor: 'rgba(255,51,85,0.45)' } : {}),
+                  }}
                 >
-                  {/* Status top line */}
-                  <div className={`absolute top-0 left-0 right-0 h-[2px] ${
-                    isOpen ? 'bg-yellow-400/60' : 'bg-red-400/60'
-                  }`}>
-                    {isLive && <div className="absolute inset-0 bg-red-400/80 animate-pulse" />}
-                  </div>
-
-                  {/* Header bar */}
-                  <div className="flex items-center justify-between px-5 pt-4 pb-2">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-white/[0.05] p-1.5 border border-white/[0.08]">
-                        <img src={logo} alt={room.asset} className="w-full h-full object-contain" />
-                      </div>
-                      <span className="text-sm font-bold text-white">{room.asset}/USDT</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/[0.06] text-gray-400 font-mono">{room.duration}s</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold ${
-                        isOpen ? 'bg-yellow-500/15 text-yellow-400' : 'bg-red-500/15 text-red-400'
-                      }`}>
-                        {isOpen ? 'OPEN' : 'LIVE'}
-                      </span>
+                  {/* Header row — matches mockup .rc-head */}
+                  <div className="rc-head">
+                    <div className="rc-head-left">
+                      <div className="hud-rc-logo"><img src={logo} alt={room.asset} /></div>
+                      <span className="rc-pair">{room.asset}/USDT</span>
+                      <span className="rc-tag">{room.duration}s</span>
+                      <span className={`rc-tag ${isOpen ? 'open' : 'live'}`}>{isOpen ? 'OPEN' : 'LIVE'}</span>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-gray-500 font-mono">
-                        Pool: <span className="text-purple-400 font-bold">{totalPool > 0 ? totalPool.toLocaleString() : '0'}</span> CLASH
-                      </span>
+                    <div className="rc-head-right">
+                      <span className="rc-pool">Pool: <b>{totalPool > 0 ? totalPool.toLocaleString() : '0'}</b> CLASH</span>
                       <CircularTimer timeLeft={timeLeft} maxTime={maxTime} />
                     </div>
                   </div>
 
-                  {/* Main body: Left (chart) + Right (bets) */}
-                  <div className="flex flex-col md:flex-row">
+                  {/* Body: chart + right panel — matches mockup .rc-body */}
+                  <div className="rc-body">
 
-                    {/* LEFT: Price + Chart */}
-                    <div className="flex-1 px-5 pb-4 border-r border-white/[0.04]">
-                      {/* Price row */}
-                      <div className="flex items-baseline gap-2 mb-2">
-                        <span className="text-xl font-bold text-white tabular-nums">
+                    {/* LEFT: Price + Chart — matches mockup .rc-chart */}
+                    <div className="rc-chart">
+                      <div className="rc-price-row">
+                        <span className="rc-price">
                           ${room.currentPrice.toLocaleString(undefined, {
                             minimumFractionDigits: room.asset === 'MNT' ? 4 : 2,
                             maximumFractionDigits: room.asset === 'MNT' ? 4 : 2,
                           })}
                         </span>
-                        <span className={`flex items-center gap-0.5 text-xs font-semibold ${isUp ? 'text-green-400' : 'text-red-400'}`}>
-                          {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                        <span className={`rc-delta ${isUp ? 'up' : 'dn'}`}>
+                          <i className={`fa-solid fa-arrow-trend-${isUp ? 'up' : 'down'}`} style={{ fontSize: 9 }} />
                           {isUp ? '+' : ''}{priceDelta.toFixed(2)}%
                         </span>
                       </div>
-
-                      {/* Sparkline chart — wider */}
-                      <div className="w-full h-[56px]">
+                      <div className="spark-box">
                         <MiniChart priceHistory={room.priceHistory || []} isUp={isUp} />
                       </div>
                     </div>
 
-                    {/* RIGHT: Predictions & Actions */}
-                    <div className="w-full md:w-[240px] px-4 pb-4 pt-1 flex flex-col justify-between gap-3">
-                      
-                      {/* AI Agent prediction */}
+                    {/* RIGHT: Predictions & Actions — matches mockup .rc-side */}
+                    <div className="rc-side">
+
+                      {/* AI prediction — matches mockup .bot-pred */}
                       {primaryBot && (
-                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.05]">
-                          <div className={`w-6 h-6 rounded-md bg-gradient-to-br ${primaryBot.gradient} flex items-center justify-center text-xs shrink-0`}>
+                        <div
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: 'var(--hud-panel-2)', border: '1px solid var(--hud-border)' }}
+                        >
+                          <div className={`hud-bot-av ${
+                            primaryBot.gradient.includes('blue') ? 'blue'
+                            : primaryBot.gradient.includes('purple') ? 'purple'
+                            : 'green'
+                          }`}>
                             {primaryBot.avatar}
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-[10px] text-gray-500">AI Prediction</div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-bold text-white truncate">{primaryBot.name}</span>
-                              <span className={`text-[9px] px-1 py-0.5 rounded font-bold ${
-                                primaryBot.direction === 'UP' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-                              }`}>{primaryBot.direction}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 8, color: 'var(--hud-text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>AI Prediction</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontFamily: 'var(--hud-font-head)', fontSize: 12, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{primaryBot.name}</span>
+                              <span className={`hud-badge ${primaryBot.direction === 'UP' ? 'hud-badge-green' : 'hud-badge-red'}`}>
+                                {primaryBot.direction}
+                              </span>
                             </div>
                           </div>
                         </div>
                       )}
 
-                      {/* Pool distribution bar */}
+                      {/* Taunt */}
+                      {primaryBot && <TypingTaunt text={primaryBot.taunt} delay={300} />}
+
+                      {/* Pool bar — matches mockup .pool-bar-labels + .pool-bar */}
                       <div>
-                        <div className="flex items-center justify-between text-[10px] mb-1">
-                          <span className="text-green-400 font-bold">UP {upPct.toFixed(0)}%</span>
-                          <span className="text-red-400 font-bold">DOWN {(100 - upPct).toFixed(0)}%</span>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, fontFamily: 'var(--hud-font-mono)', fontSize: 9, fontWeight: 600 }}>
+                          <span style={{ color: 'var(--hud-green)' }}>UP {upPct.toFixed(0)}%</span>
+                          <span style={{ color: 'var(--hud-red)' }}>DOWN {(100 - upPct).toFixed(0)}%</span>
                         </div>
-                        <div className="h-1.5 rounded-full overflow-hidden bg-white/[0.05] flex">
+                        <div className="hud-pool-bar">
                           <motion.div
-                            className="h-full rounded-l-full"
-                            style={{ background: 'linear-gradient(90deg, #22c55e, #4ade80)' }}
+                            className="up-fill h-full"
                             initial={{ width: 0 }}
                             animate={{ width: `${upPct}%` }}
                             transition={{ duration: 0.8 }}
                           />
                           <motion.div
-                            className="h-full rounded-r-full"
-                            style={{ background: 'linear-gradient(90deg, #f87171, #ef4444)' }}
+                            className="dn-fill h-full"
                             initial={{ width: 0 }}
                             animate={{ width: `${100 - upPct}%` }}
                             transition={{ duration: 0.8 }}
@@ -448,39 +444,31 @@ export function RoomsList({ onEnterRoom }: RoomsListProps) {
                         </div>
                       </div>
 
-                      {/* Action buttons */}
+                      {/* Action buttons — matches mockup .rc-btns */}
                       {isOpen ? (
-                        <div className="flex gap-2">
+                        <div className="rc-btns">
                           <motion.button
-                            whileHover={{ scale: 1.03 }}
                             whileTap={{ scale: 0.97 }}
                             onClick={(e) => { e.stopPropagation(); onEnterRoom(room); }}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg font-bold text-sm text-white transition-all"
-                            style={{ background: 'linear-gradient(135deg, #16a34a, #22c55e)' }}
+                            className="btn-up"
                           >
-                            <TrendingUp className="w-4 h-4" />
-                            UP
+                            <i className="fa-solid fa-arrow-trend-up" style={{ fontSize: 10 }} />UP
                           </motion.button>
                           <motion.button
-                            whileHover={{ scale: 1.03 }}
                             whileTap={{ scale: 0.97 }}
                             onClick={(e) => { e.stopPropagation(); onEnterRoom(room); }}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg font-bold text-sm text-white transition-all"
-                            style={{ background: 'linear-gradient(135deg, #dc2626, #ef4444)' }}
+                            className="btn-dn"
                           >
-                            <TrendingDown className="w-4 h-4" />
-                            DOWN
+                            <i className="fa-solid fa-arrow-trend-down" style={{ fontSize: 10 }} />DOWN
                           </motion.button>
                         </div>
                       ) : (
                         <motion.button
-                          whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
                           onClick={(e) => { e.stopPropagation(); onEnterRoom(room); }}
-                          className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-white/[0.06] text-gray-300 hover:bg-white/[0.10] transition-colors text-sm font-semibold"
+                          className="btn-watch"
                         >
-                          <Eye className="w-4 h-4" />
-                          Watch Live
+                          <i className="fa-solid fa-eye" style={{ fontSize: 10 }} />Watch Live
                         </motion.button>
                       )}
                     </div>
@@ -490,6 +478,34 @@ export function RoomsList({ onEnterRoom }: RoomsListProps) {
             })}
           </AnimatePresence>
         </div>
+
+        {/* VIEW MORE button */}
+        {hasMore && !expanded && (
+          <motion.button
+            onClick={() => setExpanded(true)}
+            className="view-more-btn"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <span>VIEW MORE</span>
+            <span className="view-more-count">+{filtered.length - INITIAL_ROOMS_SHOWN} rooms</span>
+            <i className="fa-solid fa-chevron-down" />
+          </motion.button>
+        )}
+
+        {/* Collapse button when expanded */}
+        {expanded && hasMore && (
+          <motion.button
+            onClick={() => setExpanded(false)}
+            className="view-more-btn collapsed"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <span>SHOW LESS</span>
+            <i className="fa-solid fa-chevron-up" />
+          </motion.button>
+        )}
+        </>
       )}
     </div>
   );

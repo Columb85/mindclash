@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Shield, ArrowUp, ArrowDown, Trophy, Loader2, Timer, Bot,
-  User, RotateCcw, CheckCircle2, XCircle, Swords, Crown,
-} from 'lucide-react';
 import Link from 'next/link';
+import { Navigation, View } from '@/components/layout/Navigation';
+import { HudConnectButton } from '@/components/ui/HudConnectButton';
+import { LiveTicker } from '@/components/dashboard/ActivityFeed';
+import { ClashBalance } from '@/components/ui/ClashBalance';
+import { ModeIndicator } from '@/components/ui/ModeIndicator';
+import { OnlineCounter } from '@/components/ui/OnlineCounter';
 import { analyzeBotDecision, BotAnalysis } from '@/lib/bot-indicators';
 
 const CHAMPIONS = [
@@ -16,7 +18,7 @@ const CHAMPIONS = [
 ];
 
 const ASSETS = ['BTC', 'ETH', 'SOL'] as const;
-const ROUND_DURATION = 60; // seconds per round
+const ROUND_DURATION = 60;
 
 type Phase = 'intro' | 'picking' | 'analyzing' | 'fighting' | 'round-result' | 'final';
 
@@ -39,22 +41,22 @@ async function fetchPrice(asset: string): Promise<number> {
 }
 
 export default function GauntletPage() {
-  const [phase, setPhase]         = useState<Phase>('intro');
-  const [asset, setAsset]         = useState<typeof ASSETS[number]>('BTC');
-  const [roundIdx, setRoundIdx]   = useState(0);
+  const [currentView, setCurrentView] = useState<View>('lobby');
+  const [phase, setPhase] = useState<Phase>('intro');
+  const [asset, setAsset] = useState<typeof ASSETS[number]>('BTC');
+  const [roundIdx, setRoundIdx] = useState(0);
   const [direction, setDirection] = useState<'UP' | 'DOWN' | null>(null);
   const [countdown, setCountdown] = useState(0);
-  const [results, setResults]     = useState<RoundResult[]>([]);
+  const [results, setResults] = useState<RoundResult[]>([]);
   const [currentAnalysis, setCurrentAnalysis] = useState<BotAnalysis | null>(null);
   const [startPrice, setStartPrice] = useState(0);
 
-  const endsAtRef   = useRef(0);
-  const timerRef    = useRef<NodeJS.Timeout | null>(null);
+  const endsAtRef = useRef(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const champ = CHAMPIONS[roundIdx] ?? CHAMPIONS[0];
-  const wins  = results.filter(r => r.winner === 'human').length;
+  const wins = results.filter(r => r.winner === 'human').length;
 
-  // ── Start gauntlet ──────────────────────────────────────────────────────────
   const begin = () => {
     setPhase('picking');
     setRoundIdx(0);
@@ -62,7 +64,6 @@ export default function GauntletPage() {
     setDirection(null);
   };
 
-  // ── Pick direction & analyze ────────────────────────────────────────────────
   const submitPick = useCallback(async () => {
     if (!direction) return;
     setPhase('analyzing');
@@ -78,7 +79,33 @@ export default function GauntletPage() {
     }
   }, [direction, champ, asset]);
 
-  // ── Countdown ───────────────────────────────────────────────────────────────
+  const resolveRound = async () => {
+    const endP = await fetchPrice(asset);
+    const actualDir = endP > startPrice ? 'UP' : endP < startPrice ? 'DOWN' : 'TIE';
+    const agentDir = currentAnalysis?.decision.direction ?? 'UP';
+
+    let winner: 'human' | 'agent' | 'tie';
+    if (actualDir === 'TIE') winner = 'tie';
+    else if (direction === actualDir && agentDir !== actualDir) winner = 'human';
+    else if (agentDir === actualDir && direction !== actualDir) winner = 'agent';
+    else winner = 'tie';
+
+    const r: RoundResult = {
+      championIdx: roundIdx,
+      humanDirection: direction!,
+      agentDirection: agentDir,
+      agentConfidence: currentAnalysis?.decision.confidence ?? 0,
+      agentReasoning: currentAnalysis?.decision.reasoning ?? '',
+      startPrice,
+      endPrice: endP,
+      winner,
+      priceChange: ((endP - startPrice) / startPrice * 100).toFixed(3),
+    };
+
+    setResults(prev => [...prev, r]);
+    setPhase('round-result');
+  };
+
   useEffect(() => {
     if (phase !== 'fighting') return;
     timerRef.current = setInterval(() => {
@@ -92,39 +119,9 @@ export default function GauntletPage() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [phase]);
 
-  // ── Resolve ─────────────────────────────────────────────────────────────────
-  const resolveRound = async () => {
-    const endP = await fetchPrice(asset);
-    const actualDir = endP > startPrice ? 'UP' : endP < startPrice ? 'DOWN' : 'TIE';
-    const agentDir = currentAnalysis?.decision.direction ?? 'UP';
-
-    let winner: 'human' | 'agent' | 'tie';
-    if (actualDir === 'TIE') winner = 'tie';
-    else if (direction === actualDir && agentDir !== actualDir) winner = 'human';
-    else if (agentDir === actualDir && direction !== actualDir) winner = 'agent';
-    else winner = 'tie';
-
-    const r: RoundResult = {
-      championIdx:    roundIdx,
-      humanDirection: direction!,
-      agentDirection: agentDir,
-      agentConfidence: currentAnalysis?.decision.confidence ?? 0,
-      agentReasoning: currentAnalysis?.decision.reasoning ?? '',
-      startPrice,
-      endPrice:       endP,
-      winner,
-      priceChange:    ((endP - startPrice) / startPrice * 100).toFixed(4),
-    };
-
-    setResults(prev => [...prev, r]);
-    setPhase('round-result');
-  };
-
-  // ── Next round or final ─────────────────────────────────────────────────────
   const nextRound = () => {
-    if (roundIdx + 1 >= CHAMPIONS.length) {
-      setPhase('final');
-    } else {
+    if (roundIdx + 1 >= CHAMPIONS.length) setPhase('final');
+    else {
       setRoundIdx(roundIdx + 1);
       setDirection(null);
       setPhase('picking');
@@ -140,234 +137,210 @@ export default function GauntletPage() {
 
   const currentResult = results[roundIdx];
 
+  const wlChip = (r: RoundResult | undefined) => {
+    if (!r) return <span className="hud-wl-chip empty">?</span>;
+    if (r.winner === 'human') return <span className="hud-wl-chip w">W</span>;
+    if (r.winner === 'agent') return <span className="hud-wl-chip l">L</span>;
+    return <span className="hud-wl-chip t">T</span>;
+  };
+
   return (
-    <div className="min-h-screen bg-[#06060a] text-white">
-      <header className="border-b border-gray-800/50 bg-[#06060a]/95 backdrop-blur-xl sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-3">
-          <Link href="/" className="text-gray-500 hover:text-white transition text-sm">← Back</Link>
-          <div className="w-px h-5 bg-gray-800" />
-          <Shield className="w-5 h-5 text-orange-400" />
-          <h1 className="text-lg font-black">The Gauntlet</h1>
-          {phase !== 'intro' && phase !== 'final' && (
-            <span className="text-xs text-gray-500 ml-auto">Round {roundIdx + 1} of {CHAMPIONS.length}</span>
-          )}
+    <div className="min-h-screen">
+      <header className="hud-topbar">
+        <div className="hud-topbar-inner">
+          <Link href="/" className="hud-logo-text">
+            <span className="logo-mind">Mind</span>
+            <span className="logo-clash">Clash</span>
+          </Link>
+          <Navigation currentView={currentView} onViewChange={setCurrentView} />
+          <div className="hud-topbar-right">
+            <OnlineCounter />
+            <ClashBalance />
+            <ModeIndicator />
+            <HudConnectButton />
+          </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-2xl">
+      <div className="hud-ticker-bar">
+        <div className="hud-shell"><LiveTicker /></div>
+      </div>
+
+      <div className="hud-breadcrumb">
+        <div className="hud-shell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <span className="bc-cur">
+            <i className="fa-solid fa-shield-halved" style={{ marginRight: 6 }} />
+            The Gauntlet
+          </span>
+          {phase !== 'intro' && phase !== 'final' && (
+            <span className="hud-badge hud-badge-cyan">
+              Round {roundIdx + 1} / {CHAMPIONS.length}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <main className="hud-shell hud-page-main-narrow">
         <AnimatePresence mode="wait">
-
-          {/* ════ INTRO ═══════════════════════════════════════════════════════ */}
           {phase === 'intro' && (
-            <motion.div key="intro" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="space-y-8 text-center py-8">
-              <Shield className="w-16 h-16 text-orange-400 mx-auto" />
-              <h2 className="text-3xl font-black">The Agent Gauntlet</h2>
-              <p className="text-gray-500 text-sm max-w-md mx-auto">
-                Face all 3 AI champions in sequence. Each round: pick UP or DOWN, then watch the agent
-                analyze the market and counter your prediction. Beat all 3 to prove human supremacy.
-              </p>
-
-              <div className="grid grid-cols-3 gap-3">
-                {CHAMPIONS.map((c, i) => (
-                  <div key={c.tokenId} className="rounded-xl border p-4 text-center" style={{ borderColor: `${c.color}30`, background: `${c.color}05` }}>
-                    <div className="text-xs font-bold" style={{ color: c.color }}>{c.name}</div>
-                    <div className="text-[10px] text-gray-600">{c.title}</div>
-                    <div className="text-[10px] text-gray-700 mt-1">{c.strategy}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-3">
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Select Asset</div>
-                <div className="flex gap-2 justify-center">
-                  {ASSETS.map(a => (
-                    <button key={a} onClick={() => setAsset(a)}
-                      className={`px-4 py-2 rounded-lg text-sm font-bold border transition ${
-                        asset === a ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'border-gray-700 text-gray-400'
-                      }`}>{a}</button>
+            <motion.div key="intro" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div className="hud-section-panel">
+                <div className="gnt-intro-hero">
+                  <i className="fa-solid fa-shield-halved" />
+                  <h2>The Agent Gauntlet</h2>
+                  <p>Face all 3 AI champions in sequence. Beat each round to prove human supremacy.</p>
+                </div>
+                <div className="gnt-champ-grid">
+                  {CHAMPIONS.map(c => (
+                    <div key={c.tokenId} className="gnt-champ-card" style={{ borderColor: `${c.color}44` }}>
+                      <i className="fa-solid fa-robot" style={{ color: c.color, fontSize: 20 }} />
+                      <div className="cn" style={{ color: c.color }}>{c.name}</div>
+                      <div className="ct">{c.title}</div>
+                      <div className="cs">{c.strategy}</div>
+                    </div>
                   ))}
                 </div>
-              </div>
-
-              <button onClick={begin}
-                className="px-8 py-4 rounded-xl font-black text-lg bg-orange-500/20 border border-orange-500/40 text-orange-400 hover:bg-orange-500/30 transition">
-                Enter The Gauntlet
-              </button>
-            </motion.div>
-          )}
-
-          {/* ════ PICKING ═════════════════════════════════════════════════════ */}
-          {phase === 'picking' && (
-            <motion.div key="picking" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="space-y-6">
-              <div className="text-center space-y-2">
-                <div className="text-xs text-gray-500">Round {roundIdx + 1} / {CHAMPIONS.length}</div>
-                <h2 className="text-xl font-black">vs <span style={{ color: champ.color }}>{champ.name}</span></h2>
-                <div className="text-xs text-gray-600">{champ.title} — {champ.strategy}</div>
-              </div>
-
-              <div className="rounded-xl border p-6 text-center" style={{ borderColor: `${champ.color}30`, background: `${champ.color}05` }}>
-                <Bot className="w-12 h-12 mx-auto mb-2" style={{ color: champ.color }} />
-                <div className="text-sm font-bold" style={{ color: champ.color }}>{champ.name}</div>
-                <div className="text-[10px] text-gray-600">Token #{champ.tokenId} — {asset}/USDT — {ROUND_DURATION}s</div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold text-center">Your Prediction</div>
-                <div className="grid grid-cols-2 gap-4">
-                  <button onClick={() => setDirection('UP')}
-                    className={`flex items-center justify-center gap-3 py-5 rounded-xl border text-lg font-black transition ${
-                      direction === 'UP' ? 'border-green-500/60 bg-green-500/15 text-green-400' : 'border-gray-700 text-gray-500 hover:border-green-500/30'
-                    }`}><ArrowUp className="w-6 h-6" /> UP</button>
-                  <button onClick={() => setDirection('DOWN')}
-                    className={`flex items-center justify-center gap-3 py-5 rounded-xl border text-lg font-black transition ${
-                      direction === 'DOWN' ? 'border-red-500/60 bg-red-500/15 text-red-400' : 'border-gray-700 text-gray-500 hover:border-red-500/30'
-                    }`}><ArrowDown className="w-6 h-6" /> DOWN</button>
+                <div className="ca-field-lbl" style={{ textAlign: 'center' }}>Select Asset</div>
+                <div className="hud-chip-row" style={{ justifyContent: 'center', marginBottom: 12 }}>
+                  {ASSETS.map(a => (
+                    <button key={a} type="button" onClick={() => setAsset(a)} className={`hud-chip${asset === a ? ' active' : ''}`}>{a}</button>
+                  ))}
                 </div>
+                <button type="button" onClick={begin} className="hud-btn hud-btn-gold hud-btn-full" style={{ padding: 12, fontSize: 12 }}>
+                  <i className="fa-solid fa-shield-halved" /> Enter The Gauntlet
+                </button>
               </div>
-
-              <button onClick={submitPick} disabled={!direction}
-                className="w-full py-3 rounded-xl font-bold bg-orange-500/20 border border-orange-500/40 text-orange-400 hover:bg-orange-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition">
-                Lock In & Fight
-              </button>
             </motion.div>
           )}
 
-          {/* ════ ANALYZING ═══════════════════════════════════════════════════ */}
+          {phase === 'picking' && (
+            <motion.div key="picking" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div className="hud-section-panel">
+                <div className="gnt-round-hdr">
+                  <div className="rn">Round {roundIdx + 1} / {CHAMPIONS.length}</div>
+                  <h3>vs <span style={{ color: champ.color }}>{champ.name}</span></h3>
+                  <div style={{ fontSize: 10, color: 'var(--hud-text-3)' }}>{champ.title} — {champ.strategy} · {asset}/USDT · {ROUND_DURATION}s</div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+                  <button type="button" onClick={() => setDirection('UP')} className={`hud-dir-btn up${direction === 'UP' ? ' active' : ''}`}>
+                    <i className="fa-solid fa-arrow-trend-up" />
+                    <div className="dir-lbl">UP</div>
+                  </button>
+                  <button type="button" onClick={() => setDirection('DOWN')} className={`hud-dir-btn dn${direction === 'DOWN' ? ' active' : ''}`}>
+                    <i className="fa-solid fa-arrow-trend-down" />
+                    <div className="dir-lbl">DOWN</div>
+                  </button>
+                </div>
+                <button type="button" onClick={submitPick} disabled={!direction} className="hud-btn hud-btn-gold hud-btn-full">
+                  Lock In &amp; Fight
+                </button>
+              </div>
+            </motion.div>
+          )}
+
           {phase === 'analyzing' && (
-            <motion.div key="analyzing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="flex flex-col items-center justify-center py-20 space-y-4">
-              <Bot className="w-12 h-12" style={{ color: champ.color }} />
-              <Loader2 className="w-6 h-6 text-orange-400 animate-spin" />
-              <div className="text-sm">{champ.name} is analyzing {asset}/USDT...</div>
+            <motion.div key="analyzing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="ca-phase-center">
+              <i className="fa-solid fa-robot" style={{ fontSize: 40, color: champ.color }} />
+              <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: 24, color: '#f97316' }} />
+              <div className="ca-phase-sub">{champ.name} is analyzing {asset}/USDT…</div>
             </motion.div>
           )}
 
-          {/* ════ FIGHTING ════════════════════════════════════════════════════ */}
           {phase === 'fighting' && currentAnalysis && (
-            <motion.div key="fighting" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="space-y-6">
-              <div className="text-center">
-                <motion.div className="text-5xl font-black tabular-nums" key={countdown}
-                  initial={{ scale: 1.05 }} animate={{ scale: 1 }}>
+            <motion.div key="fighting" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div className="hud-section-panel">
+                <motion.div key={countdown} initial={{ scale: 1.05 }} animate={{ scale: 1 }} className="hud-countdown-big">
                   {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, '0')}
                 </motion.div>
-                <div className="text-xs text-gray-500 mt-1">Round {roundIdx + 1} — {asset}/USDT</div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4 items-center">
-                <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 p-4 text-center">
-                  <User className="w-5 h-5 text-blue-400 mx-auto mb-1" />
-                  <div className="text-xs font-bold text-white">You</div>
-                  <div className={`text-lg font-black mt-1 ${direction === 'UP' ? 'text-green-400' : 'text-red-400'}`}>
-                    {direction}
+                <div style={{ textAlign: 'center', fontSize: 10, color: 'var(--hud-text-3)', marginBottom: 14 }}>
+                  Round {roundIdx + 1} — {asset}/USDT
+                </div>
+                <div className="hud-vs-row">
+                  <div className="hud-vs-card you">
+                    <div style={{ fontSize: 10, color: 'var(--hud-text-3)' }}>You</div>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: direction === 'UP' ? 'var(--hud-green)' : 'var(--hud-red)' }}>{direction}</div>
+                  </div>
+                  <div className="hud-vs-mid">VS</div>
+                  <div className="hud-vs-card ai">
+                    <div style={{ fontSize: 10, color: champ.color }}>{champ.name}</div>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: currentAnalysis.decision.direction === 'UP' ? 'var(--hud-green)' : 'var(--hud-red)' }}>
+                      {currentAnalysis.decision.direction}
+                    </div>
                   </div>
                 </div>
-                <div className="text-2xl font-black text-gray-600 text-center">VS</div>
-                <div className="rounded-xl border p-4 text-center" style={{ borderColor: `${champ.color}30`, background: `${champ.color}05` }}>
-                  <Bot className="w-5 h-5 mx-auto mb-1" style={{ color: champ.color }} />
-                  <div className="text-xs font-bold" style={{ color: champ.color }}>{champ.name}</div>
-                  <div className={`text-lg font-black mt-1 ${currentAnalysis.decision.direction === 'UP' ? 'text-green-400' : 'text-red-400'}`}>
-                    {currentAnalysis.decision.direction}
-                  </div>
-                </div>
+                <p style={{ fontSize: 9, color: 'var(--hud-text-3)', fontFamily: 'var(--hud-font-mono)', textAlign: 'center', marginTop: 10, fontStyle: 'italic' }}>
+                  &ldquo;{currentAnalysis.decision.reasoning}&rdquo;
+                </p>
               </div>
-
-              <div className="text-[10px] text-gray-600 font-mono text-center">{currentAnalysis.decision.reasoning}</div>
             </motion.div>
           )}
 
-          {/* ════ ROUND RESULT ════════════════════════════════════════════════ */}
           {phase === 'round-result' && currentResult && (
-            <motion.div key="round-result" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-              className="space-y-6 text-center">
-              <div className={`rounded-2xl border p-6 ${
-                currentResult.winner === 'human' ? 'border-green-500/30 bg-green-500/5' :
-                currentResult.winner === 'agent' ? 'border-red-500/30 bg-red-500/5' :
-                'border-yellow-500/30 bg-yellow-500/5'
-              }`}>
-                {currentResult.winner === 'human' ? (
-                  <><CheckCircle2 className="w-10 h-10 text-green-400 mx-auto mb-2" />
-                  <div className="text-xl font-black text-green-400">You beat {CHAMPIONS[currentResult.championIdx].name}!</div></>
-                ) : currentResult.winner === 'agent' ? (
-                  <><XCircle className="w-10 h-10 text-red-400 mx-auto mb-2" />
-                  <div className="text-xl font-black text-red-400">{CHAMPIONS[currentResult.championIdx].name} wins this round</div></>
-                ) : (
-                  <><div className="text-xl font-black text-yellow-400">Tie!</div></>
-                )}
-                <div className="text-xs text-gray-500 mt-2">
+            <motion.div key="round-result" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
+              <div className={`hud-result-banner ${currentResult.winner === 'human' ? 'win' : currentResult.winner === 'agent' ? 'loss' : 'tie'}`}>
+                <div style={{ fontSize: 18, fontWeight: 600, color: currentResult.winner === 'human' ? 'var(--hud-green)' : currentResult.winner === 'agent' ? 'var(--hud-red)' : 'var(--hud-gold)' }}>
+                  {currentResult.winner === 'human' && `You beat ${CHAMPIONS[currentResult.championIdx].name}!`}
+                  {currentResult.winner === 'agent' && `${CHAMPIONS[currentResult.championIdx].name} wins this round`}
+                  {currentResult.winner === 'tie' && 'Tie!'}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--hud-text-3)', marginTop: 4 }}>
                   ${currentResult.startPrice.toLocaleString()} → ${currentResult.endPrice.toLocaleString()} ({currentResult.priceChange}%)
                 </div>
+                <div className="hud-banner-wl">
+                  {CHAMPIONS.map((_, i) => wlChip(results[i]))}
+                </div>
+                <button type="button" onClick={nextRound} className="hud-btn hud-btn-gold" style={{ marginTop: 12 }}>
+                  {roundIdx + 1 >= CHAMPIONS.length ? 'See Final Results' : `Next: ${CHAMPIONS[roundIdx + 1].name}`}
+                </button>
               </div>
-
-              <div className="flex gap-2 justify-center">
-                {results.map((r, i) => (
-                  <div key={i} className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
-                    r.winner === 'human' ? 'bg-green-500/20 text-green-400' :
-                    r.winner === 'agent' ? 'bg-red-500/20 text-red-400' :
-                    'bg-yellow-500/20 text-yellow-400'
-                  }`}>{r.winner === 'human' ? 'W' : r.winner === 'agent' ? 'L' : 'T'}</div>
-                ))}
-                {Array.from({ length: CHAMPIONS.length - results.length }).map((_, i) => (
-                  <div key={`empty-${i}`} className="w-8 h-8 rounded-lg bg-gray-800/30 border border-gray-800" />
-                ))}
-              </div>
-
-              <button onClick={nextRound}
-                className="px-6 py-3 rounded-xl font-bold bg-orange-500/20 border border-orange-500/40 text-orange-400 hover:bg-orange-500/30 transition">
-                {roundIdx + 1 >= CHAMPIONS.length ? 'See Final Results' : `Next: ${CHAMPIONS[roundIdx + 1].name}`}
-              </button>
             </motion.div>
           )}
 
-          {/* ════ FINAL ═══════════════════════════════════════════════════════ */}
           {phase === 'final' && (
-            <motion.div key="final" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-              className="space-y-6 text-center py-8">
-              <Crown className={`w-16 h-16 mx-auto ${wins >= 2 ? 'text-yellow-400' : wins >= 1 ? 'text-gray-400' : 'text-red-400'}`} />
-              <h2 className="text-3xl font-black">
-                {wins === 3 && 'FLAWLESS VICTORY'}
-                {wins === 2 && 'You Conquered The Gauntlet!'}
-                {wins === 1 && 'Close Fight!'}
-                {wins === 0 && 'The Machines Win... This Time'}
-              </h2>
-              <div className="text-sm text-gray-400">
-                Score: {wins}/{CHAMPIONS.length} rounds won
-              </div>
-
-              <div className="space-y-3 max-w-sm mx-auto">
-                {results.map((r, i) => (
-                  <div key={i} className="flex items-center gap-3 rounded-xl border border-gray-800/50 p-3">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{ background: `${CHAMPIONS[i].color}15` }}>
-                      <Bot className="w-4 h-4" style={{ color: CHAMPIONS[i].color }} />
+            <motion.div key="final" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
+              <div className="hud-section-panel" style={{ textAlign: 'center' }}>
+                <i className="fa-solid fa-crown" style={{ fontSize: 40, color: 'var(--hud-gold)', marginBottom: 8 }} />
+                <h2 style={{ fontFamily: 'var(--hud-font-head)', fontSize: 22, fontWeight: 600, color: '#fff', textTransform: 'uppercase' }}>
+                  {wins === 3 && 'Flawless Victory!'}
+                  {wins === 2 && 'You Conquered The Gauntlet!'}
+                  {wins === 1 && 'Close Fight!'}
+                  {wins === 0 && 'The Machines Win… This Time'}
+                </h2>
+                <div className="gnt-final-score">{wins} / {CHAMPIONS.length}</div>
+                <div style={{ fontSize: 10, color: 'var(--hud-text-3)', marginBottom: 14 }}>rounds won</div>
+                <div className="gnt-round-list">
+                  {results.map((r, i) => (
+                    <div key={i} className="gnt-round-item">
+                      <i className="fa-solid fa-robot" style={{ color: CHAMPIONS[i].color }} />
+                      <div>
+                        <div className="ri-name" style={{ color: CHAMPIONS[i].color }}>{CHAMPIONS[i].name}</div>
+                        <div className="ri-meta">You: {r.humanDirection} vs Agent: {r.agentDirection}</div>
+                      </div>
+                      <span className={`hud-wl-chip wide ${r.winner === 'human' ? 'w' : r.winner === 'agent' ? 'l' : 't'}`}>
+                        {r.winner === 'human' ? 'WIN' : r.winner === 'agent' ? 'LOSS' : 'TIE'}
+                      </span>
                     </div>
-                    <div className="flex-1 text-left">
-                      <div className="text-xs font-bold" style={{ color: CHAMPIONS[i].color }}>{CHAMPIONS[i].name}</div>
-                      <div className="text-[10px] text-gray-600">You: {r.humanDirection} vs Agent: {r.agentDirection}</div>
-                    </div>
-                    <div className={`text-xs font-bold ${r.winner === 'human' ? 'text-green-400' : r.winner === 'agent' ? 'text-red-400' : 'text-yellow-400'}`}>
-                      {r.winner === 'human' ? 'WIN' : r.winner === 'agent' ? 'LOSS' : 'TIE'}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex gap-3 justify-center">
-                <button onClick={restart}
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold border border-gray-700 text-gray-300 hover:bg-gray-800/50 transition">
-                  <RotateCcw className="w-4 h-4" /> Try Again
-                </button>
-                <Link href="/duel"
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition">
-                  <Swords className="w-4 h-4" /> Quick Duel
-                </Link>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 14, flexWrap: 'wrap' }}>
+                  <button type="button" onClick={restart} className="hud-btn hud-btn-ghost">
+                    <i className="fa-solid fa-rotate-right" /> Try Again
+                  </button>
+                  <Link href="/duel" className="hud-btn hud-btn-red">
+                    <i className="fa-solid fa-bolt" /> Quick Duel
+                  </Link>
+                </div>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </main>
+
+      <footer className="hud-footer">
+        <div className="hud-footer-inner">
+          <span>MindClash · Mantle Turing Test Hackathon 2026</span>
+        </div>
+      </footer>
     </div>
   );
 }

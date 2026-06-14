@@ -8,14 +8,15 @@ const express  = require('express');
 const rateLimit = require('express-rate-limit');
 const { ethers } = require('ethers');
 const router = express.Router();
-const { getAllAgentStats, saveAgentsBatch } = require('../db');
+const { getAllAgentStats, saveAgentsBatch, getUserAgentByCreator, insertUserAgent, rowToUserAgent } = require('../db');
 const { generateDecision } = require('../neural-decision');
 
-// Strict rate limit for on-chain demo endpoint (costs gas + Groq credits)
+// Rate limit for on-chain demo endpoint (costs gas + Groq credits)
+// Generous for hackathon judging, can tighten later for mainnet
 const demoLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 5,                    // max 5 on-chain demos per IP per 10 min
-  message: { error: 'Too many demo requests. Try again in a few minutes.' },
+  windowMs: 1 * 60 * 1000,  // 1 minute window
+  max: 20,                   // 20 requests per minute per IP
+  message: { error: 'Too many demo requests. Try again in a minute.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -83,8 +84,8 @@ router.get('/stats', (req, res) => {
   res.json({ success: true, data: rows, timestamp: Date.now() });
 });
 
-// ── POST /api/agents/stats — batch-upsert agent stats from frontend ─────────
-router.post('/stats', (req, res) => {
+// ── POST /api/agents/stats — batch-upsert agent stats (admin-only) ───────────
+router.post('/stats', requireAdminAuth, (req, res) => {
   const agents = req.body;
   if (!Array.isArray(agents) || agents.length === 0) {
     return res.status(400).json({ error: 'Body must be a non-empty array of agents' });
@@ -93,16 +94,87 @@ router.post('/stats', (req, res) => {
     const rows = agents.map(a => ({
       name:              String(a.name              ?? ''),
       strategy:          String(a.strategy          ?? 'neural'),
-      total_decisions:   parseInt(a.totalDecisions)  ?? 0,
-      correct_decisions: parseInt(a.correctDecisions) ?? 0,
-      win_rate:          parseFloat(a.winRate)        ?? 0,
-      total_pnl:         parseFloat(a.totalPnL)       ?? 0,
+      total_decisions:   parseInt(a.totalDecisions)  || 0,
+      correct_decisions: parseInt(a.correctDecisions) || 0,
+      win_rate:          parseFloat(a.winRate)        || 0,
+      total_pnl:         parseFloat(a.totalPnL)       || 0,
       updated_at:        Math.floor(Date.now() / 1000),
     }));
     saveAgentsBatch(rows);
     res.json({ success: true, saved: rows.length, timestamp: Date.now() });
   } catch (err) {
     console.error('saveAgentsBatch error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/agents/decide — generate AI decision without on-chain tx ──────
+router.post('/decide', async (req, res, next) => {
+  try {
+    const tokenId  = parseInt(req.body.agentTokenId) || 5;
+    const asset    = (req.body.asset || 'BTC').toUpperCase();
+    const duration = parseInt(req.body.duration) || 60;
+    const strategy = req.body.strategy || 'neural';
+
+    if (!['BTC', 'ETH', 'SOL', 'MNT'].includes(asset)) {
+      return res.status(400).json({ error: 'asset must be BTC, ETH, SOL or MNT' });
+    }
+
+    const aiResult = await generateDecision({ agentTokenId: tokenId, asset, duration, strategy });
+
+    const symbol    = `${asset}USDT`;
+    const priceResp = await fetch(`https://api.bybit.com/v5/market/tickers?category=spot&symbol=${symbol}`);
+    const priceJson = await priceResp.json();
+    const ticker    = priceJson?.result?.list?.[0];
+    const price     = ticker ? parseFloat(ticker.lastPrice) : 0;
+
+    res.json({
+      success: true,
+      decision: { ...aiResult, price },
+      timestamp: Date.now(),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── GET /api/agents/mine/:address — get user-registered agent ────────────────
+router.get('/mine/:address', (req, res) => {
+  const address = req.params.address.toLowerCase();
+  const row = getUserAgentByCreator.get(address);
+
+  if (!row) {
+    return res.json({ success: true, data: null, chainTokenId: 0 });
+  }
+
+  res.json({
+    success: true,
+    data: rowToUserAgent(row),
+    chainTokenId: row.token_id,
+  });
+});
+
+// ── POST /api/agents/register — register user-created agent ──────────────────
+router.post('/register', (req, res) => {
+  const { creatorAddress, tokenId, name, strategy, version, txHash } = req.body;
+
+  if (!creatorAddress || !name || !strategy) {
+    return res.status(400).json({ error: 'creatorAddress, name, and strategy are required' });
+  }
+
+  try {
+    insertUserAgent.run({
+      creator_address: creatorAddress.toLowerCase(),
+      token_id: tokenId || 0,
+      name: String(name).slice(0, 32),
+      strategy: String(strategy).slice(0, 32),
+      version: version || '1.0',
+      tx_hash: txHash || null,
+      created_at: Math.floor(Date.now() / 1000),
+    });
+
+    res.json({ success: true, message: 'Agent registered' });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -334,7 +406,7 @@ router.get('/analyze', async (req, res, next) => {
     const asset   = (req.query.asset || 'BTC').toUpperCase();
 
     if (![5, 6, 7].includes(tokenId)) return res.status(400).json({ error: 'Invalid tokenId' });
-    if (!['BTC', 'ETH', 'SOL'].includes(asset)) return res.status(400).json({ error: 'Invalid asset' });
+    if (!['BTC', 'ETH', 'SOL', 'MNT'].includes(asset)) return res.status(400).json({ error: 'Invalid asset' });
 
     const bot    = BOT_CONFIGS[tokenId];
     const symbol = `${asset}USDT`;
@@ -451,8 +523,8 @@ router.post('/demo', demoLimiter, async (req, res, next) => {
     if (![5, 6, 7].includes(tokenId)) {
       return res.status(400).json({ error: 'tokenId must be 5, 6 or 7' });
     }
-    if (!['BTC', 'ETH', 'SOL'].includes(asset)) {
-      return res.status(400).json({ error: 'asset must be BTC, ETH or SOL' });
+    if (!['BTC', 'ETH', 'SOL', 'MNT'].includes(asset)) {
+      return res.status(400).json({ error: 'asset must be BTC, ETH, SOL or MNT' });
     }
 
     const bot = BOT_CONFIGS[tokenId];

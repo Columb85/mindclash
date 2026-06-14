@@ -11,13 +11,21 @@ import { ActivityProvider } from '@/contexts/ActivityContext';
 import { LeaderboardProvider } from '@/contexts/LeaderboardContext';
 import { QuestsProvider } from '@/contexts/QuestsContext';
 import { ClashProvider } from '@/contexts/ClashContext';
+import { ActiveRoundProvider } from '@/contexts/ActiveRoundContext';
+import { ActiveRoundFloatingPill } from '@/components/game/ActiveRoundFloatingPill';
 import { ConditionalBackground } from '@/components/layout/ConditionalBackground';
 import { LandingSplashOverlay } from '@/components/layout/LandingSplashOverlay';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'MindClash | Where Minds Collide',
   description: 'Challenge AI agents in real-time price prediction battles. Stake $CLASH, earn Points, climb the leaderboard on Mantle Network.',
   keywords: 'mindclash, ai, prediction, crypto, gamefi, mantle, clash',
+  icons: {
+    icon: '/favicon.png',
+    apple: '/favicon.png',
+  },
 };
 
 export default function RootLayout({
@@ -31,6 +39,22 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" style={{ background: '#000' }}>
       <head>
+        {/* HUD assets — internal app pages only (landing untouched) */}
+        {!isLanding && (
+          <>
+            <link rel="preconnect" href="https://fonts.googleapis.com" />
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+            <link
+              href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;600&display=swap"
+              rel="stylesheet"
+            />
+            <link
+              rel="stylesheet"
+              href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+              crossOrigin="anonymous"
+            />
+          </>
+        )}
         {/* Instant black paint on landing — runs before first body paint */}
         {isLanding && (
           <script
@@ -41,7 +65,7 @@ export default function RootLayout({
         )}
       </head>
       <body
-        className={`font-sans text-white antialiased${isLanding ? ' landing-page' : ''}`}
+        className={`font-sans text-white antialiased${isLanding ? ' landing-page' : ' hud-app'}`}
         style={{ background: '#000' }}
       >
         {isLanding && <LandingSplashOverlay />}
@@ -55,47 +79,50 @@ export default function RootLayout({
                     <RoomsProvider>
                       <ChatProvider>
                         <ActivityProvider>
+                          <ActiveRoundProvider>
                           {children}
-                          <Toaster
-                            position="top-right"
-                            gutter={8}
-                            toastOptions={{
-                              duration: 3500,
-                              style: {
-                                background: 'rgba(10, 10, 20, 0.92)',
-                                backdropFilter: 'blur(16px)',
-                                WebkitBackdropFilter: 'blur(16px)',
-                                color: '#f1f5f9',
-                                border: '1px solid rgba(255,255,255,0.08)',
-                                borderRadius: '12px',
-                                padding: '10px 14px',
-                                fontSize: '13px',
-                                fontWeight: '500',
-                                boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)',
-                                maxWidth: '340px',
-                              },
-                              success: {
-                                duration: 3000,
-                                style: {
-                                  background: 'rgba(10, 20, 15, 0.95)',
-                                  border: '1px solid rgba(34, 197, 94, 0.25)',
-                                  borderLeft: '3px solid #22c55e',
-                                  boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(34,197,94,0.08)',
-                                },
-                                iconTheme: { primary: '#22c55e', secondary: '#0a0f0a' },
-                              },
-                              error: {
-                                duration: 4500,
-                                style: {
-                                  background: 'rgba(20, 10, 10, 0.95)',
-                                  border: '1px solid rgba(239, 68, 68, 0.25)',
-                                  borderLeft: '3px solid #ef4444',
-                                  boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(239,68,68,0.08)',
-                                },
-                                iconTheme: { primary: '#ef4444', secondary: '#140a0a' },
-                              },
-                            }}
-                          />
+                          <ActiveRoundFloatingPill />
+<Toaster
+                                            position="top-right"
+                                            gutter={8}
+                                            toastOptions={{
+                                              duration: 3500,
+                                              style: {
+                                                background: 'rgba(13,17,23,0.95)',
+                                                backdropFilter: 'blur(12px)',
+                                                color: '#e2e8f0',
+                                                border: '1px solid rgba(0,212,170,0.2)',
+                                                borderRadius: '0',
+                                                padding: '12px 16px',
+                                                fontSize: '12px',
+                                                fontFamily: 'Barlow Condensed, sans-serif',
+                                                fontWeight: '500',
+                                                letterSpacing: '0.03em',
+                                                boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
+                                                maxWidth: '360px',
+                                                clipPath: 'polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%)',
+                                              },
+                                              success: {
+                                                duration: 3000,
+                                                style: {
+                                                  background: 'rgba(0,40,30,0.95)',
+                                                  border: '1px solid rgba(0,212,170,0.4)',
+                                                  boxShadow: '0 4px 20px rgba(0,212,170,0.15)',
+                                                },
+                                                iconTheme: { primary: '#00d4aa', secondary: '#0d1117' },
+                                              },
+                                              error: {
+                                                duration: 4500,
+                                                style: {
+                                                  background: 'rgba(40,15,15,0.95)',
+                                                  border: '1px solid rgba(255,85,85,0.4)',
+                                                  boxShadow: '0 4px 20px rgba(255,85,85,0.15)',
+                                                },
+                                                iconTheme: { primary: '#ff5555', secondary: '#0d1117' },
+                                              },
+                                            }}
+                                          />
+                          </ActiveRoundProvider>
                         </ActivityProvider>
                       </ChatProvider>
                     </RoomsProvider>

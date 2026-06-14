@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, Zap, Activity, Database, Flame } from 'lucide-react';
 import { useRooms } from '@/contexts/RoomsContext';
 import { useContractRead } from 'wagmi';
 import { formatUnits } from 'viem';
@@ -59,69 +58,71 @@ export function ProtocolStats() {
   const openPredictions = rooms.reduce((s, r) => s + r.predictions.length, 0);
 
   const items = [
-    { icon: Activity,   label: 'Active Rounds',       value: activeRounds.toString(),  color: '#22c55e', pulse: true },
-    { icon: TrendingUp, label: 'Rounds This Session', value: roundsToday.toString(),   color: '#a78bfa', demo: true },
-    { icon: Zap,        label: 'Open Predictions',    value: openPredictions.toString(), color: '#ec4899' },
     {
-      icon: Flame,
-      label: 'Fees Collected',
-      value: `${accumulatedFees.toLocaleString()} CLASH`,
-      color: '#f97316',
-      tooltip: `4% of each resolved round's losing pool → Treasury`,
+      faIcon: 'fa-solid fa-signal', label: 'Active Rounds',
+      num: activeRounds.toString(), suffix: null,
+      color: 'var(--hud-green)', pulse: true,
     },
     {
-      icon: Database,
-      label: 'Treasury',
-      value: treasuryBalance !== null ? `${treasuryBalance.toLocaleString()} CLASH` : '…',
-      color: '#00D4AA',
-      onChain: true,
+      faIcon: 'fa-solid fa-chart-line', label: 'Rounds This Session',
+      num: roundsToday.toString(), suffix: null,
+      color: '#a78bfa', demo: true,
+    },
+    {
+      faIcon: 'fa-solid fa-bolt', label: 'Open Predictions',
+      num: openPredictions.toString(), suffix: null,
+      color: '#ec4899',
+    },
+    {
+      faIcon: 'fa-solid fa-fire', label: 'Fees Collected',
+      num: accumulatedFees.toLocaleString(), suffix: 'CLASH',
+      color: 'var(--hud-gold)',
+    },
+    {
+      faIcon: 'fa-solid fa-database', label: 'Treasury',
+      num: treasuryBalance !== null ? treasuryBalance.toLocaleString() : '…', suffix: treasuryBalance !== null ? 'CLASH' : null,
+      color: '#00D4AA', onChain: true,
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-      {items.map((item, i) => {
-        const Icon = item.icon;
-        return (
-          <motion.div
-            key={item.label}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            title={(item as any).tooltip ?? undefined}
-            className="glass-dark p-3 rounded-xl border border-dark-border relative overflow-hidden group cursor-default"
-            style={(item as any).onChain ? { borderColor: '#00D4AA30' } : undefined}
-          >
-            <div
-              className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity"
-              style={{ background: `radial-gradient(ellipse at center, ${item.color}, transparent 70%)` }}
-            />
-            <div className="relative flex items-center gap-2 mb-1">
-              <Icon className="w-4 h-4" style={{ color: item.color }} />
-              <span className="text-[10px] text-gray-400 uppercase tracking-wider truncate">{item.label}</span>
-              {item.pulse && (
-                <span className="ml-auto flex w-1.5 h-1.5 shrink-0">
-                  <span className="animate-ping absolute inline-flex h-1.5 w-1.5 rounded-full opacity-75" style={{ background: item.color }} />
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ background: item.color }} />
-                </span>
-              )}
-              {(item as any).onChain && (
-                <span className="ml-auto shrink-0 text-[9px] font-bold px-1 py-0.5 rounded"
-                  style={{ color: '#00D4AA', background: '#00D4AA15', border: '1px solid #00D4AA30' }}>
-                  ⛓ live
-                </span>
-              )}
-              {(item as any).demo && (
-                <span className="ml-auto shrink-0 text-[9px] font-bold px-1 py-0.5 rounded"
-                  style={{ color: '#f59e0b', background: '#f59e0b15', border: '1px solid #f59e0b30' }}>
-                  demo
-                </span>
-              )}
-            </div>
-            <div className="text-xl font-bold text-white tabular-nums truncate">{item.value}</div>
-          </motion.div>
-        );
-      })}
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+      {items.map((item, i) => (
+        <motion.div
+          key={item.label}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: i * 0.05 }}
+          className="hud-stat-card"
+          style={{
+            clipPath: 'polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)',
+            ['--stat-color' as string]: item.color,
+            ...(item.onChain ? { borderColor: 'rgba(0,212,170,.25)' } : {}),
+          }}
+        >
+          <div className="hud-stat-label">
+            <i className={item.faIcon} style={{ color: item.color, fontSize: 13 }} />
+            <span style={{ flex: 1 }}>{item.label}</span>
+            {item.pulse && (
+              <span className="live-dot" style={{ width: 5, height: 5, marginLeft: 'auto', background: item.color, boxShadow: `0 0 5px ${item.color}` }} />
+            )}
+            {item.onChain && (
+              <span className="hud-badge hud-badge-cyan" style={{ clipPath: 'polygon(2px 0,100% 0,calc(100% - 2px) 100%,0 100%)', marginLeft: 'auto', color: '#00D4AA', borderColor: 'rgba(0,212,170,.3)', background: 'rgba(0,212,170,.08)' }}>⛓ live</span>
+            )}
+            {item.demo && (
+              <span className="hud-badge hud-badge-gold" style={{ clipPath: 'polygon(2px 0,100% 0,calc(100% - 2px) 100%,0 100%)', marginLeft: 'auto' }}>demo</span>
+            )}
+          </div>
+          <div className="hud-stat-value" style={{ color: '#fff', fontSize: item.suffix ? 14 : 18 }}>
+            {item.num}
+            {item.suffix && (
+              <span style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 10, color: 'var(--hud-text-3)', marginLeft: 4 }}>
+                {item.suffix}
+              </span>
+            )}
+          </div>
+        </motion.div>
+      ))}
     </div>
   );
 }

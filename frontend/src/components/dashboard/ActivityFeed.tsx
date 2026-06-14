@@ -126,6 +126,7 @@ interface PriceCardProps {
   tick: PriceTick | null;
 }
 
+/** Individual price pill — matches mockup .tk-card */
 function PriceCard({ asset, tick }: PriceCardProps) {
   const [prevPrice, setPrevPrice] = useState<number | null>(null);
   const [flash, setFlash] = useState<'up' | 'down' | null>(null);
@@ -134,7 +135,7 @@ function PriceCard({ asset, tick }: PriceCardProps) {
     if (!tick) return;
     if (prevPrice !== null && tick.price !== prevPrice) {
       setFlash(tick.price > prevPrice ? 'up' : 'down');
-      const t = setTimeout(() => setFlash(null), 600);
+      const t = setTimeout(() => setFlash(null), 300);
       return () => clearTimeout(t);
     }
     setPrevPrice(tick.price);
@@ -144,25 +145,16 @@ function PriceCard({ asset, tick }: PriceCardProps) {
   const isUp   = change >= 0;
 
   return (
-    <div
-      className="flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors duration-300"
-      style={{
-        borderColor: flash === 'up' ? '#22c55e55' : flash === 'down' ? '#ef444455' : '#ffffff15',
-        background:  flash === 'up' ? '#22c55e08' : flash === 'down' ? '#ef444408' : 'transparent',
-      }}
-    >
-      <CryptoImg symbol={asset.symbol} className="w-5 h-5" />
-      <div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs font-bold text-gray-300">{asset.symbol}</span>
-          <span
-            className="text-sm font-mono font-bold transition-colors"
-            style={{ color: flash === 'up' ? '#22c55e' : flash === 'down' ? '#ef4444' : '#fff' }}
-          >
+    <div className={`hud-tk-card${flash === 'up' ? ' flash-up' : flash === 'down' ? ' flash-dn' : ''}`}>
+      <CryptoImg symbol={asset.symbol} />
+      <div className="hud-tk-card-body">
+        <div>
+          <span className="sym">{asset.symbol} </span>
+          <span className="price">
             {tick ? formatPrice(tick.price, asset.symbol) : '—'}
           </span>
         </div>
-        <div className={`text-[10px] font-semibold ${isUp ? 'text-green-400' : 'text-red-400'}`}>
+        <div className={`chg ${isUp ? 'up' : 'dn'}`}>
           {tick ? `${isUp ? '+' : ''}${change.toFixed(2)}%` : '…'}
         </div>
       </div>
@@ -194,33 +186,16 @@ export function LiveTicker() {
   }, []);
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-dark-border bg-dark-surface/40 backdrop-blur-sm px-4 py-2">
-      {/* Left/right fade */}
-      <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-dark-surface/80 to-transparent z-10 pointer-events-none" />
-      <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-dark-surface/80 to-transparent z-10 pointer-events-none" />
-
-      <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
-        {/* Live badge */}
-        <div className="flex items-center gap-1.5 pr-4 border-r border-dark-border mr-2 flex-shrink-0">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-          </span>
-          <span className="text-[10px] font-bold text-green-400 uppercase tracking-wider">Bybit Live</span>
-        </div>
-
-        {/* Price cards */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {TICKER_ASSETS.map(asset => (
-            <PriceCard key={asset.symbol} asset={asset} tick={prices[asset.symbol] ?? null} />
-          ))}
-        </div>
-
-        {/* Powered by */}
-        <div className="ml-4 pl-4 border-l border-dark-border flex-shrink-0">
-          <span className="text-[10px] text-gray-600">Powered by Bybit</span>
-        </div>
+    <>
+      <div className="hud-tk-live">
+        <span className="hud-tk-live-label">Bybit Live</span>
       </div>
-    </div>
+
+      {TICKER_ASSETS.map(asset => (
+        <PriceCard key={asset.symbol} asset={asset} tick={prices[asset.symbol] ?? null} />
+      ))}
+
+      <div className="hud-tk-powered">Powered by Bybit</div>
+    </>
   );
 }

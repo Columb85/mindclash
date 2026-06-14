@@ -104,10 +104,7 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     version: '1.0.0',
     mode: process.env.ENABLE_ONCHAIN_SIGNING === 'true' ? 'signing-enabled' : 'read-only',
-    network: {
-      chainId: process.env.CHAIN_ID,
-      rpcUrl: process.env.RPC_URL,
-    },
+    network: 'Mantle Sepolia',
   });
 });
 
@@ -119,6 +116,14 @@ app.use('/api/contracts',   contractsRouter);
 app.use('/api/players',     playersRouter);
 app.use('/api/rounds',      roundsRouter);
 app.use('/api/duels',       duelsRouter);
+
+// ── Online stats endpoint ────────────────────────────────────────────────────
+app.get('/api/stats/online', (req, res) => {
+  const base = 8 + Math.floor(Math.random() * 15);
+  const hour = new Date().getUTCHours();
+  const timeBonus = (hour >= 12 && hour <= 22) ? Math.floor(Math.random() * 10) : 0;
+  res.json({ online: base + timeBonus, timestamp: Date.now() });
+});
 
 // ── Contract addresses endpoint ─────────────────────────────────────────────
 app.get('/api/config', (req, res) => {

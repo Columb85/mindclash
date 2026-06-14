@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Bot, Sparkles, ExternalLink, Loader2, CheckCircle2,
-  BarChart3, Brain, Zap, Shield, ChevronRight, Lock, AlertCircle,
-  WifiOff, Activity, TrendingUp, TrendingDown,
-} from 'lucide-react';
 import Link from 'next/link';
 import { useAccount, usePublicClient, useNetwork, useSwitchNetwork, useContractWrite, useWaitForTransaction } from 'wagmi';
 import toast from 'react-hot-toast';
+import { Navigation, View } from '@/components/layout/Navigation';
+import { HudConnectButton } from '@/components/ui/HudConnectButton';
+import { LiveTicker } from '@/components/dashboard/ActivityFeed';
+import { ClashBalance } from '@/components/ui/ClashBalance';
+import { ModeIndicator } from '@/components/ui/ModeIndicator';
+import { OnlineCounter } from '@/components/ui/OnlineCounter';
 import { useCreateAgent, useAgentProfile } from '@/hooks/useAgentContract';
 import { useMyAgent } from '@/hooks/useMyAgent';
 import { AGENT_STRATEGIES, MAX_AGENTS_PER_WALLET } from '@/lib/agent-config';
@@ -35,14 +36,38 @@ const RECORD_DECISION_ABI = [
 
 const EXPLORER = 'https://sepolia.mantlescan.xyz';
 const MANTLE_SEPOLIA_ID = 5003;
+const ASSETS = ['BTC', 'ETH', 'SOL', 'MNT'] as const;
 
-const STRATEGY_ICONS = {
-  momentum: Zap,
-  'mean-reversion': BarChart3,
-  neural: Brain,
-} as const;
+const STRATEGY_META: Record<string, { icon: string; desc: string }> = {
+  momentum: {
+    icon: 'fa-solid fa-bolt',
+    desc: 'Follows trend direction — rides UP/DOWN momentum from RSI + SMA signals',
+  },
+  'mean-reversion': {
+    icon: 'fa-solid fa-chart-bar',
+    desc: 'Fades extremes — bets against overbought/oversold crowd behavior',
+  },
+  neural: {
+    icon: 'fa-solid fa-brain',
+    desc: 'Weighted signal ensemble — combines RSI, SMA, Bollinger, volume into consensus',
+  },
+};
 
 type Phase = 'design' | 'minting' | 'success';
+
+type DecisionResult = {
+  direction: 'UP' | 'DOWN';
+  confidence: number;
+  reasoning: string;
+  strategy: string;
+  price: number;
+  asset: string;
+};
+
+function formatConfidence(confidence: number): string {
+  const pct = confidence > 100 ? confidence / 10 : confidence <= 1 ? confidence * 100 : confidence;
+  return `${Math.round(pct)}`;
+}
 
 export default function CreateAgentPage() {
   const { address, isConnected } = useAccount();
@@ -53,6 +78,7 @@ export default function CreateAgentPage() {
   const { tokenId, registered, canCreate, remaining, limit, isLoading: isChecking, refetch, registerAgent } = useMyAgent();
   const { profile, refetch: refetchProfile } = useAgentProfile(tokenId > 0 ? BigInt(tokenId) : undefined);
 
+  const [currentView, setCurrentView] = useState<View>('lobby');
   const [name, setName] = useState('');
   const [strategyId, setStrategyId] = useState<string>('momentum');
   const [version, setVersion] = useState('1.0.0');
@@ -60,15 +86,6 @@ export default function CreateAgentPage() {
   const [mintedTokenId, setMintedTokenId] = useState<number | null>(null);
   const registeredRef = useRef(false);
 
-  // Record Decision state
-  type DecisionResult = {
-    direction: 'UP' | 'DOWN';
-    confidence: number;
-    reasoning: string;
-    strategy: string;
-    price: number;
-    asset: string;
-  };
   const [selectedAsset, setSelectedAsset] = useState('BTC');
   const [pendingDecision, setPendingDecision] = useState<DecisionResult | null>(null);
   const [isFetchingDecision, setIsFetchingDecision] = useState(false);
@@ -102,7 +119,7 @@ export default function CreateAgentPage() {
           agentTokenId: tokenId,
           asset: selectedAsset,
           duration: 60,
-          strategy: registered?.strategy || displayStrategy,
+          strategy: registered?.strategy || strategyId,
         }),
       });
       const json = await res.json();
@@ -135,7 +152,6 @@ export default function CreateAgentPage() {
 
   const isWrongNetwork = isConnected && chain?.id !== MANTLE_SEPOLIA_ID;
 
-  // Load contract addresses from /deployed-addresses.json if env vars are absent
   useEffect(() => {
     if (!CONTRACTS.mantleSepolia.agentNFT) {
       loadDeployedAddresses();
@@ -143,11 +159,12 @@ export default function CreateAgentPage() {
   }, []);
 
   const strategy = AGENT_STRATEGIES.find(s => s.id === strategyId) ?? AGENT_STRATEGIES[0];
-  const StrategyIcon = STRATEGY_ICONS[strategy.id as keyof typeof STRATEGY_ICONS] ?? Bot;
-
   const hasAgent = tokenId > 0;
   const displayName = registered?.name || profile?.name || name || 'Your Agent';
-  const displayStrategy = registered?.strategy || strategyId;
+  const displayStrategy = AGENT_STRATEGIES.find(s => s.id === (registered?.strategy || strategyId))?.name
+    || registered?.strategy
+    || strategyId;
+  const displayVersion = registered?.version || profile?.version?.toString() || '1.0.0';
 
   const canMint = isConnected && canCreate && !isWrongNetwork && name.trim().length >= 3 && name.trim().length <= 32;
 
@@ -225,37 +242,58 @@ export default function CreateAgentPage() {
     finish();
   }, [isSuccess, txHash, address, publicClient, name, strategyId, version, registerAgent, refetch, refetchProfile]);
 
+  const winRate = profile && Number(profile.totalDecisions) > 0
+    ? `${((Number(profile.correctDecisions) / Number(profile.totalDecisions)) * 100).toFixed(0)}% win`
+    : '0% win';
+
   return (
-    <div className="min-h-screen bg-[#06060a] text-white">
-      <header className="border-b border-gray-800/50 bg-[#06060a]/95 backdrop-blur-xl sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-3">
-          <Link href="/app" className="text-gray-500 hover:text-white transition text-sm">← Back to Arena</Link>
-          <div className="w-px h-5 bg-gray-800" />
-          <Sparkles className="w-5 h-5 text-yellow-400" />
-          <h1 className="text-lg font-black">Agent Creator</h1>
-          <span className="text-[10px] text-gray-500 font-mono ml-auto">
-            {remaining}/{limit} slot{limit !== 1 ? 's' : ''} left
-          </span>
+    <div className="min-h-screen">
+      <header className="hud-topbar">
+        <div className="hud-topbar-inner">
+          <Link href="/" className="hud-logo-text">
+            <span className="logo-mind">Mind</span>
+            <span className="logo-clash">Clash</span>
+          </Link>
+          <Navigation currentView={currentView} onViewChange={setCurrentView} activePage="create-agent" />
+          <div className="hud-topbar-right">
+            <OnlineCounter />
+            <ClashBalance />
+            <ModeIndicator />
+            <HudConnectButton />
+          </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-2xl">
+      <div className="hud-ticker-bar">
+        <div className="hud-shell">
+          <LiveTicker />
+        </div>
+      </div>
 
-        {/* Wrong network banner — shown to any user not on Mantle Sepolia */}
+      <div className="hud-breadcrumb">
+        <div className="hud-shell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <span className="bc-cur">
+            <i className="fa-solid fa-wand-magic-sparkles" style={{ marginRight: 6 }} />
+            Create Agent
+          </span>
+          <span className="hud-badge hud-badge-gold">
+            {remaining} / {limit} slot{limit !== 1 ? 's' : ''} remaining
+          </span>
+        </div>
+      </div>
+
+      <main className="hud-shell ca-main">
         {isWrongNetwork && (
-          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-            className="mb-6 rounded-xl border border-red-500/40 bg-red-500/8 p-4 flex items-center gap-3">
-            <WifiOff className="w-5 h-5 text-red-400 shrink-0" />
-            <div className="flex-1">
-              <div className="text-sm font-bold text-red-400">Wrong Network</div>
-              <div className="text-xs text-gray-500 mt-0.5">
-                Switch to <strong className="text-gray-300">Mantle Sepolia</strong> (Chain ID 5003) to create an agent.
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="ca-net-banner">
+            <i className="fa-solid fa-wifi" style={{ color: 'var(--hud-red)', fontSize: 18 }} />
+            <div style={{ flex: 1 }}>
+              <div className="ca-net-title">Wrong Network</div>
+              <div className="ca-net-sub">
+                Switch to <strong>Mantle Sepolia</strong> (Chain ID 5003) to create an agent.
               </div>
             </div>
             {switchNetwork && (
-              <button
-                onClick={() => switchNetwork(MANTLE_SEPOLIA_ID)}
-                className="text-xs px-3 py-1.5 rounded-lg bg-red-500/20 border border-red-500/40 text-red-300 hover:bg-red-500/30 transition">
+              <button type="button" onClick={() => switchNetwork(MANTLE_SEPOLIA_ID)} className="hud-btn hud-btn-red">
                 Switch
               </button>
             )}
@@ -263,131 +301,159 @@ export default function CreateAgentPage() {
         )}
 
         {isChecking && (
-          <div className="flex items-center justify-center gap-2 py-20 text-gray-500">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            Checking agent quota…
+          <div className="ca-phase-center">
+            <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: 28, color: 'var(--hud-gold)' }} />
+            <div className="ca-phase-sub">Checking agent quota…</div>
           </div>
         )}
 
         {!isChecking && hasAgent && phase !== 'minting' && phase !== 'success' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 flex gap-3">
-              <Lock className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <div className="text-sm font-bold text-amber-400">Creation limit reached</div>
-                <div className="text-xs text-gray-500 mt-1">
-                  Each wallet can own <strong className="text-gray-300">{MAX_AGENTS_PER_WALLET}</strong> agent NFT on-chain.
-                  You already have one — duel with champions or record decisions with your agent.
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-0">
+            <div className="hud-section-panel ca-agent-panel">
+              <div className="ca-agent-summary">
+                <i className="fa-solid fa-robot" />
+                <div className="ca-agent-name">{displayName}</div>
+                <div className="ca-agent-meta">
+                  Token #{tokenId} · {displayStrategy} · v{displayVersion}
                 </div>
+                {profile && (
+                  <div className="ca-agent-stats">
+                    <span>{Number(profile.totalDecisions)} decisions</span>
+                    <span>{winRate}</span>
+                  </div>
+                )}
               </div>
-            </div>
-
-            <div className="rounded-2xl border-2 border-emerald-500/30 bg-emerald-500/5 p-6 space-y-4 text-center">
-              <Bot className="w-14 h-14 mx-auto text-emerald-400" />
-              <div>
-                <div className="text-xl font-black text-emerald-400">{displayName}</div>
-                <div className="text-xs text-gray-500 mt-1">
-                  Token #{tokenId} • {displayStrategy} • v{registered?.version || profile?.version || '1.0.0'}
-                </div>
-              </div>
-              {profile && (
-                <div className="flex justify-center gap-6 text-[10px] text-gray-500">
-                  <span>{Number(profile.totalDecisions)} decisions</span>
-                  <span>{Number(profile.totalDecisions) > 0
-                    ? `${((Number(profile.correctDecisions) / Number(profile.totalDecisions)) * 100).toFixed(0)}% win`
-                    : '0% win'}</span>
-                </div>
-              )}
-              {!registered && (
-                <button onClick={handleSyncRegister}
-                  className="text-xs px-4 py-2 rounded-lg border border-gray-700 text-gray-300 hover:bg-gray-800">
-                  Sync to server
-                </button>
-              )}
-              <div className="flex gap-3 justify-center pt-2">
-                <Link href={`/duel?agent=${tokenId}`}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold bg-red-500/20 border border-red-500/40 text-red-400 text-sm">
-                  Enter Duel <ChevronRight className="w-4 h-4" />
+              <div className="ca-agent-actions">
+                {!registered && (
+                  <button type="button" onClick={handleSyncRegister} className="hud-btn hud-btn-ghost">
+                    <i className="fa-solid fa-arrows-rotate" />
+                    Sync
+                  </button>
+                )}
+                <Link href={`/duel?agent=${tokenId}`} className="hud-btn hud-btn-red">
+                  <i className="fa-solid fa-bolt" />
+                  Enter Duel
                 </Link>
-                <a href={`${EXPLORER}/token/0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837?a=${tokenId}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-700 text-gray-400 text-sm">
-                  <ExternalLink className="w-4 h-4" /> MantleScan
+                <a
+                  href={`${EXPLORER}/token/0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837?a=${tokenId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hud-btn hud-btn-ghost"
+                >
+                  <i className="fa-solid fa-arrow-up-right-from-square" />
+                  MantleScan
                 </a>
               </div>
             </div>
 
-            {/* Record Decision panel */}
-            <div className="rounded-2xl border border-purple-500/20 bg-purple-500/5 p-5 space-y-4">
-              <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4 text-purple-400" />
-                <span className="text-sm font-bold text-purple-300">Record On-Chain Decision</span>
-                <span className="ml-auto text-[10px] text-gray-600">AI → MetaMask → chain</span>
+            <div className="hud-section-panel ca-record-panel">
+              <div className="ca-panel-hdr">
+                <div className="ca-panel-icon" style={{ background: 'var(--hud-purple-dim)', color: 'var(--hud-purple)' }}>
+                  <i className="fa-solid fa-link" />
+                </div>
+                <div>
+                  <div className="ca-panel-title">Record Decision</div>
+                  <div className="ca-panel-sub">AI → MetaMask → chain</div>
+                </div>
               </div>
 
-              {/* Asset selector */}
-              <div className="flex gap-2">
-                {['BTC', 'ETH', 'SOL', 'MNT'].map(a => (
-                  <button key={a} onClick={() => setSelectedAsset(a)}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold border transition ${
-                      selectedAsset === a
-                        ? 'bg-purple-500/20 border-purple-500/50 text-purple-300'
-                        : 'border-gray-700 text-gray-500 hover:text-gray-300'
-                    }`}>
+              <div className="hud-chip-row" style={{ marginBottom: 10 }}>
+                {ASSETS.map(a => (
+                  <button
+                    key={a}
+                    type="button"
+                    onClick={() => setSelectedAsset(a)}
+                    className={`hud-chip${selectedAsset === a ? ' active' : ''}`}
+                  >
                     {a}
                   </button>
                 ))}
               </div>
 
-              {/* Get Decision button */}
               {!pendingDecision && (
-                <button onClick={handleFetchDecision} disabled={isFetchingDecision || isWrongNetwork}
-                  className="w-full py-2.5 rounded-xl text-sm font-bold border border-purple-500/30 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 disabled:opacity-40 flex items-center justify-center gap-2">
-                  {isFetchingDecision
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Analyzing market…</>
-                    : <><Brain className="w-4 h-4" /> Get AI Decision ({selectedAsset})</>}
+                <button
+                  type="button"
+                  onClick={handleFetchDecision}
+                  disabled={isFetchingDecision || isWrongNetwork}
+                  className="hud-btn hud-btn-ghost hud-btn-full"
+                  style={{ marginBottom: 12 }}
+                >
+                  {isFetchingDecision ? (
+                    <>
+                      <i className="fa-solid fa-circle-notch fa-spin" />
+                      Analyzing market…
+                    </>
+                  ) : (
+                    <>
+                      <i className="fa-solid fa-brain" />
+                      Get AI Decision ({selectedAsset})
+                    </>
+                  )}
                 </button>
               )}
 
-              {/* Decision result */}
               {pendingDecision && (
-                <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-                  className={`rounded-xl border p-4 space-y-3 ${
-                    pendingDecision.direction === 'UP'
-                      ? 'border-green-500/30 bg-green-500/5'
-                      : 'border-red-500/30 bg-red-500/5'
-                  }`}>
-                  <div className="flex items-center gap-3">
-                    {pendingDecision.direction === 'UP'
-                      ? <TrendingUp className="w-6 h-6 text-green-400" />
-                      : <TrendingDown className="w-6 h-6 text-red-400" />}
+                <motion.div
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`ca-decision-preview${pendingDecision.direction === 'DOWN' ? ' dn' : ''}`}
+                >
+                  <div className="ca-decision-row">
+                    <i
+                      className={`fa-solid fa-arrow-trend-${pendingDecision.direction === 'UP' ? 'up' : 'down'}`}
+                      style={{
+                        fontSize: 24,
+                        color: pendingDecision.direction === 'UP' ? 'var(--hud-green)' : 'var(--hud-red)',
+                      }}
+                    />
                     <div>
-                      <div className={`text-lg font-black ${pendingDecision.direction === 'UP' ? 'text-green-400' : 'text-red-400'}`}>
-                        {pendingDecision.direction} — {(pendingDecision.confidence / 10).toFixed(0)}% confidence
+                      <div className={`ca-decision-dir ${pendingDecision.direction === 'UP' ? 'up' : 'dn'}`}>
+                        {pendingDecision.direction} — {formatConfidence(pendingDecision.confidence)}% confidence
                       </div>
-                      <div className="text-[10px] text-gray-500">
-                        {selectedAsset} @ ${pendingDecision.price?.toFixed(2)} • stake 250
+                      <div className="ca-decision-meta">
+                        {selectedAsset} @ ${pendingDecision.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · stake 250
                       </div>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-400 italic leading-relaxed">"{pendingDecision.reasoning}"</p>
-                  <div className="flex gap-2 pt-1">
-                    <button onClick={handleRecordOnChain}
+                  <p className="ca-decision-reason">&ldquo;{pendingDecision.reasoning}&rdquo;</p>
+                  <div className="ca-decision-actions">
+                    <button
+                      type="button"
+                      onClick={handleRecordOnChain}
                       disabled={isRecording || isWaitingRecord || isWrongNetwork}
-                      className="flex-1 py-2 rounded-lg text-xs font-bold bg-purple-500/20 border border-purple-500/40 text-purple-300 hover:bg-purple-500/30 disabled:opacity-40 flex items-center justify-center gap-2">
-                      {isRecording || isWaitingRecord
-                        ? <><Loader2 className="w-3 h-3 animate-spin" /> Signing…</>
-                        : 'Sign on-chain (MetaMask)'}
+                      className="hud-btn hud-btn-cyan"
+                      style={{ flex: 1, justifyContent: 'center' }}
+                    >
+                      {isRecording || isWaitingRecord ? (
+                        <>
+                          <i className="fa-solid fa-circle-notch fa-spin" />
+                          Signing…
+                        </>
+                      ) : (
+                        <>
+                          <i className="fa-solid fa-signature" />
+                          Sign on-chain
+                        </>
+                      )}
                     </button>
-                    <button onClick={() => setPendingDecision(null)}
-                      className="px-3 py-2 rounded-lg text-xs text-gray-500 border border-gray-700 hover:text-gray-300">
+                    <button
+                      type="button"
+                      onClick={() => setPendingDecision(null)}
+                      className="hud-btn hud-btn-ghost"
+                    >
                       Refresh
                     </button>
                   </div>
                   {recordTxData?.hash && (
-                    <a href={`${EXPLORER}/tx/${recordTxData.hash}`} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-[10px] text-blue-400">
-                      <ExternalLink className="w-3 h-3" /> {recordTxData.hash.slice(0, 20)}…
+                    <a
+                      href={`${EXPLORER}/tx/${recordTxData.hash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ca-tx-link"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 10 }}
+                    >
+                      <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 9 }} />
+                      {recordTxData.hash.slice(0, 20)}…
                     </a>
                   )}
                 </motion.div>
@@ -398,124 +464,139 @@ export default function CreateAgentPage() {
 
         <AnimatePresence mode="wait">
           {!isChecking && !hasAgent && phase === 'design' && (
-            <motion.div key="design" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
-              <div className="text-center space-y-2">
-                <h2 className="text-2xl font-black">Create Your AI Agent</h2>
-                <p className="text-sm text-gray-500">
-                  Mint one ERC-8004 agent NFT per wallet. Pick a strategy — your agent uses it in duels and on-chain decisions.
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-4 py-3 flex items-center gap-3">
-                <Shield className="w-4 h-4 text-blue-400 shrink-0" />
-                <span className="text-xs text-gray-400">
-                  Limit: <strong className="text-white">{MAX_AGENTS_PER_WALLET} agent / wallet</strong> (enforced on-chain + server)
-                </span>
-              </div>
-
-              {!isConnected && (
-                <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-4 text-center">
-                  <div className="text-sm text-yellow-400 font-bold">Connect wallet to create</div>
+            <motion.div key="design" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div className="hud-section-panel">
+                <div className="ca-setup-hdr">
+                  <h2>Create Your AI Agent</h2>
+                  <p>
+                    Mint one ERC-8004 agent NFT per wallet. Pick a strategy for duels and on-chain decisions.
+                  </p>
                 </div>
-              )}
 
-              <div className="space-y-2">
-                <label className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Agent Name</label>
-                <input type="text" value={name} onChange={e => setName(e.target.value)}
-                  placeholder="e.g. AlphaHunter, TrendSniper..." maxLength={32}
-                  className="w-full bg-gray-900/50 border border-gray-800 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/50 text-sm" />
-                <div className="flex justify-between text-[10px] text-gray-600">
+                <div className="ca-field-lbl">Agent Name</div>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="e.g. AlphaHunter, TrendSniper..."
+                  maxLength={32}
+                  className="ca-inp"
+                />
+                <div className="ca-inp-meta">
                   <span>{name.length < 3 ? 'Min 3 characters' : '✓ Valid'}</span>
                   <span>{name.length}/32</span>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Strategy</label>
-                <div className="space-y-3">
-                  {AGENT_STRATEGIES.map(s => {
-                    const Icon = STRATEGY_ICONS[s.id];
-                    const isSelected = strategyId === s.id;
-                    return (
-                      <button key={s.id} onClick={() => setStrategyId(s.id)}
-                        className="w-full rounded-xl border p-4 text-left transition"
-                        style={{
-                          borderColor: isSelected ? `${s.color}60` : 'rgba(255,255,255,0.06)',
-                          background: isSelected ? `${s.color}08` : 'rgba(255,255,255,0.02)',
-                        }}>
-                        <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                            style={{ background: `${s.color}15` }}>
-                            <Icon className="w-5 h-5" style={{ color: s.color }} />
-                          </div>
-                          <div>
-                            <div className="text-sm font-bold" style={{ color: isSelected ? s.color : '#d1d5db' }}>{s.name}</div>
-                            <div className="text-xs text-gray-500 mt-0.5">{s.description}</div>
-                          </div>
+                <div className="ca-field-lbl">Strategy</div>
+                {AGENT_STRATEGIES.map(s => {
+                  const meta = STRATEGY_META[s.id];
+                  const isSelected = strategyId === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setStrategyId(s.id)}
+                      className={`ca-strat-card${isSelected ? ' sel' : ''}`}
+                    >
+                      <div className="ca-strat-inner">
+                        <div
+                          className="ca-strat-icon"
+                          style={{ background: `${s.color}22`, color: s.color }}
+                        >
+                          <i className={meta.icon} />
                         </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                        <div>
+                          <div className="ca-strat-name" style={isSelected ? { color: s.color } : undefined}>
+                            {s.name}
+                          </div>
+                          <div className="ca-strat-desc">{meta.desc}</div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  onClick={handleMint}
+                  disabled={!canMint}
+                  className="hud-btn hud-btn-gold ca-mint-btn"
+                >
+                  <i className="fa-solid fa-sparkles" />
+                  Mint Agent NFT
+                </button>
+                <p className="ca-mint-foot">Gas ~0.001 MNT · One agent per wallet forever</p>
               </div>
-
-              <button onClick={handleMint} disabled={!canMint}
-                className="w-full py-4 rounded-xl font-black text-lg flex items-center justify-center gap-3 disabled:opacity-30"
-                style={{ background: `${strategy.color}20`, border: `1px solid ${strategy.color}40`, color: strategy.color }}>
-                <Sparkles className="w-5 h-5" />
-                Mint Agent NFT
-              </button>
-
-              <p className="text-center text-[10px] text-gray-600">
-                Gas ~0.001 MNT • One agent per wallet forever
-              </p>
             </motion.div>
           )}
 
           {phase === 'minting' && (
-            <motion.div key="minting" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center py-20 space-y-6">
-              <Loader2 className="w-12 h-12 text-yellow-400 animate-spin" />
-              <div className="text-center">
-                <div className="text-lg font-bold">Minting {name.trim()}…</div>
-                <div className="text-xs text-gray-500">Confirm in wallet, then we register your agent</div>
+            <motion.div key="minting" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="ca-phase-center">
+              <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: 40, color: 'var(--hud-gold)' }} />
+              <div>
+                <div className="ca-phase-title">Minting {name.trim()}…</div>
+                <div className="ca-phase-sub">Confirm in wallet, then we register your agent</div>
               </div>
               {!isMinting && !isSuccess && (
-                <button onClick={() => setPhase('design')} className="text-xs text-gray-500">← Back</button>
+                <button type="button" onClick={() => setPhase('design')} className="hud-btn hud-btn-ghost">
+                  ← Back
+                </button>
               )}
             </motion.div>
           )}
 
           {phase === 'success' && (
-            <motion.div key="success" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-              className="space-y-6 text-center py-8">
-              <CheckCircle2 className="w-16 h-16 mx-auto text-green-400" />
-              <h2 className="text-2xl font-black text-green-400">{name.trim()} is live!</h2>
+            <motion.div
+              key="success"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="hud-section-panel"
+              style={{ textAlign: 'center', padding: '28px 20px' }}
+            >
+              <i className="fa-solid fa-circle-check ca-success-icon" />
+              <h2 className="ca-phase-title" style={{ color: 'var(--hud-green)', marginTop: 12 }}>
+                {name.trim()} is live!
+              </h2>
               {(mintedTokenId || tokenId) > 0 && (
-                <p className="text-sm text-gray-500">Agent NFT #{mintedTokenId || tokenId} on Mantle Sepolia</p>
+                <p className="ca-phase-sub" style={{ marginTop: 6 }}>
+                  Agent NFT #{mintedTokenId || tokenId} on Mantle Sepolia
+                </p>
               )}
               {txHash && (
-                <a href={`${EXPLORER}/tx/${txHash}`} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-sm text-blue-400">
-                  <ExternalLink className="w-4 h-4" /> View transaction
+                <a
+                  href={`${EXPLORER}/tx/${txHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ca-tx-link"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}
+                >
+                  <i className="fa-solid fa-arrow-up-right-from-square" />
+                  View transaction
                 </a>
               )}
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Link href="/app"
-                  className="px-6 py-3 rounded-xl font-bold bg-purple-500/20 border border-purple-500/40 text-purple-300 text-sm text-center">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 20 }}>
+                <Link href="/app" className="hud-btn hud-btn-ghost">
                   ← Back to Arena
                 </Link>
-                <Link href={`/duel?agent=${mintedTokenId || tokenId}`}
-                  className="px-6 py-3 rounded-xl font-bold bg-red-500/20 border border-red-500/40 text-red-400 text-sm text-center">
-                  Challenge in Duel →
+                <Link href={`/duel?agent=${mintedTokenId || tokenId}`} className="hud-btn hud-btn-red">
+                  <i className="fa-solid fa-bolt" />
+                  Challenge in Duel
                 </Link>
               </div>
-              <p className="text-[10px] text-gray-600 flex items-center justify-center gap-1">
-                <AlertCircle className="w-3 h-3" /> Limit {MAX_AGENTS_PER_WALLET}/wallet — no second mint possible
+              <p className="ca-mint-foot" style={{ marginTop: 16 }}>
+                <i className="fa-solid fa-circle-info" style={{ marginRight: 4 }} />
+                Limit {MAX_AGENTS_PER_WALLET}/wallet — no second mint possible
               </p>
             </motion.div>
           )}
         </AnimatePresence>
       </main>
+
+      <footer className="hud-footer">
+        <div className="hud-footer-inner">
+          <span>MindClash · Mantle Turing Test Hackathon 2026</span>
+        </div>
+      </footer>
     </div>
   );
 }

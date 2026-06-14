@@ -2,13 +2,17 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Swords, ArrowUp, ArrowDown, Trophy, ExternalLink, Loader2,
-  Timer, Bot, User, RotateCcw, CheckCircle2, AlertCircle, Star,
-} from 'lucide-react';
+// Font Awesome used globally — no Lucide imports needed
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAccount } from 'wagmi';
+import { HudConnectButton } from '@/components/ui/HudConnectButton';
+import { Navigation, View } from '@/components/layout/Navigation';
+import { DuelRoundTimer } from '@/components/ui/DuelRoundTimer';
+import { LiveTicker } from '@/components/dashboard/ActivityFeed';
+import { ClashBalance } from '@/components/ui/ClashBalance';
+import { ModeIndicator } from '@/components/ui/ModeIndicator';
+import { OnlineCounter } from '@/components/ui/OnlineCounter';
 import { analyzeBotDecision, BotAnalysis } from '@/lib/bot-indicators';
 import { useMyAgent } from '@/hooks/useMyAgent';
 import { AGENT_STRATEGIES } from '@/lib/agent-config';
@@ -64,7 +68,7 @@ async function fetchAgentDecision(agent: DuelAgent, asset: string, duration: num
     market: { price: d.price ?? 0 },
   };
 }
-const ASSETS    = ['BTC', 'ETH', 'SOL'] as const;
+const ASSETS    = ['BTC', 'ETH', 'SOL', 'MNT'] as const;
 const DURATIONS = [60, 120, 180] as const;
 
 type Phase = 'setup' | 'submitting' | 'live' | 'resolving' | 'result';
@@ -123,6 +127,8 @@ function DuelPageInner() {
   const { address } = useAccount();
   const searchParams = useSearchParams();
   const { tokenId: myTokenId, registered } = useMyAgent();
+  const [currentView, setCurrentView] = useState<View>('lobby');
+  const [disclaimerOpen, setDisclaimerOpen] = useState(false);
 
   const opponents = useMemo<DuelAgent[]>(() => {
     const list: DuelAgent[] = [...SYSTEM_AGENTS];
@@ -270,281 +276,384 @@ function DuelPageInner() {
     setOnChainTx(null);
   };
 
+  // Determine bot avatar color class by agent color
+  const agentAvatarClass =
+    agent.color === '#3b82f6' ? 'blue'
+    : agent.color === '#a855f7' ? 'purple'
+    : agent.color === '#22c55e' ? 'green'
+    : 'gold';
+
   return (
-    <div className="min-h-screen bg-[#06060a] text-white">
-      {/* Header */}
-      <header className="border-b border-gray-800/50 bg-[#06060a]/95 backdrop-blur-xl sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-3">
-          <Link href="/" className="text-gray-500 hover:text-white transition text-sm">← Back</Link>
-          <div className="w-px h-5 bg-gray-800" />
-          <Swords className="w-5 h-5 text-red-400" />
-          <h1 className="text-lg font-black">Challenge AI</h1>
-          <span className="text-[10px] text-gray-500 font-mono">Event-Driven Duel</span>
+    <div className="min-h-screen">
+      {/* ── HUD Topbar ── */}
+      <header className="hud-topbar">
+        <div className="hud-topbar-inner">
+          <Link href="/" className="hud-logo-text">
+            <span className="logo-mind">Mind</span>
+            <span className="logo-clash">Clash</span>
+          </Link>
+          <Navigation currentView={currentView} onViewChange={setCurrentView} activePage="duel" />
+          <div className="hud-topbar-right">
+            <OnlineCounter />
+            <ClashBalance />
+            <ModeIndicator />
+            <HudConnectButton />
+          </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-2xl">
+      {/* ── Ticker bar ── */}
+      <div className="hud-ticker-bar">
+        <div className="hud-shell">
+          <LiveTicker />
+        </div>
+      </div>
+
+      {/* ── Breadcrumb ── */}
+      <div className="hud-breadcrumb">
+        <div className="hud-shell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <span className="bc-cur">
+            <i className="fa-solid fa-bolt" style={{ marginRight: 6 }} />
+            Challenge AI
+          </span>
+          <span className="hud-badge hud-badge-gold">
+            <i className="fa-solid fa-link text-[8px]" />
+            Event-Driven Duel
+          </span>
+        </div>
+      </div>
+
+      <main className="hud-shell duel-main">
+        <div className={`duel-disclaimer${disclaimerOpen ? ' open' : ''}`}>
+          <button
+            type="button"
+            className="duel-disclaimer-hdr"
+            onClick={() => setDisclaimerOpen(v => !v)}
+            aria-expanded={disclaimerOpen}
+          >
+            <i className="fa-solid fa-circle-info" />
+            <span>How Event-Driven Duel Works</span>
+            <span className="duel-disclaimer-hint">
+              {disclaimerOpen ? 'Hide details' : 'Click to learn how duels work'}
+            </span>
+            <i className={`fa-solid fa-chevron-down duel-disclaimer-chevron${disclaimerOpen ? ' open' : ''}`} />
+          </button>
+          {disclaimerOpen && (
+            <>
+              <div className="disclaimer-steps">
+                <div className="disclaimer-step">
+                  <div className="step-num duel-step-num">1</div>
+                  <div className="step-content">
+                    <h4>Configure Your Duel</h4>
+                    <p>Pick an AI opponent, choose BTC / ETH / SOL / MNT, set the round duration (60–180s), and lock in your UP or DOWN prediction before the timer starts.</p>
+                  </div>
+                </div>
+                <div className="disclaimer-step">
+                  <div className="step-num duel-step-num">2</div>
+                  <div className="step-content">
+                    <h4>AI Analyzes Live Market</h4>
+                    <p>The agent fetches real-time Bybit prices and runs technical signals — RSI, SMA, Bollinger Bands — using its strategy (Momentum, Mean-Reversion, or Neural Net).</p>
+                  </div>
+                </div>
+                <div className="disclaimer-step">
+                  <div className="step-num duel-step-num">3</div>
+                  <div className="step-content">
+                    <h4>Head-to-Head Verdict</h4>
+                    <p>When the round ends, start vs end price decides the winner. Beat the AI if your direction was correct. The decision can be recorded on Mantle Sepolia for on-chain verification.</p>
+                  </div>
+                </div>
+              </div>
+              <div className="duel-disclaimer-foot">
+                <i className="fa-solid fa-shield-halved" />
+                <span>Testnet only · Mantle Sepolia (5003) · Simulated CLASH · Live Bybit prices · No real funds at risk</span>
+              </div>
+            </>
+          )}
+        </div>
+
         <AnimatePresence mode="wait">
 
           {/* ════ SETUP ════════════════════════════════════════════════════════ */}
           {phase === 'setup' && (
-            <motion.div key="setup" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
-              <div className="text-center space-y-2">
-                <h2 className="text-2xl font-black">Challenge an AI Champion</h2>
-                <p className="text-sm text-gray-500">
-                  Pick your opponent, asset, and direction. The agent analyzes live Bybit market data and makes its prediction.
-                </p>
+            <motion.div key="setup" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
+              <div className="hud-page-label" style={{ marginTop: 0 }}>
+                <i className="fa-solid fa-sliders" />
+                Setup Phase
               </div>
 
-              {/* Agent selector */}
-              <div className="space-y-2">
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Choose Your Opponent</div>
-                <div className={`grid gap-3 ${opponents.length > 3 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
+              <div className="duel-setup-desc">
+                <h2>Challenge an AI Champion</h2>
+                <p>Pick opponent, asset, duration, and direction. Agent analyzes live Bybit data for BTC, ETH, SOL, and MNT.</p>
+              </div>
+
+              <div className="hud-section-panel">
+                <div className="duel-pick-lbl">Choose Your Opponent</div>
+                <div className="hud-opp-grid">
                   {opponents.map((a, i) => (
                     <button
                       key={a.tokenId}
+                      type="button"
                       onClick={() => setAgentIdx(i)}
-                      className={`rounded-xl border p-4 text-center transition relative ${agentIdx === i ? 'ring-1' : ''}`}
-                      style={{
-                        borderColor: agentIdx === i ? `${a.color}60` : 'rgba(255,255,255,0.06)',
-                        background:  agentIdx === i ? `${a.color}10` : 'rgba(255,255,255,0.02)',
-                        ...(agentIdx === i ? { boxShadow: `0 0 12px ${a.color}15` } : {}),
-                      }}
+                      className={`hud-opp-card${agentIdx === i ? ' active' : ''}${a.isMine ? ' mine' : ''}`}
                     >
-                      {a.isMine && (
-                        <Star className="w-3 h-3 text-yellow-400 absolute top-2 right-2" fill="currentColor" />
-                      )}
-                      <div className="text-sm font-bold" style={{ color: agentIdx === i ? a.color : '#9ca3af' }}>{a.name}</div>
-                      <div className="text-[10px] text-gray-600 mt-0.5">{a.strategy}</div>
-                      <div className="text-[10px] text-gray-700 mt-1">Token #{a.tokenId}</div>
+                      {a.isMine && <i className="fa-solid fa-star opp-star" />}
+                      <i className="fa-solid fa-robot" style={{ fontSize: 18, color: agentIdx === i ? a.color : 'var(--hud-text-dim)' }} />
+                      <div className="opp-name" style={{ color: agentIdx === i ? a.color : '#fff' }}>{a.name}</div>
+                      <div className="opp-strat">{a.strategy}</div>
+                      <div className="opp-tid">Token #{a.tokenId}</div>
                     </button>
                   ))}
                 </div>
                 {myTokenId <= 0 && (
-                  <Link href="/create-agent" className="text-xs text-yellow-500/80 hover:text-yellow-400">
-                    + Create your own agent (1 per wallet)
+                  <Link href="/create-agent" className="duel-create-link">
+                    <i className="fa-solid fa-plus text-[9px]" />
+                    Create your own agent (1 per wallet)
                   </Link>
                 )}
               </div>
 
-              {/* Asset + Duration */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <div className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Asset</div>
-                  <div className="flex gap-2">
+              <div className="duel-pick-row">
+                <div className="hud-section-panel duel-panel-flush">
+                  <div className="duel-pick-lbl">Asset</div>
+                  <div className="hud-chip-row">
                     {ASSETS.map(a => (
-                      <button key={a} onClick={() => setAsset(a)}
-                        className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold border transition ${
-                          asset === a ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'border-gray-700 text-gray-400 hover:text-white'
-                        }`}>{a}</button>
+                      <button key={a} type="button" onClick={() => setAsset(a)} className={`hud-chip${asset === a ? ' active' : ''}`}>{a}</button>
                     ))}
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <div className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Duration</div>
-                  <div className="flex gap-2">
+                <div className="hud-section-panel duel-panel-flush">
+                  <div className="duel-pick-lbl">Duration</div>
+                  <div className="hud-chip-row">
                     {DURATIONS.map(d => (
-                      <button key={d} onClick={() => setDuration(d)}
-                        className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold border transition ${
-                          duration === d ? 'bg-purple-500/20 border-purple-500/50 text-purple-400' : 'border-gray-700 text-gray-400 hover:text-white'
-                        }`}>{d}s</button>
+                      <button key={d} type="button" onClick={() => setDuration(d)} className={`hud-chip${duration === d ? ' active' : ''}`}>{d}s</button>
                     ))}
                   </div>
                 </div>
               </div>
 
-              {/* Direction choice */}
-              <div className="space-y-2">
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Your Prediction</div>
-                <div className="grid grid-cols-2 gap-4">
-                  <button onClick={() => setDirection('UP')}
-                    className={`flex items-center justify-center gap-3 py-5 rounded-xl border text-lg font-black transition ${
-                      direction === 'UP' ? 'border-green-500/60 bg-green-500/15 text-green-400 ring-1 ring-green-500/30' : 'border-gray-700 text-gray-500 hover:border-green-500/30 hover:text-green-400'
-                    }`}><ArrowUp className="w-6 h-6" /> UP</button>
-                  <button onClick={() => setDirection('DOWN')}
-                    className={`flex items-center justify-center gap-3 py-5 rounded-xl border text-lg font-black transition ${
-                      direction === 'DOWN' ? 'border-red-500/60 bg-red-500/15 text-red-400 ring-1 ring-red-500/30' : 'border-gray-700 text-gray-500 hover:border-red-500/30 hover:text-red-400'
-                    }`}><ArrowDown className="w-6 h-6" /> DOWN</button>
+              <div className="hud-section-panel duel-panel-flush">
+                <div className="duel-pick-lbl">Your Prediction</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <button type="button" onClick={() => setDirection('UP')} className={`hud-dir-btn up${direction === 'UP' ? ' active' : ''}`}>
+                    <i className="fa-solid fa-arrow-trend-up" style={{ fontSize: 20, display: 'block', marginBottom: 4 }} />
+                    <div className="dir-lbl">UP</div>
+                  </button>
+                  <button type="button" onClick={() => setDirection('DOWN')} className={`hud-dir-btn dn${direction === 'DOWN' ? ' active' : ''}`}>
+                    <i className="fa-solid fa-arrow-trend-down" style={{ fontSize: 20, display: 'block', marginBottom: 4 }} />
+                    <div className="dir-lbl">DOWN</div>
+                  </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={startDuel}
+                  disabled={!direction}
+                  className="duel-challenge-btn"
+                >
+                  <i className="fa-solid fa-bolt" />
+                  Challenge {agent.name}
+                </button>
               </div>
 
-              {/* Challenge button */}
-              <button onClick={startDuel} disabled={!direction}
-                className="w-full py-4 rounded-xl font-black text-lg bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition flex items-center justify-center gap-3"
-              ><Swords className="w-5 h-5" /> Challenge {agent.name}</button>
-
-              {error && <div className="text-center text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg py-2 px-4">{error}</div>}
+              {error && (
+                <div className="hud-result-banner loss duel-error-banner">
+                  <i className="fa-solid fa-triangle-exclamation text-[12px]" style={{ color: 'var(--hud-red)' }} />
+                  <span className="duel-error-text">{error}</span>
+                </div>
+              )}
             </motion.div>
           )}
 
           {/* ════ SUBMITTING ══════════════════════════════════════════════════ */}
           {phase === 'submitting' && (
-            <motion.div key="submitting" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="flex flex-col items-center justify-center py-20 space-y-6">
+            <motion.div key="submitting" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="duel-phase-center">
               <div className="relative">
-                <div className="w-20 h-20 rounded-2xl flex items-center justify-center" style={{ background: `${agent.color}20`, border: `2px solid ${agent.color}50` }}>
-                  <Bot className="w-10 h-10" style={{ color: agent.color }} />
+                <div
+                  className={`hud-bot-av ${agentAvatarClass}`}
+                  style={{ width: 72, height: 72, fontSize: 32, clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' }}
+                >
+                  <i className="fa-solid fa-robot" />
                 </div>
-                <Loader2 className="w-6 h-6 text-blue-400 animate-spin absolute -top-2 -right-2" />
+                <i className="fa-solid fa-circle-notch fa-spin absolute -top-2 -right-2 text-[18px]" style={{ color: 'var(--hud-cyan)' }} />
               </div>
-              <div className="text-center space-y-1">
-                <div className="text-lg font-bold">{agent.name} is analyzing {asset}/USDT...</div>
-                <div className="text-xs text-gray-500">Fetching klines → RSI, SMA, Bollinger → {agent.strategy} logic</div>
+              <div>
+                <div className="duel-phase-title">
+                  {agent.name} is analyzing {asset}/USDT...
+                </div>
+                <div className="duel-phase-sub">
+                  Fetching klines → RSI, SMA, Bollinger → {agent.strategy} logic
+                </div>
               </div>
             </motion.div>
           )}
 
           {/* ════ LIVE ═════════════════════════════════════════════════════════ */}
           {phase === 'live' && duel && (
-            <motion.div key="live" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-              className="space-y-6">
-              {/* Timer */}
-              <div className="text-center space-y-2">
-                <motion.div className="text-5xl font-black tabular-nums text-white"
-                  key={countdown}
-                  initial={{ scale: 1.05 }} animate={{ scale: 1 }} transition={{ duration: 0.2 }}>
-                  {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, '0')}
-                </motion.div>
-                <div className="text-xs text-gray-500 flex items-center justify-center gap-2">
-                  <Timer className="w-3.5 h-3.5" /> Round in progress — {duel.asset}/USDT
+            <motion.div key="live" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="space-y-3">
+              <div className="hud-page-label" style={{ marginTop: 0 }}>
+                <i className="fa-solid fa-satellite-dish" />
+                Live Round
+              </div>
+
+              <div className="hud-section-panel duel-live-panel">
+                <DuelRoundTimer
+                  secondsLeft={countdown}
+                  totalSeconds={duel.duration}
+                  asset={duel.asset}
+                />
+
+                <div className="hud-vs-row">
+                  <div className="hud-vs-card you">
+                    <i className="fa-solid fa-circle-user" style={{ fontSize: 20, color: 'var(--hud-cyan)' }} />
+                    <div className="duel-vs-name">You</div>
+                    <div className={`duel-vs-pick ${duel.humanDirection === 'UP' ? 'up' : 'dn'}`}>
+                      <i className={`fa-solid fa-arrow-trend-${duel.humanDirection === 'UP' ? 'up' : 'down'}`} />
+                      {' '}{duel.humanDirection}
+                    </div>
+                  </div>
+                  <div className="hud-vs-mid">
+                    VS
+                    <div className="duel-vs-price">
+                      ${duel.startPrice.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="hud-vs-card ai">
+                    <i className="fa-solid fa-robot" style={{ fontSize: 20, color: agent.color }} />
+                    <div className="duel-vs-name" style={{ color: agent.color }}>{duel.agentName}</div>
+                    <div className={`duel-vs-pick ${duel.agentDirection === 'UP' ? 'up' : 'dn'}`}>
+                      <i className={`fa-solid fa-arrow-trend-${duel.agentDirection === 'UP' ? 'up' : 'down'}`} />
+                      {' '}{duel.agentDirection}
+                    </div>
+                    <div className="duel-vs-conf">
+                      conf: {(duel.agentConfidence / 10).toFixed(1)}%
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* VS Display */}
-              <div className="grid grid-cols-3 gap-4 items-center">
-                <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 p-4 text-center">
-                  <User className="w-6 h-6 text-blue-400 mx-auto mb-2" />
-                  <div className="text-sm font-bold text-white">You</div>
-                  <div className={`text-xl font-black mt-2 ${duel.humanDirection === 'UP' ? 'text-green-400' : 'text-red-400'}`}>
-                    {duel.humanDirection === 'UP' ? <ArrowUp className="w-5 h-5 inline" /> : <ArrowDown className="w-5 h-5 inline" />}
-                    {' '}{duel.humanDirection}
-                  </div>
-                </div>
-
-                <div className="text-center">
-                  <div className="text-3xl font-black text-gray-600">VS</div>
-                  <div className="text-[10px] text-gray-700 mt-1">${duel.startPrice.toLocaleString()}</div>
-                </div>
-
-                <div className="rounded-xl border p-4 text-center" style={{ borderColor: `${agent.color}30`, background: `${agent.color}05` }}>
-                  <Bot className="w-6 h-6 mx-auto mb-2" style={{ color: agent.color }} />
-                  <div className="text-sm font-bold" style={{ color: agent.color }}>{duel.agentName}</div>
-                  <div className={`text-xl font-black mt-2 ${duel.agentDirection === 'UP' ? 'text-green-400' : 'text-red-400'}`}>
-                    {duel.agentDirection === 'UP' ? <ArrowUp className="w-5 h-5 inline" /> : <ArrowDown className="w-5 h-5 inline" />}
-                    {' '}{duel.agentDirection}
-                  </div>
-                  <div className="text-[10px] text-gray-600 mt-1">conf: {(duel.agentConfidence / 10).toFixed(1)}%</div>
-                </div>
-              </div>
-
-              {/* Agent signals */}
-              <div className="rounded-xl border border-gray-800/50 bg-gray-900/30 p-4 space-y-2">
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">{duel.agentStrategy} Signals</div>
+              <div className="hud-signals-panel">
+                <div className="duel-signals-hdr">{duel.agentStrategy} Signals</div>
                 {duel.agentSignals.map((sig, i) => (
-                  <div key={i} className="flex items-center gap-2 text-[11px]">
-                    <span className={`w-3 h-3 rounded-full flex items-center justify-center text-[8px] shrink-0 ${sig.bullish ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                  <div key={i} className="hud-signal-row">
+                    <span className={`hud-signal-dot ${sig.bullish ? 'up' : 'dn'}`}>
                       {sig.bullish ? '↑' : '↓'}
                     </span>
-                    <span className="text-gray-400">{sig.label}</span>
+                    <span style={{ color: 'var(--hud-text)', fontFamily: 'var(--hud-font-mono)', fontSize: 10 }}>{sig.label}</span>
                   </div>
                 ))}
-                <div className="text-[10px] text-gray-600 font-mono mt-1">{duel.agentReasoning}</div>
-                {/* On-chain badge */}
-                {onChainTx ? (
-                  <a href={onChainTx.url} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 mt-1 text-[10px] text-green-400 hover:text-green-300">
-                    <CheckCircle2 className="w-2.5 h-2.5" /> On-chain: {onChainTx.hash.slice(0, 10)}...
-                  </a>
-                ) : (
-                  <span className="inline-flex items-center gap-1 mt-1 text-[10px] text-yellow-500">
-                    <Loader2 className="w-2.5 h-2.5 animate-spin" /> Recording on-chain...
-                  </span>
-                )}
+                <div className="duel-reasoning">
+                  &ldquo;{duel.agentReasoning}&rdquo;
+                </div>
+                <div className="duel-onchain-row">
+                  {onChainTx ? (
+                    <>
+                      <span className="hud-tx-badge">
+                        <i className="fa-solid fa-circle-check" />
+                        On-chain: {onChainTx.hash.slice(0, 10)}…
+                      </span>
+                      <a href={onChainTx.url} target="_blank" rel="noopener noreferrer" className="duel-explorer-link">
+                        <i className="fa-solid fa-arrow-up-right-from-square text-[8px]" />
+                        MantleScan
+                      </a>
+                    </>
+                  ) : (
+                    <span className="duel-onchain-pending">
+                      <i className="fa-solid fa-circle-notch fa-spin text-[9px]" />
+                      Recording on-chain...
+                    </span>
+                  )}
+                </div>
               </div>
             </motion.div>
           )}
 
           {/* ════ RESOLVING ═══════════════════════════════════════════════════ */}
           {phase === 'resolving' && (
-            <motion.div key="resolving" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="flex flex-col items-center justify-center py-20 space-y-4">
-              <Loader2 className="w-8 h-8 text-yellow-400 animate-spin" />
-              <div className="text-sm text-gray-400">Fetching final {asset}/USDT price from Bybit...</div>
+            <motion.div key="resolving" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="duel-phase-center">
+              <i className="fa-solid fa-circle-notch fa-spin text-3xl" style={{ color: 'var(--hud-gold)' }} />
+              <div className="duel-phase-sub">
+                Fetching final {asset}/USDT price from Bybit...
+              </div>
             </motion.div>
           )}
 
           {/* ════ RESULT ══════════════════════════════════════════════════════ */}
           {phase === 'result' && duel && (
-            <motion.div key="result" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-              className="space-y-6">
+            <motion.div key="result" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="space-y-3">
+              <div className="hud-page-label" style={{ marginTop: 0 }}>
+                <i className="fa-solid fa-flag-checkered" />
+                Result
+              </div>
 
-              <div className={`rounded-2xl border p-8 text-center ${
-                duel.winner === 'human' ? 'border-green-500/30 bg-green-500/5'
-                : duel.winner === 'agent' ? 'border-red-500/30 bg-red-500/5'
-                : 'border-yellow-500/30 bg-yellow-500/5'
-              }`}>
-                <Trophy className={`w-12 h-12 mx-auto mb-3 ${
-                  duel.winner === 'human' ? 'text-green-400' : duel.winner === 'agent' ? 'text-red-400' : 'text-yellow-400'
-                }`} />
-                <h2 className="text-2xl font-black">
-                  {duel.winner === 'human' && '🎉 You Won!'}
+              <div className={`hud-result-banner ${duel.winner === 'human' ? 'win' : duel.winner === 'agent' ? 'loss' : 'tie'}`}>
+                <i className={`fa-solid fa-trophy duel-result-trophy ${duel.winner === 'human' ? 'win' : duel.winner === 'agent' ? 'loss' : 'tie'}`} />
+                <div className={`duel-result-title ${duel.winner === 'human' ? 'win' : duel.winner === 'agent' ? 'loss' : 'tie'}`}>
+                  {duel.winner === 'human' && 'You Won!'}
                   {duel.winner === 'agent' && `${duel.agentName} Wins`}
                   {duel.winner === 'tie' && "It's a Tie!"}
-                </h2>
-                <div className="text-sm text-gray-400 mt-2">
+                </div>
+                <div className="duel-result-price">
                   {duel.asset}/USDT: ${duel.startPrice.toLocaleString()} → ${duel.endPrice?.toLocaleString()}
                   {duel.priceChange && ` (${parseFloat(duel.priceChange) >= 0 ? '+' : ''}${duel.priceChange}%)`}
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="rounded-xl border border-gray-800/50 p-4 text-center">
-                  <div className="text-[10px] text-gray-500 uppercase">Your Pick</div>
-                  <div className={`text-xl font-black ${duel.humanDirection === 'UP' ? 'text-green-400' : 'text-red-400'}`}>{duel.humanDirection}</div>
-                  <div className="text-[10px] mt-1">
-                    {((duel.endPrice ?? 0) > duel.startPrice ? 'UP' : 'DOWN') === duel.humanDirection
-                      ? <span className="text-green-400">✓ Correct</span>
-                      : <span className="text-red-400">✗ Wrong</span>}
+                <div className="duel-result-grid">
+                  <div className="hud-vs-card you" style={{ padding: 10 }}>
+                    <div className="duel-result-pick-lbl">Your Pick</div>
+                    <div className={`duel-result-pick-val ${duel.humanDirection === 'UP' ? 'up' : 'dn'}`}>
+                      {duel.humanDirection}
+                      {' '}
+                      {((duel.endPrice ?? 0) > duel.startPrice ? 'UP' : 'DOWN') === duel.humanDirection ? '✓' : '✗'}
+                    </div>
+                  </div>
+                  <div className="hud-vs-card ai" style={{ padding: 10 }}>
+                    <div className="duel-result-pick-lbl">{duel.agentName}</div>
+                    <div className={`duel-result-pick-val ${duel.agentDirection === 'UP' ? 'up' : 'dn'}`}>
+                      {duel.agentDirection}
+                      {' '}
+                      {((duel.endPrice ?? 0) > duel.startPrice ? 'UP' : 'DOWN') === duel.agentDirection ? '✓' : '✗'}
+                    </div>
                   </div>
                 </div>
-                <div className="rounded-xl border p-4 text-center" style={{ borderColor: `${agent.color}30` }}>
-                  <div className="text-[10px] text-gray-500 uppercase">{duel.agentName}</div>
-                  <div className={`text-xl font-black ${duel.agentDirection === 'UP' ? 'text-green-400' : 'text-red-400'}`}>{duel.agentDirection}</div>
-                  <div className="text-[10px] mt-1">
-                    {((duel.endPrice ?? 0) > duel.startPrice ? 'UP' : 'DOWN') === duel.agentDirection
-                      ? <span className="text-green-400">✓ Correct</span>
-                      : <span className="text-red-400">✗ Wrong</span>}
-                  </div>
+
+                <div className="duel-result-cta">
+                  <button type="button" onClick={reset} className="hud-btn hud-btn-outline" style={{ fontSize: 11 }}>
+                    <i className="fa-solid fa-rotate-right text-[10px]" />
+                    Play Again
+                  </button>
+                  {onChainTx && (
+                    <a href={onChainTx.url} target="_blank" rel="noopener noreferrer" className="hud-btn hud-btn-gold" style={{ fontSize: 11 }}>
+                      <i className="fa-solid fa-arrow-up-right-from-square text-[10px]" />
+                      MantleScan
+                    </a>
+                  )}
                 </div>
               </div>
 
-              <div className="flex gap-3">
-                <button onClick={reset}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-gray-700 text-gray-300 font-bold text-sm hover:bg-gray-800/50 transition">
-                  <RotateCcw className="w-4 h-4" /> Play Again
-                </button>
-                {onChainTx && (
-                  <a href={onChainTx.url} target="_blank" rel="noopener noreferrer"
-                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-blue-500/30 text-blue-400 font-bold text-sm hover:bg-blue-500/10 transition">
-                    <ExternalLink className="w-4 h-4" /> MantleScan
-                  </a>
-                )}
-              </div>
-
-              <p className="text-center text-[10px] text-gray-600">
+              <p className="duel-footer-note">
                 Agent analyzed live Bybit data using {duel.agentStrategy} strategy. Decision is tamper-proof and verifiable.
               </p>
             </motion.div>
           )}
         </AnimatePresence>
       </main>
+
+      <footer className="hud-footer">
+        <div className="hud-footer-inner">
+          <span>MindClash · Mantle Turing Test Hackathon 2026</span>
+        </div>
+      </footer>
     </div>
   );
 }
 
 export default function DuelPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#06060a] flex items-center justify-center text-gray-500">Loading…</div>}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--hud-bg)', color: 'var(--hud-text-dim)', fontFamily: 'var(--hud-font-mono)', fontSize: 11 }}>
+        <i className="fa-solid fa-circle-notch fa-spin mr-2" />
+        Loading…
+      </div>
+    }>
       <DuelPageInner />
     </Suspense>
   );
