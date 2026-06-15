@@ -4,6 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePlayer, getRank, xpProgressInLevel, RANKS } from '@/contexts/PlayerContext';
 import { useLeaderboard } from '@/contexts/LeaderboardContext';
+import { useMyAgent } from '@/hooks/useMyAgent';
+import { useAgentProfile } from '@/hooks/useAgentContract';
+import { AGENT_STRATEGIES } from '@/lib/agent-config';
 import {
   AVATAR_PRESETS,
   AVATAR_STORAGE_KEY,
@@ -34,6 +37,10 @@ function formatWalletAddress(address: string): string {
 export function UserProfile({ userAddress }: UserProfileProps) {
   const { stats } = usePlayer();
   const { yourRank, allTime } = useLeaderboard();
+  const { tokenId, registered, isLoading: isAgentLoading, canCreate } = useMyAgent();
+  const { profile: agentProfile, isLoading: isProfileLoading } = useAgentProfile(
+    tokenId > 0 ? BigInt(tokenId) : undefined,
+  );
   const rank = useMemo(() => getRank(stats.level), [stats.level]);
   const { current, needed, pct } = xpProgressInLevel(stats.xp);
   const totalResolved = stats.wins + stats.losses + stats.ties;
@@ -69,9 +76,19 @@ export function UserProfile({ userAddress }: UserProfileProps) {
   const unlockedCount = achievements.filter(a => a.unlocked).length;
 
   const myAgents = useMemo(
-    () => allTime.filter(e => e.isAI).slice(0, 2),
+    () => allTime.filter(e => e.isAI).slice(0, 3),
     [allTime],
   );
+
+  const agentStrategyId = registered?.strategy || 'momentum';
+  const agentStrategy = AGENT_STRATEGIES.find(s => s.id === agentStrategyId) ?? AGENT_STRATEGIES[0];
+  const agentName = registered?.name || agentProfile?.name || (tokenId > 0 ? `Agent #${tokenId}` : null);
+  const agentDecisions = agentProfile ? Number(agentProfile.totalDecisions) : 0;
+  const agentCorrect = agentProfile ? Number(agentProfile.correctDecisions) : 0;
+  const agentWinRate = agentDecisions > 0 ? Math.round((agentCorrect / agentDecisions) * 100) : 0;
+  const hasMintedAgent = tokenId > 0;
+  const EXPLORER = 'https://sepolia.mantlescan.xyz';
+  const AGENT_NFT = '0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837';
 
   const handleSaveAvatar = () => {
     if (pendingAvatarId === savedAvatarId) return;
@@ -301,12 +318,107 @@ export function UserProfile({ userAddress }: UserProfileProps) {
           </div>
         </div>
 
-        {/* AI Agents */}
+        {/* Your Agent NFT */}
         <div className="hud-section-panel">
           <div className="prof-sec-hd">
-            <i className="fa-solid fa-robot" style={{ color: 'var(--hud-purple)' }} />
-            AI Agents
+            <i className="fa-solid fa-robot" style={{ color: 'var(--hud-gold)' }} />
+            Your Agent NFT
+            {hasMintedAgent && (
+              <span className="prof-ach-count" style={{ color: 'var(--hud-green)' }}>Minted</span>
+            )}
           </div>
+
+          {isAgentLoading || (hasMintedAgent && isProfileLoading) ? (
+            <div className="prof-agent-loading">
+              <i className="fa-solid fa-circle-notch fa-spin" />
+              Loading your agent…
+            </div>
+          ) : hasMintedAgent ? (
+            <div className="prof-my-agent-card" style={{ borderColor: `${agentStrategy.color}55` }}>
+              <div className="prof-my-agent-top">
+                <div
+                  className="prof-my-agent-icon"
+                  style={{ background: `${agentStrategy.color}22`, color: agentStrategy.color }}
+                >
+                  <i className="fa-solid fa-robot" />
+                </div>
+                <div className="prof-my-agent-info">
+                  <div className="prof-my-agent-name">{agentName}</div>
+                  <div className="prof-my-agent-meta">
+                    NFT #{tokenId} · {agentStrategy.name} · v{registered?.version || agentProfile?.version?.toString() || '1.0.0'}
+                  </div>
+                </div>
+                <span className="prof-my-agent-badge">ERC-8004</span>
+              </div>
+
+              <div className="prof-agent-stats" style={{ marginTop: 10 }}>
+                <div>
+                  <span className="k">On-chain decisions</span>
+                  <div className="v cyan">{agentDecisions}</div>
+                </div>
+                <div>
+                  <span className="k">Win rate</span>
+                  <div className="v green">{agentDecisions > 0 ? `${agentWinRate}%` : '—'}</div>
+                </div>
+              </div>
+
+              <div className="prof-agent-explainer">
+                <i className="fa-solid fa-circle-info" />
+                <div>
+                  <strong>Your wallet controls this agent.</strong> The NFT is an on-chain identity — it has no private key.
+                  You sign transactions: record AI decisions, enter duels, and build a verifiable track record on Mantle.
+                </div>
+              </div>
+
+              <div className="prof-my-agent-actions">
+                <Link href="/agent-lab" className="hud-btn hud-btn-cyan" style={{ fontSize: 10 }}>
+                  <i className="fa-solid fa-brain" /> Record Decision
+                </Link>
+                <Link href={`/duel?agent=${tokenId}`} className="hud-btn hud-btn-red" style={{ fontSize: 10 }}>
+                  <i className="fa-solid fa-bolt" /> Duel
+                </Link>
+                <a
+                  href={`${EXPLORER}/token/${AGENT_NFT}?a=${tokenId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hud-btn hud-btn-ghost"
+                  style={{ fontSize: 10 }}
+                >
+                  <i className="fa-solid fa-arrow-up-right-from-square" /> MantleScan
+                </a>
+              </div>
+            </div>
+          ) : userAddress ? (
+            <div className="prof-no-agent">
+              <i className="fa-solid fa-wand-magic-sparkles" />
+              <div>
+                <div className="prof-no-agent-title">No agent minted yet</div>
+                <div className="prof-no-agent-sub">
+                  Create one ERC-8004 Agent NFT to record AI decisions on-chain and challenge bots in Duels.
+                </div>
+              </div>
+              <Link href="/create-agent" className="hud-btn hud-btn-gold">
+                <i className="fa-solid fa-plus" /> Create Agent
+              </Link>
+            </div>
+          ) : (
+            <div className="prof-no-agent">
+              <i className="fa-solid fa-wallet" />
+              <div className="prof-no-agent-sub">Connect wallet to see your minted agent.</div>
+            </div>
+          )}
+        </div>
+
+        {/* Arena AI competitors (system bots — not user-owned) */}
+        <div className="hud-section-panel">
+          <div className="prof-sec-hd">
+            <i className="fa-solid fa-users" style={{ color: 'var(--hud-purple)' }} />
+            Arena Competitors
+            <span className="prof-ach-count">System bots</span>
+          </div>
+          <p className="prof-arena-note">
+            These are protocol AI bots in Arena rounds — not your wallet&apos;s agents. Beat them to earn bonus PTS.
+          </p>
           <div className="prof-agents-grid">
             {myAgents.map(agent => (
               <div key={agent.id} className="prof-agent-card">
@@ -326,10 +438,12 @@ export function UserProfile({ userAddress }: UserProfileProps) {
                 </div>
               </div>
             ))}
-            <Link href="/create-agent" className="prof-agent-create">
-              <i className="fa-solid fa-plus" />
-              <div>Create Agent</div>
-            </Link>
+            {canCreate && (
+              <Link href="/create-agent" className="prof-agent-create">
+                <i className="fa-solid fa-plus" />
+                <div>Create Yours</div>
+              </Link>
+            )}
           </div>
         </div>
 

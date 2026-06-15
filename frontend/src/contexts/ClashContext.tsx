@@ -16,6 +16,16 @@ export const CLASH_ABI = [
     outputs: [{ name: '', type: 'uint256' }],
   },
   {
+    name: 'transfer',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+  {
     name: 'claimFaucet',
     type: 'function',
     stateMutability: 'nonpayable',
@@ -39,6 +49,7 @@ interface ClashContextType {
   clashPoints: number;
   addPoints: (amount: number, reason: string) => void;
   isLoading: boolean;
+  refetchBalance: () => void;
 }
 
 const ClashContext = createContext<ClashContextType | undefined>(undefined);
@@ -60,7 +71,7 @@ export function ClashProvider({ children }: { children: ReactNode }) {
   const [clashPoints, setClashPoints] = useState(0);
 
   // ── Real on-chain $CLASH balance ─────────────────────────────────────────────
-  const { data: rawBalance, isLoading: balanceLoading } = useReadContract({
+  const { data: rawBalance, isLoading: balanceLoading, refetch } = useReadContract({
     address: CLASH_TOKEN_ADDRESS,
     abi: CLASH_ABI,
     functionName: 'balanceOf',
@@ -99,7 +110,7 @@ export function ClashProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <ClashContext.Provider value={{ clashBalance, clashPoints, addPoints, isLoading }}>
+    <ClashContext.Provider value={{ clashBalance, clashPoints, addPoints, isLoading, refetchBalance: () => { refetch(); } }}>
       {children}
     </ClashContext.Provider>
   );

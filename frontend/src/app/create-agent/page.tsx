@@ -11,7 +11,7 @@ import { LiveTicker } from '@/components/dashboard/ActivityFeed';
 import { ClashBalance } from '@/components/ui/ClashBalance';
 import { ModeIndicator } from '@/components/ui/ModeIndicator';
 import { OnlineCounter } from '@/components/ui/OnlineCounter';
-import { useCreateAgent, useAgentProfile } from '@/hooks/useAgentContract';
+import { useCreateAgent, useAgentProfile, parseMintError } from '@/hooks/useAgentContract';
 import { useMyAgent } from '@/hooks/useMyAgent';
 import { AGENT_STRATEGIES, MAX_AGENTS_PER_WALLET } from '@/lib/agent-config';
 import { AGENT_NFT_ABI, CONTRACTS, loadDeployedAddresses } from '@/lib/contracts';
@@ -74,7 +74,7 @@ export default function CreateAgentPage() {
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
   const publicClient = usePublicClient();
-  const { createAgent, isLoading: isMinting, isSuccess, txHash } = useCreateAgent();
+  const { createAgent, isLoading: isMinting, isSuccess, isError: isMintError, error: mintErrorObj, txHash, reset: resetMint } = useCreateAgent();
   const { tokenId, registered, canCreate, remaining, limit, isLoading: isChecking, refetch, registerAgent } = useMyAgent();
   const { profile, refetch: refetchProfile } = useAgentProfile(tokenId > 0 ? BigInt(tokenId) : undefined);
 
@@ -83,6 +83,7 @@ export default function CreateAgentPage() {
   const [strategyId, setStrategyId] = useState<string>('momentum');
   const [version, setVersion] = useState('1.0.0');
   const [phase, setPhase] = useState<Phase>('design');
+  const [mintError, setMintError] = useState<string | null>(null);
   const [mintedTokenId, setMintedTokenId] = useState<number | null>(null);
   const registeredRef = useRef(false);
 
@@ -165,12 +166,49 @@ export default function CreateAgentPage() {
     || strategyId;
   const displayVersion = registered?.version || profile?.version?.toString() || '1.0.0';
 
-  const canMint = isConnected && canCreate && !isWrongNetwork && name.trim().length >= 3 && name.trim().length <= 32;
+  const canMint = isConnected && canCreate && !isWrongNetwork && name.trim().length >= 3 && name.trim().length <= 32 && !isChecking;
 
-  const handleMint = () => {
-    if (!canMint || !address) return;
-    if (!canCreate) {
-      toast.error(`Limit: ${MAX_AGENTS_PER_WALLET} agent per wallet`);
+  const checkExistingAgentOnChain = async (): Promise<number> => {
+    const nft = CONTRACTS.mantleSepolia.agentNFT;
+    if (!publicClient || !nft || !address) return 0;
+    try {
+      const raw = await publicClient.readContract({
+        address: nft as `0x${string}`,
+        abi: AGENT_NFT_ABI,
+        functionName: 'agentToToken',
+        args: [address as `0x${string}`],
+      });
+      return Number(raw ?? 0);
+    } catch {
+      return 0;
+    }
+  };
+
+  const handleMint = async () => {
+    if (!address) return;
+    setMintError(null);
+
+    if (!canCreate || hasAgent) {
+      const msg = tokenId > 0
+        ? `Wallet already owns Agent NFT #${tokenId}. One agent per wallet.`
+        : `Limit: ${MAX_AGENTS_PER_WALLET} agent per wallet`;
+      setMintError(msg);
+      toast.error(msg);
+      return;
+    }
+
+    if (!canMint) {
+      if (isWrongNetwork) toast.error('Switch to Mantle Sepolia');
+      else if (name.trim().length < 3) toast.error('Agent name must be at least 3 characters');
+      return;
+    }
+
+    const existingId = await checkExistingAgentOnChain();
+    if (existingId > 0) {
+      const msg = `This wallet already minted Agent NFT #${existingId}. Only one agent per wallet is allowed.`;
+      setMintError(msg);
+      toast.error(msg, { duration: 5000 });
+      await refetch();
       return;
     }
 
@@ -187,6 +225,16 @@ export default function CreateAgentPage() {
     setPhase('minting');
     createAgent(address, name.trim(), version, tokenURI);
   };
+
+  useEffect(() => {
+    if (!isMintError || !mintErrorObj) return;
+    const msg = parseMintError(mintErrorObj);
+    setMintError(msg);
+    setPhase('design');
+    toast.error(msg, { duration: 6000 });
+    resetMint();
+    refetch();
+  }, [isMintError, mintErrorObj, resetMint, refetch]);
 
   const handleSyncRegister = async () => {
     if (!address || tokenId <= 0) return;
@@ -296,6 +344,31 @@ export default function CreateAgentPage() {
                 Switch
               </button>
             )}
+          </motion.div>
+        )}
+
+        {isConnected && !isChecking && hasAgent && phase === 'design' && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="ca-already-banner">
+            <i className="fa-solid fa-triangle-exclamation" style={{ color: 'var(--hud-gold)', fontSize: 18 }} />
+            <div style={{ flex: 1 }}>
+              <div className="ca-already-title">Agent already minted</div>
+              <div className="ca-already-sub">
+                This wallet owns Agent NFT #{tokenId}. Each wallet can create only one agent — a second mint will fail on-chain.
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {mintError && phase === 'design' && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="ca-already-banner">
+            <i className="fa-solid fa-circle-xmark" style={{ color: 'var(--hud-red)', fontSize: 18 }} />
+            <div style={{ flex: 1 }}>
+              <div className="ca-already-title">Mint not available</div>
+              <div className="ca-already-sub">{mintError}</div>
+            </div>
+            <button type="button" onClick={() => setMintError(null)} className="hud-btn hud-btn-ghost" style={{ fontSize: 10 }}>
+              Dismiss
+            </button>
           </motion.div>
         )}
 
@@ -472,6 +545,13 @@ export default function CreateAgentPage() {
                   </p>
                 </div>
 
+                <div className="ca-limit-notice">
+                  <i className="fa-solid fa-circle-info" />
+                  <span>
+                    <strong>1 agent per wallet</strong> — we check on-chain before minting. If you already created an agent, the transaction will revert with &ldquo;Agent already exists&rdquo;.
+                  </span>
+                </div>
+
                 <div className="ca-field-lbl">Agent Name</div>
                 <input
                   type="text"
@@ -522,9 +602,12 @@ export default function CreateAgentPage() {
                   className="hud-btn hud-btn-gold ca-mint-btn"
                 >
                   <i className="fa-solid fa-sparkles" />
-                  Mint Agent NFT
+                  {hasAgent ? 'Agent Already Minted' : 'Mint Agent NFT'}
                 </button>
-                <p className="ca-mint-foot">Gas ~0.001 MNT · One agent per wallet forever</p>
+                <p className="ca-mint-foot">
+                  Gas ~0.001 MNT · One agent per wallet forever
+                  {!canCreate && isConnected && !isChecking && ' · This wallet cannot mint again'}
+                </p>
               </div>
             </motion.div>
           )}
@@ -535,9 +618,12 @@ export default function CreateAgentPage() {
               <div>
                 <div className="ca-phase-title">Minting {name.trim()}…</div>
                 <div className="ca-phase-sub">Confirm in wallet, then we register your agent</div>
+                <div className="ca-phase-sub" style={{ marginTop: 8, color: 'var(--hud-gold)', maxWidth: 320 }}>
+                  If this wallet already has an agent, the transaction will fail with &ldquo;Agent already exists&rdquo;.
+                </div>
               </div>
               {!isMinting && !isSuccess && (
-                <button type="button" onClick={() => setPhase('design')} className="hud-btn hud-btn-ghost">
+                <button type="button" onClick={() => { setPhase('design'); resetMint(); }} className="hud-btn hud-btn-ghost">
                   ← Back
                 </button>
               )}

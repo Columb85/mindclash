@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { providers, Contract } from 'ethers';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Navigation, View } from '@/components/layout/Navigation';
@@ -11,34 +10,38 @@ import { ClashBalance } from '@/components/ui/ClashBalance';
 import { ModeIndicator } from '@/components/ui/ModeIndicator';
 import { OnlineCounter } from '@/components/ui/OnlineCounter';
 
-const RPC_URL  = 'https://rpc.sepolia.mantle.xyz';
-const NFT_ADDR = '0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837';
-const EXPLORER = 'https://sepolia.mantlescan.xyz';
+const EXPLORER = process.env.NEXT_PUBLIC_EXPLORER_URL || 'https://sepolia.mantlescan.xyz';
+const NFT_ADDR = process.env.NEXT_PUBLIC_AGENT_NFT_ADDRESS || '0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837';
 
-const AGENT_NFT_ABI = [
-  'function getRecentDecisions(uint256 tokenId, uint256 limit) view returns (tuple(string direction, uint256 confidence, uint256 stake, uint256 timestamp, bool wasCorrect, int256 pnl, string reasoning, bytes32 decisionHash)[])',
-];
-
-const AGENTS = [
-  { tokenId: 5, name: 'AlphaPredict',   strategy: 'Momentum',       color: '#3b82f6', wallet: '0xD33744400Ed8211F7a5900926Df22CD8C2A2aD74' },
-  { tokenId: 6, name: 'MomentumMaster', strategy: 'Mean-Reversion', color: '#a855f7', wallet: '0x62Bc9Ab4dCdd43eC1f6FdA4F71220f6F85b80A59' },
-  { tokenId: 7, name: 'NeuralTrader',   strategy: 'Neural Net',     color: '#22c55e', wallet: '0x508EaDdf521Ae4887AecfeC2d7d7C43F94bd7c39' },
-];
+const AGENT_META: Record<number, { strategy: string; color: string }> = {
+  5: { strategy: 'Momentum',       color: '#3b82f6' },
+  6: { strategy: 'Mean-Reversion', color: '#a855f7' },
+  7: { strategy: 'Neural Net',     color: '#22c55e' },
+};
 
 interface AgentStats {
+  rank: number;
   tokenId: number;
   name: string;
+  version: string;
   strategy: string;
   color: string;
-  wallet: string;
+  address: string;
   totalDecisions: number;
   correctDecisions: number;
+  resolvedDecisions?: number;
+  pendingDecisions?: number;
   winRate: number;
+  winRateFormatted: string;
   totalPnL: number;
   isActive: boolean;
+  explorerUrl: string;
 }
 
 interface Decision {
+  tokenId: number;
+  name: string;
+  address: string;
   direction: string;
   confidence: number;
   stake: number;
@@ -46,58 +49,57 @@ interface Decision {
   wasCorrect: boolean;
   pnl: number;
   reasoning: string;
+  decisionHash?: string;
 }
-
-const getContract = () => {
-  const provider = new providers.JsonRpcProvider(RPC_URL);
-  return new Contract(NFT_ADDR, AGENT_NFT_ABI, provider);
-};
 
 export default function LeaderboardPage() {
   const [currentView, setCurrentView] = useState<View>('lobby');
   const [agents, setAgents] = useState<AgentStats[]>([]);
   const [decisions, setDecisions] = useState<Record<number, Decision[]>>({});
+  const [recentDecisions, setRecentDecisions] = useState<Decision[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
   const fetchAll = useCallback(async () => {
     try {
-      const allResults = await Promise.all(AGENTS.map(async (a) => {
-        try {
-          const c = getContract();
-          const raw = await c.getRecentDecisions(a.tokenId, 500);
-          const decs = raw.map((d: { direction: string; confidence: { toString: () => string }; stake: { toString: () => string }; timestamp: { toString: () => string }; wasCorrect: boolean; pnl: { toString: () => string }; reasoning: string }) => ({
-            direction: d.direction,
-            confidence: Number(d.confidence),
-            stake: Number(d.stake),
-            timestamp: Number(d.timestamp),
-            wasCorrect: d.wasCorrect,
-            pnl: Number(d.pnl),
-            reasoning: d.reasoning,
-          }));
-          const total = decs.length;
-          const correct = decs.filter((d: Decision) => d.wasCorrect).length;
-          const totalPnL = decs.reduce((s: number, d: Decision) => s + d.pnl, 0);
-          return {
-            agent: { ...a, totalDecisions: total, correctDecisions: correct, winRate: total > 0 ? (correct / total) * 100 : 0, totalPnL, isActive: total > 0 },
-            decisions: decs,
-          };
-        } catch {
-          return { agent: { ...a, totalDecisions: 0, correctDecisions: 0, winRate: 0, totalPnL: 0, isActive: false }, decisions: [] };
-        }
-      }));
+      const res = await fetch('/api/leaderboard?limit=10&includeDecisions=true&decisionLimit=30', { cache: 'no-store' });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Failed to load on-chain leaderboard');
+      }
 
-      const agentStats = allResults.map(r => r.agent);
-      agentStats.sort((a, b) => b.winRate - a.winRate || b.totalDecisions - a.totalDecisions);
+      const agentStats: AgentStats[] = (json.data ?? []).map((a: AgentStats) => {
+        const meta = AGENT_META[a.tokenId] ?? { strategy: 'AI Agent', color: '#00e5ff' };
+        return { ...a, strategy: meta.strategy, color: meta.color };
+      });
       setAgents(agentStats);
 
       const decMap: Record<number, Decision[]> = {};
-      allResults.forEach(r => { decMap[r.agent.tokenId] = r.decisions; });
+      const byAgent = json.decisionsByAgent ?? {};
+      Object.entries(byAgent).forEach(([tid, decs]) => {
+        const tokenId = Number(tid);
+        const meta = AGENT_META[tokenId];
+        decMap[tokenId] = (decs as Decision[]).map(d => ({
+          ...d,
+          tokenId,
+          name: agentStats.find(a => a.tokenId === tokenId)?.name ?? `Agent #${tokenId}`,
+          address: agentStats.find(a => a.tokenId === tokenId)?.address ?? '',
+          color: meta?.color,
+        })) as Decision[];
+      });
       setDecisions(decMap);
+
+      const recent = (json.recentDecisions ?? []).map((d: Decision) => ({
+        ...d,
+        color: AGENT_META[d.tokenId]?.color ?? '#00e5ff',
+      }));
+      setRecentDecisions(recent);
+      setError(null);
       setLastUpdate(new Date());
-    } catch {
-      // fetch error handled silently
+    } catch (e: any) {
+      setError(e.message || 'Failed to read AgentNFT contract');
     } finally {
       setLoading(false);
     }
@@ -112,19 +114,7 @@ export default function LeaderboardPage() {
 
   const totalDecisionsAll = agents.reduce((s, a) => s + a.totalDecisions, 0);
   const activeCount = agents.filter(a => a.totalDecisions > 0).length;
-
   const rankColors = ['var(--hud-gold)', '#e5e7eb', '#f97316'];
-
-  const mergedDecisions = (() => {
-    const all: (Decision & { tokenId: number; name: string; color: string })[] = [];
-    Object.entries(decisions).forEach(([tid, decs]) => {
-      const agent = AGENTS.find(a => a.tokenId === Number(tid));
-      if (!agent) return;
-      decs.forEach(d => all.push({ ...d, tokenId: agent.tokenId, name: agent.name, color: agent.color }));
-    });
-    all.sort((a, b) => b.timestamp - a.timestamp);
-    return all.slice(0, 30);
-  })();
 
   return (
     <div className="min-h-screen">
@@ -174,36 +164,51 @@ export default function LeaderboardPage() {
           <span className="hud-testnet-dot" />
           <span>
             <strong style={{ color: 'var(--hud-gold)' }}>Mantle Sepolia Testnet</strong>
-            {' '}— AI decisions recorded on-chain in real time. Win/Loss outcomes pending oracle resolution.
+            {' '}— live data from AgentNFT.getRecentDecisions() via server-side RPC.
           </span>
         </div>
+
+        {error && (
+          <div className="hud-testnet-banner" style={{ marginBottom: 12, borderColor: 'rgba(255,51,85,0.35)', background: 'rgba(255,51,85,0.08)' }}>
+            <i className="fa-solid fa-triangle-exclamation" style={{ color: 'var(--hud-red)' }} />
+            <span style={{ color: 'var(--hud-red)' }}>{error}</span>
+          </div>
+        )}
 
         <div className="ocl-stats">
           <div className="ocl-stat-card" style={{ borderColor: 'rgba(251,191,36,0.25)' }}>
             <div className="ocl-stat-val" style={{ color: 'var(--hud-gold)' }}>{totalDecisionsAll.toLocaleString()}</div>
-            <div className="ocl-stat-lbl">Total On-Chain Decisions</div>
+            <div className="ocl-stat-lbl">On-Chain Decisions (last 500/agent)</div>
           </div>
           <div className="ocl-stat-card" style={{ borderColor: 'rgba(168,85,247,0.25)' }}>
             <div className="ocl-stat-val" style={{ color: 'var(--hud-purple)' }}>{activeCount}/3</div>
-            <div className="ocl-stat-lbl">Agents Active On-Chain</div>
+            <div className="ocl-stat-lbl">Agents With On-Chain Txs</div>
           </div>
           <div className="ocl-stat-card" style={{ borderColor: 'rgba(0,229,255,0.25)' }}>
-            <div className="ocl-stat-val" style={{ color: 'var(--hud-cyan)' }}>{agents.filter(a => a.isActive).length}/3</div>
-            <div className="ocl-stat-lbl">Agents Online</div>
+            <div className="ocl-stat-val" style={{ color: 'var(--hud-cyan)' }}>
+              {agents.length > 0 ? `${agents.reduce((s, a) => s + a.correctDecisions, 0)}` : '0'}
+            </div>
+            <div className="ocl-stat-lbl">Resolved Correct (on-chain flag)</div>
           </div>
         </div>
 
         <div className="hud-section-panel" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--hud-border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--hud-border)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <i className="fa-solid fa-chart-bar" style={{ color: 'var(--hud-gold)' }} />
             <span className="ca-panel-title">Tournament Rankings</span>
-            <span style={{ fontSize: 9, color: 'var(--hud-text-3)', marginLeft: 4 }}>Data from AgentNFT contract</span>
+            <a href={`${EXPLORER}/address/${NFT_ADDR}`} target="_blank" rel="noopener noreferrer" className="ca-tx-link" style={{ fontSize: 9, marginLeft: 'auto' }}>
+              <i className="fa-solid fa-arrow-up-right-from-square" /> AgentNFT contract
+            </a>
           </div>
 
           {loading ? (
             <div className="ca-phase-center" style={{ padding: 40 }}>
               <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: 24, color: 'var(--hud-cyan)' }} />
               <div className="ca-phase-sub">Reading on-chain data…</div>
+            </div>
+          ) : agents.length === 0 ? (
+            <div className="ca-phase-center" style={{ padding: 40 }}>
+              <div className="ca-phase-sub">No on-chain agent data found.</div>
             </div>
           ) : (
             agents.map((agent, rank) => {
@@ -219,7 +224,7 @@ export default function LeaderboardPage() {
                       color: rankColors[rank] || 'var(--hud-text-dim)',
                     }}
                   >
-                    #{rank + 1}
+                    #{agent.rank}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -227,11 +232,11 @@ export default function LeaderboardPage() {
                       <span className="hud-badge" style={{ fontSize: 8, padding: '2px 6px', color: agent.color, borderColor: `${agent.color}44`, background: `${agent.color}11` }}>
                         {agent.strategy}
                       </span>
-                      <span style={{ fontSize: 9, color: 'var(--hud-text-3)' }}>NFT #{agent.tokenId}</span>
+                      <span style={{ fontSize: 9, color: 'var(--hud-text-3)' }}>NFT #{agent.tokenId} · {agent.version}</span>
                     </div>
-                    <a href={`${EXPLORER}/address/${agent.wallet}`} target="_blank" rel="noopener noreferrer" className="ca-tx-link" style={{ fontSize: 9, marginTop: 4, display: 'inline-flex', gap: 4 }}>
+                    <a href={agent.explorerUrl} target="_blank" rel="noopener noreferrer" className="ca-tx-link" style={{ fontSize: 9, marginTop: 4, display: 'inline-flex', gap: 4 }}>
                       <i className="fa-solid fa-arrow-up-right-from-square" />
-                      {agent.wallet.slice(0, 6)}…{agent.wallet.slice(-4)}
+                      {agent.address.slice(0, 6)}…{agent.address.slice(-4)}
                     </a>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
@@ -240,8 +245,12 @@ export default function LeaderboardPage() {
                       <div style={{ fontSize: 9, color: 'var(--hud-text-3)' }}>On-Chain Txs</div>
                     </div>
                     <div style={{ textAlign: 'center' }}>
-                      <span className="hud-badge hud-badge-gold" style={{ fontSize: 9 }}>Pending</span>
-                      <div style={{ fontSize: 9, color: 'var(--hud-text-3)', marginTop: 4 }}>Win Rate</div>
+                      <div style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 18, color: agent.winRate >= 50 ? 'var(--hud-green)' : 'var(--hud-gold)' }}>
+                        {agent.winRateFormatted}
+                      </div>
+                      <div style={{ fontSize: 9, color: 'var(--hud-text-3)', marginTop: 4 }}>
+                        Win Rate ({agent.correctDecisions}/{agent.totalDecisions})
+                      </div>
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 18, color: agent.totalPnL >= 0 ? 'var(--hud-green)' : 'var(--hud-red)' }}>
@@ -269,39 +278,43 @@ export default function LeaderboardPage() {
             <span className="ca-panel-title">Recent On-Chain Decisions</span>
           </div>
           <div style={{ maxHeight: 400, overflowY: 'auto' }}>
-            {mergedDecisions.length === 0 && !loading ? (
+            {recentDecisions.length === 0 && !loading ? (
               <div className="ca-phase-center" style={{ padding: 32 }}>
                 <div className="ca-phase-sub">No decisions recorded yet.</div>
               </div>
             ) : (
-              mergedDecisions.map((d, i) => (
-                <motion.div key={`${d.tokenId}-${d.timestamp}-${i}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }} className="ocl-timeline-row">
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: d.color, flexShrink: 0 }} />
-                  <span style={{ fontWeight: 600, color: d.color, minWidth: 90 }}>{d.name}</span>
-                  <span style={{ color: d.direction === 'UP' ? 'var(--hud-green)' : 'var(--hud-red)', fontWeight: 600, minWidth: 48 }}>
-                    <i className={`fa-solid fa-arrow-trend-${d.direction === 'UP' ? 'up' : 'down'}`} /> {d.direction}
-                  </span>
-                  <span style={{ color: 'var(--hud-text-3)', fontSize: 10, minWidth: 72 }}>{(d.confidence / 10).toFixed(1)}%</span>
-                  <span style={{ color: d.wasCorrect ? 'var(--hud-green)' : 'var(--hud-red)', fontWeight: 600, minWidth: 64 }}>
-                    {d.wasCorrect ? '✓ Correct' : '✗ Wrong'}
-                  </span>
-                  <span style={{ color: d.pnl >= 0 ? 'var(--hud-green)' : 'var(--hud-red)', minWidth: 56 }}>{d.pnl >= 0 ? '+' : ''}{d.pnl} bps</span>
-                  <span style={{ flex: 1, color: 'var(--hud-text-3)', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={d.reasoning}>{d.reasoning}</span>
-                  <span style={{ color: 'var(--hud-text-3)', fontSize: 9, flexShrink: 0 }}>
-                    {d.timestamp > 0 ? new Date(d.timestamp * 1000).toLocaleTimeString() : '—'}
-                  </span>
-                </motion.div>
-              ))
+              recentDecisions.map((d, i) => {
+                const color = AGENT_META[d.tokenId]?.color ?? '#00e5ff';
+                return (
+                  <motion.div key={`${d.tokenId}-${d.timestamp}-${i}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }} className="ocl-timeline-row">
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                    <span style={{ fontWeight: 600, color, minWidth: 90 }}>{d.name}</span>
+                    <span style={{ color: d.direction === 'UP' ? 'var(--hud-green)' : 'var(--hud-red)', fontWeight: 600, minWidth: 48 }}>
+                      <i className={`fa-solid fa-arrow-trend-${d.direction === 'UP' ? 'up' : 'down'}`} /> {d.direction}
+                    </span>
+                    <span style={{ color: 'var(--hud-text-3)', fontSize: 10, minWidth: 72 }}>{(d.confidence / 10).toFixed(1)}%</span>
+                    <span style={{ color: d.wasCorrect ? 'var(--hud-green)' : 'var(--hud-red)', fontWeight: 600, minWidth: 64 }}>
+                      {d.wasCorrect ? '✓ Correct' : '✗ Wrong'}
+                    </span>
+                    <span style={{ color: d.pnl >= 0 ? 'var(--hud-green)' : 'var(--hud-red)', minWidth: 56 }}>{d.pnl >= 0 ? '+' : ''}{d.pnl} bps</span>
+                    <span style={{ flex: 1, color: 'var(--hud-text-3)', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={d.reasoning}>{d.reasoning}</span>
+                    <span style={{ color: 'var(--hud-text-3)', fontSize: 9, flexShrink: 0 }}>
+                      {d.timestamp > 0 ? new Date(d.timestamp * 1000).toLocaleTimeString() : '—'}
+                    </span>
+                  </motion.div>
+                );
+              })
             )}
           </div>
         </div>
 
         <p style={{ textAlign: 'center', fontSize: 10, color: 'var(--hud-text-3)', marginTop: 16 }}>
-          All data read directly from{' '}
+          Data fetched server-side from{' '}
           <a href={`${EXPLORER}/address/${NFT_ADDR}`} target="_blank" rel="noopener noreferrer" className="ca-tx-link">
             AgentNFT on Mantle Sepolia
           </a>
-          {' '}— no backend required
+          {' '}· verify any tx on{' '}
+          <Link href="/verify" className="ca-tx-link">/verify</Link>
         </p>
       </main>
 

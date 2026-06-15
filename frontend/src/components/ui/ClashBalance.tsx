@@ -21,7 +21,7 @@ export function ClashBalance() {
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="hud-topbar-util flex items-center gap-2">
       {/* $CLASH — purple (matches mockup .balance-pill.clash) */}
       <div
         className="flex items-center gap-1.5 px-2.5 py-1"

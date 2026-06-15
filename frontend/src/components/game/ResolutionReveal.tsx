@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingUp, TrendingDown, X, Trophy, Frown, Bot, Zap, Loader2, CheckCircle2, Lock, Radio, Calculator, Coins } from 'lucide-react';
+import { TrendingUp, TrendingDown, X, Trophy, Frown, Bot, Zap, Loader2, CheckCircle2, Lock, Radio, Calculator, Coins, AlertCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Direction } from '@/types/room';
 import type { BotResult } from './GameRoundInterface';
@@ -19,6 +19,8 @@ interface ResolutionRevealProps {
   userStake?: number;
   botResults?: BotResult[];
   ptsGained?: number;
+  payoutTxHash?: string | null;
+  payoutStatus?: 'idle' | 'claiming' | 'paid' | 'failed';
 }
 
 const RESOLVE_STEPS = [
@@ -41,6 +43,8 @@ export function ResolutionReveal({
   userStake = 0,
   botResults = [],
   ptsGained = 0,
+  payoutTxHash = null,
+  payoutStatus = 'idle',
 }: ResolutionRevealProps) {
   const diff = endPrice - startPrice;
   const diffPct = startPrice ? (diff / startPrice) * 100 : 0;
@@ -328,6 +332,29 @@ export function ResolutionReveal({
                         <div className="text-lg font-black text-white leading-tight">
                           +{(userPayout - userStake).toFixed(2)} <span className="text-sm text-gray-400">{token}</span>
                         </div>
+                        {(payoutStatus === 'claiming' || payoutStatus === 'paid' || payoutStatus === 'failed') && (
+                          <div className="text-[10px] mt-1 flex items-center gap-1">
+                            {payoutStatus === 'claiming' && (
+                              <><Loader2 className="w-3 h-3 animate-spin text-cyan-400" /><span className="text-cyan-400">Sending on-chain payout…</span></>
+                            )}
+                            {payoutStatus === 'paid' && (
+                              <><CheckCircle2 className="w-3 h-3 text-green-400" /><span className="text-green-400">{userPayout.toFixed(0)} {token} received on-chain</span></>
+                            )}
+                            {payoutStatus === 'failed' && (
+                              <><AlertCircle className="w-3 h-3 text-red-400" /><span className="text-red-400">On-chain payout failed — contact support</span></>
+                            )}
+                          </div>
+                        )}
+                        {payoutTxHash && (
+                          <a
+                            href={`https://sepolia.mantlescan.xyz/tx/${payoutTxHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[9px] text-cyan-400 hover:underline mt-0.5 inline-block"
+                          >
+                            View payout tx ↗
+                          </a>
+                        )}
                       </div>
                       {ptsGained > 0 && (
                         <motion.div
@@ -347,6 +374,29 @@ export function ResolutionReveal({
                       <div>
                         <div className="text-[10px] font-semibold text-gray-400 uppercase">Tie — Refunded</div>
                         <div className="text-base font-bold text-white">{userStake.toFixed(2)} {token}</div>
+                        {(payoutStatus === 'claiming' || payoutStatus === 'paid' || payoutStatus === 'failed') && (
+                          <div className="text-[10px] mt-1 flex items-center gap-1">
+                            {payoutStatus === 'claiming' && (
+                              <><Loader2 className="w-3 h-3 animate-spin text-cyan-400" /><span className="text-cyan-400">Refunding on-chain…</span></>
+                            )}
+                            {payoutStatus === 'paid' && (
+                              <><CheckCircle2 className="w-3 h-3 text-green-400" /><span className="text-green-400">Refund received on-chain</span></>
+                            )}
+                            {payoutStatus === 'failed' && (
+                              <><AlertCircle className="w-3 h-3 text-red-400" /><span className="text-red-400">Refund failed</span></>
+                            )}
+                          </div>
+                        )}
+                        {payoutTxHash && (
+                          <a
+                            href={`https://sepolia.mantlescan.xyz/tx/${payoutTxHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[9px] text-cyan-400 hover:underline mt-0.5 inline-block"
+                          >
+                            View refund tx ↗
+                          </a>
+                        )}
                       </div>
                       {ptsGained > 0 && (
                         <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-500/20 border border-yellow-500/40">

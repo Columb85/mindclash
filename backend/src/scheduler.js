@@ -1,37 +1,23 @@
 /**
  * On-chain decision scheduler.
  *
- * Rotates through the 3 AI bots every INTERVAL_MS (default 5 min),
- * fetches live market data, generates a decision via neural-decision.js,
- * and writes it to the AgentNFT smart contract on Mantle Sepolia.
- *
- * Guards:
- *   - Skips if ENABLE_ONCHAIN_SIGNING !== 'true'
- *   - Skips if AGENT_PRIVATE_KEY is missing / placeholder
- *   - Individual failures do not crash the loop
+ * Rotates through the 3 AI bots every INTERVAL_MS (default 30 min),
+ * generates a decision via neural-decision.js, records on-chain,
+ * then resolves outcome after 61s using live Bybit price.
  */
 
-const { ethers } = require('ethers');
 const { generateDecision } = require('./neural-decision');
-
-const AGENT_NFT_ABI = [
-  'function recordDecision(uint256 tokenId, string direction, uint256 confidence, uint256 stake, string reasoning) returns (bytes32)',
-];
-
-const BOTS = [
-  { tokenId: 5, name: 'AlphaPredict',   strategy: 'momentum',       envKey: 'AGENT_ALPHA_PRIVATE_KEY' },
-  { tokenId: 6, name: 'MomentumMaster', strategy: 'mean-reversion', envKey: 'AGENT_MOMENTUM_PRIVATE_KEY' },
-  { tokenId: 7, name: 'NeuralTrader',   strategy: 'neural',         envKey: 'AGENT_NEURAL_PRIVATE_KEY' },
-];
+const { BOTS, isEnabled, recordWithDelayedResolve, resolvePendingBacklog } = require('./onchain-agent');
 
 const ASSETS = ['BTC', 'ETH', 'SOL', 'MNT'];
-const INTERVAL_MS = 30 * 60 * 1000; // 30 min fallback (rounds write on-chain per-prediction in real time)
+const INTERVAL_MS = 30 * 60 * 1000;
 
 let botIdx = 0;
 let timer  = null;
+let backlogTimer = null;
 
 async function tick() {
-  if (process.env.ENABLE_ONCHAIN_SIGNING !== 'true') return;
+  if (!isEnabled()) return;
 
   const bot   = BOTS[botIdx % BOTS.length];
   const pk = process.env[bot.envKey] || process.env.AGENT_PRIVATE_KEY;
@@ -50,14 +36,7 @@ async function tick() {
     const { direction, confidence, reasoning } = aiResult;
     const stake = 250;
 
-    const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
-    const wallet   = new ethers.Wallet(pk, provider);
-    const contract = new ethers.Contract(process.env.AGENT_NFT_ADDRESS, AGENT_NFT_ABI, wallet);
-
-    const tx      = await contract.recordDecision(bot.tokenId, direction, confidence, stake, reasoning);
-    const receipt = await tx.wait();
-
-    console.log(`[SCHEDULER] ${bot.name} #${bot.tokenId} → ${direction} ${asset} (conf ${confidence}) tx=${receipt.hash}`);
+    await recordWithDelayedResolve(bot, direction, asset, confidence, stake, reasoning);
   } catch (err) {
     console.error(`[SCHEDULER] ${bot.name} #${bot.tokenId} ${asset} failed:`, err.message);
   }
@@ -65,21 +44,23 @@ async function tick() {
 
 function start() {
   if (timer) return;
-  if (process.env.ENABLE_ONCHAIN_SIGNING !== 'true') {
+  if (!isEnabled()) {
     console.log('[SCHEDULER] Disabled (ENABLE_ONCHAIN_SIGNING != true)');
     return;
   }
-  console.log(`[SCHEDULER] Started — recording on-chain every ${INTERVAL_MS / 1000}s, rotating ${BOTS.length} bots`);
+  console.log(`[SCHEDULER] Started — record+resolve on-chain every ${INTERVAL_MS / 1000}s, rotating ${BOTS.length} bots`);
 
-  // First tick after 30s (let server finish startup)
   setTimeout(() => {
+    resolvePendingBacklog(3).catch(() => {});
     tick();
     timer = setInterval(tick, INTERVAL_MS);
+    backlogTimer = setInterval(() => resolvePendingBacklog(2).catch(() => {}), 10 * 60 * 1000);
   }, 30_000);
 }
 
 function stop() {
   if (timer) { clearInterval(timer); timer = null; }
+  if (backlogTimer) { clearInterval(backlogTimer); backlogTimer = null; }
 }
 
 module.exports = { start, stop };

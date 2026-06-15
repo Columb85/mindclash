@@ -25,15 +25,21 @@ export function OnlineCounter() {
     return () => clearInterval(interval);
   }, []);
 
-  if (count === null) return null;
+  const content = (
+    <div className="online-counter" aria-hidden={count === null}>
+      <span className="online-dot" />
+      <span className="online-num">{count ?? 0}</span>
+      <span className="online-lbl">online</span>
+    </div>
+  );
+
+  if (count === null) {
+    return <div className="hud-topbar-placeholder">{content}</div>;
+  }
 
   return (
     <Tooltip text="Active traders right now" position="bottom">
-      <div className="online-counter">
-        <span className="online-dot" />
-        <span className="online-num">{count}</span>
-        <span className="online-lbl">online</span>
-      </div>
+      {content}
     </Tooltip>
   );
 }

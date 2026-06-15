@@ -59,34 +59,52 @@ function getClient() {
   return createPublicClient({ transport: http(RPC_URL) });
 }
 
-// GET /api/leaderboard?sortBy=winRate|pnl|decisions&limit=10
+// GET /api/leaderboard?sortBy=winRate|pnl|decisions&limit=10&includeDecisions=true&decisionLimit=30
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const sortBy = searchParams.get('sortBy') || 'winRate';
   const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 50);
+  const includeDecisions = searchParams.get('includeDecisions') === 'true';
+  const decisionLimit = Math.min(parseInt(searchParams.get('decisionLimit') || '30'), 100);
 
   try {
     const client = getClient();
     const address = NFT_ADDRESS;
     const agents = [];
+    const decisionsByAgent: Record<number, any[]> = {};
 
     for (const tokenId of KNOWN_AGENT_IDS) {
       try {
         const [profile, owner, recentDecisions] = await Promise.all([
           client.readContract({ address, abi: AGENT_NFT_ABI_LB, functionName: 'agentProfiles', args: [BigInt(tokenId)] }),
           client.readContract({ address, abi: AGENT_NFT_ABI_LB, functionName: 'ownerOf', args: [BigInt(tokenId)] }),
-          // Workaround: recordDecision() never increments totalDecisions in agentProfiles
           client.readContract({ address, abi: AGENT_NFT_ABI_LB, functionName: 'getRecentDecisions', args: [BigInt(tokenId), BigInt(500)] })
             .catch(() => [] as any[]),
         ]);
 
-        const [name, version, createdAt, , , totalPnL, isActive] = Array.from(profile);
+        const [name, version, createdAt, , , , isActive] = Array.from(profile);
         if (!name || name === '') continue;
 
-        const allDecisions = Array.from(recentDecisions as any[]);
+        const allDecisions = Array.from(recentDecisions as any[]).map((d: any) => ({
+          direction: d.direction as string,
+          confidence: Number(d.confidence),
+          stake: Number(d.stake),
+          timestamp: Number(d.timestamp),
+          wasCorrect: Boolean(d.wasCorrect),
+          pnl: Number(d.pnl),
+          reasoning: d.reasoning as string,
+          decisionHash: d.decisionHash as string,
+        }));
+        const resolved = allDecisions.filter(d => d.wasCorrect || d.pnl !== 0);
+        const pending  = allDecisions.length - resolved.length;
         const total   = allDecisions.length;
-        const correct = allDecisions.filter((d: any) => d.wasCorrect).length;
-        const winRate = total > 0 ? (correct / total) * 100 : 0;
+        const correct = resolved.filter(d => d.wasCorrect).length;
+        const winRate = resolved.length > 0 ? (correct / resolved.length) * 100 : 0;
+        const totalPnL = resolved.reduce((s, d) => s + d.pnl, 0);
+
+        if (includeDecisions) {
+          decisionsByAgent[tokenId] = allDecisions;
+        }
 
         agents.push({
           tokenId,
@@ -94,8 +112,10 @@ export async function GET(request: Request) {
           version,
           address: owner,
           totalDecisions: total,
+          resolvedDecisions: resolved.length,
+          pendingDecisions: pending,
           correctDecisions: correct,
-          totalPnL: Number(totalPnL),
+          totalPnL,
           winRate,
           isActive,
           createdAt: Number(createdAt),
@@ -120,11 +140,26 @@ export async function GET(request: Request) {
       pnlFormatted: (a.totalPnL >= 0 ? '+' : '') + a.totalPnL.toFixed(2),
     }));
 
+    let recentDecisions: any[] | undefined;
+    if (includeDecisions) {
+      const merged: any[] = [];
+      for (const agent of agents) {
+        const decs = decisionsByAgent[agent.tokenId] || [];
+        decs.forEach(d => merged.push({ ...d, tokenId: agent.tokenId, name: agent.name, address: agent.address }));
+      }
+      merged.sort((a, b) => b.timestamp - a.timestamp);
+      recentDecisions = merged.slice(0, decisionLimit);
+    }
+
     return NextResponse.json({
       success: true,
       sortBy,
       total: agents.length,
       data: ranked,
+      decisionsByAgent: includeDecisions ? decisionsByAgent : undefined,
+      recentDecisions,
+      contract: NFT_ADDRESS,
+      explorerUrl: `${EXPLORER_URL}/address/${NFT_ADDRESS}`,
       timestamp: Date.now(),
     });
   } catch (error: any) {

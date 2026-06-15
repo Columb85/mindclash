@@ -5,39 +5,10 @@
  */
 
 const express = require('express');
-const { ethers } = require('ethers');
 const router  = express.Router();
 const { saveRound, getRecentRounds, updateAgentStatsFromRound,
         insertSignature, getSignaturesByRound, getSignaturesByPlayer } = require('../db');
-
-const AGENT_NFT_ABI = [
-  'function recordDecision(uint256 tokenId, string direction, uint256 confidence, uint256 stake, string reasoning) returns (bytes32)',
-];
-
-const BOT_MAP = {
-  '0xd33744400ed8211f7a5900926df22cd8c2a2ad74': { tokenId: 5, envKey: 'AGENT_ALPHA_PRIVATE_KEY' },
-  '0x62bc9ab4dcdd43ec1f6fda4f71220f6f85b80a59': { tokenId: 6, envKey: 'AGENT_MOMENTUM_PRIVATE_KEY' },
-  '0x508eaddf521ae4887aecfec2d7d7c43f94bd7c39': { tokenId: 7, envKey: 'AGENT_NEURAL_PRIVATE_KEY' },
-};
-
-async function recordBotDecisionOnChain(bot, direction, asset) {
-  if (process.env.ENABLE_ONCHAIN_SIGNING !== 'true') return;
-  const pk = process.env[bot.envKey] || process.env.AGENT_PRIVATE_KEY;
-  if (!pk || pk.includes('your_testnet')) return;
-  try {
-    const confidence = 700 + Math.floor(Math.random() * 200); // 700-900
-    const stake = 250;
-    const reasoning = `Round prediction: ${direction} on ${asset}`;
-    const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
-    const wallet   = new ethers.Wallet(pk, provider);
-    const contract = new ethers.Contract(process.env.AGENT_NFT_ADDRESS, AGENT_NFT_ABI, wallet);
-    const tx = await contract.recordDecision(bot.tokenId, direction, confidence, stake, reasoning);
-    const receipt = await tx.wait();
-    console.log(`[ROUND-CHAIN] Bot #${bot.tokenId} ${direction} ${asset} → ${receipt.hash}`);
-  } catch (err) {
-    console.error(`[ROUND-CHAIN] Bot #${bot.tokenId} failed:`, err.message);
-  }
-}
+const { BOT_MAP, recordAndResolveRound } = require('../onchain-agent');
 
 // ── POST /api/rounds/complete ─────────────────────────────────────────────────
 router.post('/complete', (req, res) => {
@@ -85,15 +56,17 @@ router.post('/complete', (req, res) => {
 
     res.json({ success: true, direction, botOnly, humanCount: humanPredictions.length, timestamp: Date.now() });
 
-    // Fire-and-forget: record bot predictions on-chain sequentially (avoids nonce conflicts)
-    (async () => {
-      for (const pred of predictions) {
-        const bot = BOT_MAP[pred.address?.toLowerCase()];
-        if (bot && pred.direction) {
-          await recordBotDecisionOnChain(bot, pred.direction, body.asset);
+    // Fire-and-forget: record + resolve bot predictions on-chain
+    if (direction) {
+      (async () => {
+        for (const pred of predictions) {
+          const bot = BOT_MAP[pred.address?.toLowerCase()];
+          if (bot && pred.direction) {
+            await recordAndResolveRound(bot, pred.direction, direction, body.asset);
+          }
         }
-      }
-    })().catch(() => {});
+      })().catch(() => {});
+    }
   } catch (err) {
     console.error('saveRound error:', err.message);
     res.status(500).json({ error: err.message });

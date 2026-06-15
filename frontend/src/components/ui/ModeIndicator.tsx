@@ -36,7 +36,7 @@ export function ModeIndicator() {
   if (mode === 'checking') {
     return (
       <div
-        className="flex items-center gap-1.5 px-2.5 py-1 animate-pulse"
+        className="hud-topbar-util flex items-center gap-1.5 px-2.5 py-1 animate-pulse"
         style={{ border: '1px solid var(--hud-border)', background: 'var(--hud-panel)', clipPath: 'polygon(4px 0,100% 0,calc(100% - 4px) 100%,0 100%)' }}
       >
         <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--hud-text-dim)' }} />
@@ -51,6 +51,7 @@ export function ModeIndicator() {
     return (
       <Tooltip text="Connected to Mantle Sepolia · Real on-chain transactions" position="bottom">
         <div
+          className="hud-topbar-util"
           style={{
             display: 'flex', alignItems: 'center', gap: 5,
             padding: '4px 10px',
@@ -70,7 +71,7 @@ export function ModeIndicator() {
   }
 
   return (
-    <div className="group relative">
+    <div className="hud-topbar-util group relative">
       <div
         className="cursor-help"
         style={{

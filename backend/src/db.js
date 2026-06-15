@@ -89,8 +89,17 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_signatures_round   ON prediction_signatures(round_id);
   CREATE INDEX IF NOT EXISTS idx_signatures_player  ON prediction_signatures(player);
 
-  CREATE UNIQUE INDEX IF NOT EXISTS idx_predictions_round_address
-    ON predictions(round_id, address);
+  CREATE TABLE IF NOT EXISTS payout_claims (
+    round_id   TEXT    NOT NULL,
+    player     TEXT    NOT NULL,
+    outcome    TEXT    NOT NULL,
+    amount     INTEGER NOT NULL,
+    tx_hash    TEXT    NOT NULL,
+    claimed_at INTEGER NOT NULL,
+    PRIMARY KEY (round_id, player)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_payout_claims_player ON payout_claims(player);
 
   CREATE TABLE IF NOT EXISTS user_agents (
     creator_address TEXT PRIMARY KEY,
@@ -104,6 +113,22 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_user_agents_token ON user_agents(token_id);
 `);
+
+// Safe migration: dedupe predictions then add unique index
+(() => {
+  const hasIndex = db.prepare(
+    "SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_predictions_round_address'"
+  ).get();
+  if (!hasIndex) {
+    db.exec(`
+      DELETE FROM predictions
+      WHERE id NOT IN (
+        SELECT MAX(id) FROM predictions GROUP BY round_id, address
+      );
+      CREATE UNIQUE INDEX idx_predictions_round_address ON predictions(round_id, address);
+    `);
+  }
+})();
 
 // ── Seed / boost agent stats for demo quality ──────────────────────────────
 // Adds a historical baseline so that stats look realistic from day 1.
@@ -323,6 +348,17 @@ const getSignaturesByPlayer = db.prepare(
   'SELECT * FROM prediction_signatures WHERE player = ? ORDER BY created_at DESC LIMIT 50'
 );
 
+// ── Payout claims ───────────────────────────────────────────────────────────
+
+const getPayoutClaim = db.prepare(
+  'SELECT * FROM payout_claims WHERE round_id = ? AND player = ?'
+);
+
+const insertPayoutClaim = db.prepare(`
+  INSERT OR IGNORE INTO payout_claims (round_id, player, outcome, amount, tx_hash, claimed_at)
+  VALUES (@round_id, @player, @outcome, @amount, @tx_hash, @claimed_at)
+`);
+
 // ── Recent wins helper ──────────────────────────────────────────────────────
 
 const getRecentWins = db.prepare(`
@@ -394,4 +430,7 @@ module.exports = {
   insertSignature,
   getSignaturesByRound,
   getSignaturesByPlayer,
+  // payouts
+  getPayoutClaim,
+  insertPayoutClaim,
 };

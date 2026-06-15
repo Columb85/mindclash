@@ -16,6 +16,8 @@ import { ResolutionReveal } from './ResolutionReveal';
 import { PriceChart } from './PriceChart';
 import { AchievementToast } from '@/components/player/AchievementToast';
 import { useSignPrediction, SignedCommitment } from '@/hooks/useSignPrediction';
+import { useStakeClash } from '@/hooks/useStakeClash';
+import { claimPayout } from '@/hooks/useClaimPayout';
 import { useActivity } from '@/contexts/ActivityContext';
 import { useActiveRound } from '@/contexts/ActiveRoundContext';
 import {
@@ -35,7 +37,7 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
   const { getRoom, predict, protocolFee } = useRooms();
   const { sendSystem, getMessages, sendMessage } = useChat();
   const { stats, recordPrediction, recordResult } = usePlayer();
-  const { addPoints, clashBalance } = useClash();
+  const { addPoints, clashBalance, refetchBalance } = useClash();
   const { push: pushActivity } = useActivity();
   const { pinRoom } = useActiveRound();
   const [, forceTick] = useState(0);
@@ -46,9 +48,12 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
   const [botResults, setBotResults] = useState<BotResult[]>([]);
   const [ptsGained, setPtsGained] = useState(0);
   const [signedCommitment, setSignedCommitment] = useState<SignedCommitment | null>(null);
+  const [payoutTxHash, setPayoutTxHash] = useState<string | null>(null);
+  const [payoutStatus, setPayoutStatus] = useState<'idle' | 'claiming' | 'paid' | 'failed'>('idle');
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const resolvedRef = useRef(false);
   const { signPrediction, isSigning } = useSignPrediction();
+  const { stakeClash, isStaking } = useStakeClash();
 
   useEffect(() => {
     const i = setInterval(() => forceTick(n => n + 1), 1000);
@@ -63,6 +68,8 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
     setBotResults([]);
     setPtsGained(0);
     setSignedCommitment(null);
+    setPayoutTxHash(null);
+    setPayoutStatus('idle');
   }, [roomId]);
 
   // Resolution logic
@@ -90,6 +97,36 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
         recordResult({ outcome, stake, payout, botsBeaten }).forEach(ach =>
           toast.custom(() => <AchievementToast achievement={ach} />, { duration: 5000 }),
         );
+
+        if (address && (outcome === 'win' || outcome === 'tie') && payout > 0) {
+          setPayoutStatus('claiming');
+          toast.loading(`Sending ${Math.floor(payout)} CLASH payout…`, { id: 'payout-tx' });
+          claimPayout({
+            roundId: room.id,
+            player: address,
+            outcome,
+            stake,
+            payout,
+            winner: resolution.winner,
+            upPool: room.upPool,
+            downPool: room.downPool,
+          }).then(result => {
+            if (result.ok && result.txHash) {
+              setPayoutTxHash(result.txHash);
+              setPayoutStatus('paid');
+              refetchBalance();
+              toast.success(
+                result.alreadyClaimed
+                  ? `${Math.floor(payout)} CLASH already paid`
+                  : `${Math.floor(payout)} CLASH received`,
+                { id: 'payout-tx', duration: 4000 },
+              );
+            } else {
+              setPayoutStatus('failed');
+              toast.error(result.error || 'Payout failed', { id: 'payout-tx' });
+            }
+          });
+        }
       }
 
       setShowReveal(true);
@@ -166,15 +203,38 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
   }
 
   const canPredict = room.status === 'open';
-  // Warn (but don't block) if wallet connected and balance insufficient
-  const insufficientBalance = !!address && clashBalance > 0 && stake > clashBalance;
+  const insufficientBalance = !!address && stake > clashBalance;
+  const needsWallet = !address;
+  const isBusy = isStaking || isSigning;
   const userRank = getRank(stats.level);
   const upPct = totalPool > 0 ? (room.upPool / totalPool) * 100 : 50;
   const downPct = totalPool > 0 ? (room.downPool / totalPool) * 100 : 50;
 
-  const handlePredict = (dir: Direction) => {
+  const handlePredict = async (dir: Direction) => {
     if (!canPredict) { toast.error('Predictions closed'); return; }
-    const userAddr = address || `0xDemo${Math.floor(Math.random() * 10000)}`;
+    if (!address) {
+      toast.error('Connect wallet to stake $CLASH');
+      return;
+    }
+    if (stake > clashBalance) {
+      toast.error(`Insufficient balance (${clashBalance} CLASH)`);
+      return;
+    }
+    if (stake < room.minStake || stake > room.maxStake) {
+      toast.error(`Stake must be ${room.minStake}–${room.maxStake} CLASH`);
+      return;
+    }
+
+    toast.loading(`Staking ${stake} CLASH…`, { id: 'stake-tx' });
+    const { ok, hash } = await stakeClash(stake);
+    if (!ok) {
+      toast.error('Stake transfer rejected or failed', { id: 'stake-tx' });
+      return;
+    }
+    toast.success(`${stake} CLASH → Treasury`, { id: 'stake-tx', duration: 3000 });
+    refetchBalance();
+
+    const userAddr = address;
     const res = predict(room.id, dir, stake, userAddr);
     if (res.ok) {
       pinRoom(room.id);
@@ -198,21 +258,22 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
         prediction: { direction: dir, amount: stake },
       });
 
-      // Sign commitment on-chain (EIP-712, no gas) if wallet connected
-      if (address) {
-        signPrediction({
-          roundId:   room.id,
-          asset:     room.asset,
-          direction: dir,
-          amount:    stake,
-          timestamp: Math.floor(Date.now() / 1000),
-          player:    address,
-        }).then(signed => {
-          if (signed) {
-            setSignedCommitment(signed);
-            toast.success('Prediction signed on-chain ✓', { icon: '🔏', duration: 3000 });
-          }
-        });
+      // Sign commitment on-chain (EIP-712) after CLASH transfer
+      signPrediction({
+        roundId:   room.id,
+        asset:     room.asset,
+        direction: dir,
+        amount:    stake,
+        timestamp: Math.floor(Date.now() / 1000),
+        player:    address,
+      }).then(signed => {
+        if (signed) {
+          setSignedCommitment(signed);
+          toast.success('Prediction signed on-chain ✓', { icon: '🔏', duration: 3000 });
+        }
+      });
+      if (hash) {
+        toast(`Tx: ${hash.slice(0, 10)}…`, { icon: '⛓', duration: 4000 });
       }
     } else {
       toast.error(res.error || 'Failed');
@@ -519,6 +580,13 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
                 </div>
               </div>
 
+              {address && (
+                <div style={{ padding: '6px 12px', background: 'rgba(0,229,255,0.06)', borderBottom: '1px solid rgba(0,229,255,0.15)', fontSize: '9px', color: 'var(--hud-text-dim)' }}>
+                  <i className="fa-solid fa-circle-info" style={{ marginRight: 4 }} />
+                  Stake is transferred on-chain to Treasury before your prediction is recorded.
+                </div>
+              )}
+
               {/* Insufficient balance warning */}
               {insufficientBalance && (
                 <div style={{ padding: '6px 12px', background: 'rgba(255,51,85,0.08)', borderBottom: '1px solid rgba(255,51,85,0.2)', fontSize: '10px', color: 'var(--hud-red)', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -531,10 +599,10 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
                 <button
                   className={`gr-btn-pred ${side === 'UP' ? 'up' : 'dn'}`}
                   onClick={() => handlePredict(side)}
-                  disabled={insufficientBalance}
+                  disabled={insufficientBalance || needsWallet || isBusy}
                 >
-                  <i className={`fa-solid ${side === 'UP' ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down'}`} />
-                  {insufficientBalance ? 'INSUFFICIENT BALANCE' : `PREDICT ${side}`}
+                  <i className={`fa-solid ${isBusy ? 'fa-circle-notch fa-spin' : side === 'UP' ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down'}`} />
+                  {isStaking ? 'CONFIRM STAKE…' : isSigning ? 'SIGNING…' : needsWallet ? 'CONNECT WALLET' : insufficientBalance ? 'INSUFFICIENT BALANCE' : `PREDICT ${side}`}
                 </button>
               </div>
             </>
@@ -622,6 +690,8 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
         userStake={userTotalStake}
         botResults={botResults}
         ptsGained={ptsGained}
+        payoutTxHash={payoutTxHash}
+        payoutStatus={payoutStatus}
       />
     </div>
   );

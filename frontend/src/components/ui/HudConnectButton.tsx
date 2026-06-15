@@ -7,11 +7,38 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
  * Matches the .tb-wallet style from the approved mockup:
  * cyan border, angled clip-path, Barlow Condensed font.
  */
+const CONNECT_BTN_STYLE: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 5,
+  padding: '5px 12px',
+  fontFamily: 'var(--hud-font-head)',
+  fontSize: 10,
+  fontWeight: 600,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  background: 'transparent',
+  border: '1px solid var(--hud-cyan, #00e5ff)',
+  color: 'var(--hud-cyan, #00e5ff)',
+  clipPath: 'polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))',
+};
+
+function ConnectPlaceholder() {
+  return (
+    <div className="hud-topbar-placeholder" aria-hidden>
+      <button type="button" tabIndex={-1} style={CONNECT_BTN_STYLE} disabled>
+        <i className="fa-solid fa-wallet text-[9px]" />
+        Connect
+      </button>
+    </div>
+  );
+}
+
 export function HudConnectButton() {
   return (
     <ConnectButton.Custom>
       {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
-        if (!mounted) return null;
+        if (!mounted) return <ConnectPlaceholder />;
 
         const connected = account && chain;
 
@@ -19,23 +46,7 @@ export function HudConnectButton() {
           return (
             <button
               onClick={openConnectModal}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                padding: '5px 12px',
-                fontFamily: 'var(--hud-font-head)',
-                fontSize: 10,
-                fontWeight: 600,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                background: 'transparent',
-                border: '1px solid var(--hud-cyan, #00e5ff)',
-                color: 'var(--hud-cyan, #00e5ff)',
-                cursor: 'pointer',
-                clipPath: 'polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))',
-                transition: 'background 0.15s',
-              }}
+              style={{ ...CONNECT_BTN_STYLE, cursor: 'pointer', transition: 'background 0.15s' }}
               onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,229,255,0.08)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
