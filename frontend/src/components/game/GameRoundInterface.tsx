@@ -169,11 +169,17 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
   const priceChangePct = anchorPrice ? (priceDelta / anchorPrice) * 100 : 0;
 
   const computePayoutMultiplier = (winningPool: number, losingPool: number) => {
-    if (winningPool <= 0) return 0;
+    if (winningPool <= 0) return 1;
     return 1 + (losingPool * (1 - protocolFee)) / winningPool;
   };
   const upMultiplier = computePayoutMultiplier(room.upPool, room.downPool);
   const downMultiplier = computePayoutMultiplier(room.downPool, room.upPool);
+
+  const stakeAmount = Number.isFinite(stake) && stake > 0 ? stake : 0;
+  const previewUpMultiplier = computePayoutMultiplier(room.upPool + stakeAmount, room.downPool);
+  const previewDownMultiplier = computePayoutMultiplier(room.downPool + stakeAmount, room.upPool);
+  const activePreviewMultiplier = side === 'UP' ? previewUpMultiplier : previewDownMultiplier;
+  const potentialPayout = stakeAmount * activePreviewMultiplier;
 
   const myAddr = address?.toLowerCase();
   const userPredictions = myAddr ? room.predictions.filter(p => p.address.toLowerCase() === myAddr) : [];
@@ -317,9 +323,6 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
   const entryLabel = room.startPrice != null
     ? `Entry: $${room.startPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
     : 'Entry: —';
-
-  // Potential payout
-  const potentialPayout = stake * (side === 'UP' ? upMultiplier : downMultiplier);
 
   return (
     <div className="game-wrap">
@@ -525,13 +528,13 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
                   <div className={`gr-sd-card u ${side === 'UP' ? 'sel' : ''}`} onClick={() => setSide('UP')}>
                     <div className="gr-sd-arr">▲</div>
                     <div className="gr-sd-name">UP</div>
-                    <div className="gr-sd-mult">{upMultiplier.toFixed(2)}x</div>
+                    <div className="gr-sd-mult">{previewUpMultiplier.toFixed(2)}x</div>
                     <div className="gr-sd-meta">{room.upPool.toLocaleString()} {room.token}</div>
                   </div>
                   <div className={`gr-sd-card d ${side === 'DOWN' ? 'sel' : ''}`} onClick={() => setSide('DOWN')}>
                     <div className="gr-sd-arr">▼</div>
                     <div className="gr-sd-name">DOWN</div>
-                    <div className="gr-sd-mult">{downMultiplier.toFixed(2)}x</div>
+                    <div className="gr-sd-mult">{previewDownMultiplier.toFixed(2)}x</div>
                     <div className="gr-sd-meta">{room.downPool.toLocaleString()} {room.token}</div>
                   </div>
                 </div>
@@ -572,7 +575,7 @@ export function GameRoundInterface({ roomId }: GameRoundInterfaceProps) {
                 </div>
                 <div className="gr-po-r">
                   <span className="gr-po-k">Multiplier</span>
-                  <span className="gr-po-v">{(side === 'UP' ? upMultiplier : downMultiplier).toFixed(2)}x</span>
+                  <span className="gr-po-v">{activePreviewMultiplier.toFixed(2)}x</span>
                 </div>
                 <div className="gr-po-r gr-po-div">
                   <span className="gr-po-k">Potential Payout</span>
