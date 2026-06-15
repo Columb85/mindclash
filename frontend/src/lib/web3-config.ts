@@ -137,28 +137,33 @@ export const SUPPORTED_CHAINS = [mantleSepolia] as const;
 
 // ─── Wagmi v2 config ──────────────────────────────────────────────────────────
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'b5ebf3f65b29b6b6ed6ff4e2ba4ebb68';
+const isDev = process.env.NODE_ENV === 'development';
 
 const connectors = connectorsForWallets(
   [
     {
       groupName: 'Popular',
-      wallets: [
-        injectedWallet,
-        rabbyWallet,
-        metaMaskWallet,
-        coinbaseWallet,
-        walletConnectWallet,
-      ],
+      wallets: isDev
+        ? [injectedWallet, metaMaskWallet]
+        : [
+            injectedWallet,
+            rabbyWallet,
+            metaMaskWallet,
+            coinbaseWallet,
+            walletConnectWallet,
+          ],
     },
-    {
-      groupName: 'More',
-      wallets: [
-        trustWallet,
-        braveWallet,
-        okxWallet,
-        rainbowWallet,
-      ],
-    },
+    ...(isDev
+      ? []
+      : [{
+          groupName: 'More',
+          wallets: [
+            trustWallet,
+            braveWallet,
+            okxWallet,
+            rainbowWallet,
+          ],
+        }]),
   ],
   { appName: 'MindClash', projectId }
 );

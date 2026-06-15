@@ -54,7 +54,7 @@ type PendingDecision = {
 function formatTime(ts: number): string {
   if (!ts) return '—';
   const d = new Date(ts * 1000);
-  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 function shortHash(hash: string): string {

@@ -62,6 +62,26 @@ const PREDICTION_WINDOW = 120; // seconds players have to predict before round g
 const PROTOCOL_FEE      = 0.04; // 4% fee on losing pool
 const MIN_STAKE         = 10;
 const MAX_STAKE         = 10_000;
+const ROOMS_STORAGE_KEY = 'mindclash_rooms_state';
+
+function loadPersistedRooms(): Room[] | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(ROOMS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Room[];
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function savePersistedRooms(rooms: Room[]) {
+  if (typeof window === 'undefined' || rooms.length === 0) return;
+  try {
+    sessionStorage.setItem(ROOMS_STORAGE_KEY, JSON.stringify(rooms));
+  } catch { /* quota / private mode */ }
+}
 
 // ── Bot profiles — mirror main.py AGENT_STRATEGIES ────────────────────────────
 export interface BotProfile {
@@ -137,6 +157,7 @@ const SEED_PRICES: Record<string, number> = {
 
 interface RoomsContextType {
   rooms: Room[];
+  roomsReady: boolean;
   prices: Record<string, number>;
   predict: (roomId: string, direction: Direction, amount: number, address: string) => { ok: boolean; error?: string };
   getRoom: (id: string) => Room | undefined;
@@ -209,6 +230,7 @@ function buildBotPredictions(track: Track, spawnPrice: number): Prediction[] {
 
 export function RoomsProvider({ children }: { children: ReactNode }) {
   const [rooms, setRooms]   = useState<Room[]>([]);
+  const [roomsReady, setRoomsReady] = useState(false);
   const [prices, setPrices] = useState<Record<string, number>>({ ...SEED_PRICES });
   const pricesRef           = useRef<Record<string, number>>({ ...SEED_PRICES });
 
@@ -237,14 +259,25 @@ export function RoomsProvider({ children }: { children: ReactNode }) {
     return () => unsubs.forEach(u => u());
   }, []);
 
-  // ── Seed initial rooms once prices are ready ─────────────────────────────────
+  // ── Restore rooms from session or seed once ────────────────────────────────
   useEffect(() => {
-    const nowSec = Math.floor(Date.now() / 1000);
-    const initial: Room[] = TRACKS.map((track, i) =>
-      spawnRoom(track, nowSec + (i % 2 === 0 ? 0 : -10), pricesRef.current[track.asset] ?? SEED_PRICES[track.asset])
-    );
-    setRooms(initial);
-  }, []); // run once on mount
+    const persisted = loadPersistedRooms();
+    if (persisted) {
+      setRooms(persisted);
+    } else {
+      const nowSec = Math.floor(Date.now() / 1000);
+      setRooms(TRACKS.map((track, i) =>
+        spawnRoom(track, nowSec + (i % 2 === 0 ? 0 : -10), pricesRef.current[track.asset] ?? SEED_PRICES[track.asset])
+      ));
+    }
+    setRoomsReady(true);
+  }, []);
+
+  // ── Persist rooms so reload keeps the same round IDs ───────────────────────
+  useEffect(() => {
+    if (!roomsReady || rooms.length === 0) return;
+    savePersistedRooms(rooms);
+  }, [rooms, roomsReady]);
 
   // ── Tick: advance room statuses using real prices ────────────────────────────
   useEffect(() => {
@@ -340,7 +373,7 @@ export function RoomsProvider({ children }: { children: ReactNode }) {
 
   return (
     <RoomsContext.Provider
-      value={{ rooms, prices, predict, getRoom, protocolFee: PROTOCOL_FEE, predictionWindow: PREDICTION_WINDOW }}
+      value={{ rooms, roomsReady, prices, predict, getRoom, protocolFee: PROTOCOL_FEE, predictionWindow: PREDICTION_WINDOW }}
     >
       {children}
     </RoomsContext.Provider>

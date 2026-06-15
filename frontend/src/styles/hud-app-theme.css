@@ -162,34 +162,33 @@ body.hud-app .hud-topbar-inner {
   margin: 0 auto;
   padding: 0 var(--shell-pad);
   height: 52px;
-  display: grid;
-  /* Equal side columns keep nav at true header center without absolute overlap */
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
 }
 
 body.hud-app .hud-logo-text {
-  grid-column: 1;
-  justify-self: start;
+  position: relative;
   flex-shrink: 0;
   min-width: 0;
   z-index: 2;
 }
 
-/* Nav in true center column — logo/right stay in side columns */
+/* Desktop nav — fixed at 30% from left; right strip stays pinned, nav yields space */
 body.hud-app .hud-topbar-nav-center {
-  grid-column: 2;
-  justify-self: center;
-  position: relative;
+  position: absolute;
+  left: 30%;
+  top: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 4px;
   z-index: 1;
   min-width: 0;
-  max-width: min(100%, calc(100vw - 280px));
-  width: auto;
+  max-width: calc(70% - 200px);
+  overflow: hidden;
   pointer-events: none;
 }
 body.hud-app .hud-topbar-nav-center > * {
@@ -197,11 +196,14 @@ body.hud-app .hud-topbar-nav-center > * {
 }
 @media (max-width: 900px) {
   body.hud-app .hud-topbar-nav-center {
-    grid-column: 3;
-    justify-self: end;
-    width: auto;
-    flex: 0 0 auto;
+    position: static;
+    left: auto;
+    top: auto;
+    bottom: auto;
     max-width: none;
+    overflow: visible;
+    margin-left: auto;
+    justify-content: flex-end;
   }
 }
 
@@ -220,14 +222,28 @@ body.hud-app .hud-nav-desktop {
 
 body.hud-app.hud-mobile-menu-open {
   overflow: hidden;
+  height: 100%;
+  touch-action: none;
 }
 
 @media (max-width: 900px) {
-  body.hud-app .hud-topbar {
-    height: 48px;
+  body.hud-app {
+    --hud-topbar-h: 48px;
+    padding-top: var(--hud-topbar-h);
   }
+
+  body.hud-app .hud-topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: var(--hud-topbar-h);
+    z-index: 300;
+  }
+
   body.hud-app .hud-topbar-inner {
-    height: 48px;
+    height: var(--hud-topbar-h);
     gap: 8px;
     padding: 0 10px;
   }
@@ -282,27 +298,31 @@ body.hud-app .hud-mobile-menu-panel {
   body.hud-app .hud-mobile-menu-backdrop {
     display: block;
     position: fixed;
-    inset: 48px 0 0;
+    top: var(--hud-topbar-h, 48px);
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: 280;
     background: rgba(4,6,10,0.72);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
+    touch-action: none;
   }
   body.hud-app .hud-mobile-menu-panel {
     display: block;
     position: fixed;
-    top: 48px;
+    top: var(--hud-topbar-h, 48px);
     left: 0;
     right: 0;
     bottom: 0;
     z-index: 290;
     overflow-y: auto;
+    overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
     background: rgba(10,13,20,0.98);
     border-top: 1px solid var(--hud-border);
     padding: 12px 10px max(24px, env(safe-area-inset-bottom));
-    min-height: calc(100dvh - 48px);
-    min-height: calc(100vh - 48px);
   }
 }
 
@@ -698,10 +718,10 @@ body.hud-app .hud-more-desc {
   margin-top: 1px;
 }
 
-/* Right utility strip */
+/* Right utility strip — pinned right; never pushed by nav */
 body.hud-app .hud-topbar-right {
-  grid-column: 3;
-  justify-self: end;
+  position: relative;
+  margin-left: auto;
   display: flex;
   align-items: center;
   justify-content: flex-end;

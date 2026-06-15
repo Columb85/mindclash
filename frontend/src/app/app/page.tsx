@@ -101,7 +101,7 @@ function HomeContent() {
   const [mounted, setMounted] = useState(false);
   const { address } = useAccount();
   const { clashBalance } = useClash();
-  const { rooms } = useRooms();
+  const { rooms, roomsReady } = useRooms();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setViewingRoom, pinRoom } = useActiveRound();
@@ -148,7 +148,7 @@ function HomeContent() {
 
   // Once rooms load, validate stored room still exists and is joinable
   useEffect(() => {
-    if (currentView !== 'game' || !activeRoomId || rooms.length === 0) return;
+    if (!roomsReady || currentView !== 'game' || !activeRoomId) return;
     const room = rooms.find(r => r.id === activeRoomId);
     if (!room) {
       setCurrentView('lobby');
@@ -162,7 +162,7 @@ function HomeContent() {
       setInRoomView(false);
       router.replace('/app', { scroll: false });
     }
-  }, [rooms, activeRoomId, currentView, router]);
+  }, [roomsReady, rooms, activeRoomId, currentView, router]);
 
   // Custom event from ActiveRoundContext when already on /app
   useEffect(() => {

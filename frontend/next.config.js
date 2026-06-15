@@ -24,9 +24,14 @@ const nextConfig = {
     };
     // Polling avoids Watchpack scanning C:\ system files on Windows (EINVAL on pagefile.sys, etc.)
     config.watchOptions = {
-      poll: 1000,
-      aggregateTimeout: 300,
-      ignored: ['**/node_modules/**', '**/.git/**', '**/.next/**'],
+      poll: 2000,
+      aggregateTimeout: 500,
+      ignored: [
+        '**/node_modules/**',
+        '**/.git/**',
+        '**/.next/**',
+        '**/public-release/**',
+      ],
     };
     config.externals.push('pino-pretty', 'lokijs', 'encoding');
     return config;

@@ -71,8 +71,25 @@ export function Navigation({ currentView, onViewChange, activePage }: Navigation
   }, [moreOpen]);
 
   useEffect(() => {
-    document.body.classList.toggle('hud-mobile-menu-open', mobileOpen);
-    return () => document.body.classList.remove('hud-mobile-menu-open');
+    if (!mobileOpen) return;
+
+    const scrollY = window.scrollY;
+    document.body.classList.add('hud-mobile-menu-open');
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
+
+    return () => {
+      document.body.classList.remove('hud-mobile-menu-open');
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
+      window.scrollTo(0, scrollY);
+    };
   }, [mobileOpen]);
 
   const isNavItemActive = (id: string, href?: string) => {
