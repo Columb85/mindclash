@@ -1,9 +1,48 @@
 # MindClash — AI Prediction Battles on Mantle
 
-> **Mantle Turing Test Hackathon 2026** | Track: AI Awakening (Phase 2)
+<p align="center">
+  <img src="docs/assets/screenshots/logo.png" alt="MindClash logo" width="280" />
+</p>
+
+<p align="center">
+  <strong>Mantle Turing Test Hackathon 2026</strong> · Phase 2: AI Awakening<br/>
+  Tracks: Consumer & Viral DApp · AI Trading & Strategy<br/>
+  <a href="https://www.mindclash.xyz">Live Demo</a> · <a href="https://api.mindclash.xyz">API</a> · <a href="https://www.mindclash.xyz/verify">Verify On-Chain</a>
+</p>
 
 [![Mantle](https://img.shields.io/badge/Mantle-Sepolia-00D4AA)](https://sepolia.mantlescan.xyz)
 [![Hackathon](https://img.shields.io/badge/Hackathon-Turing%20Test%202026-purple)](https://dorahacks.io/hackathon/mantleturingtesthackathon2026)
+
+---
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/assets/screenshots/landing.png" alt="Landing page" width="32%" />
+  <img src="docs/assets/screenshots/arena.png" alt="Prediction arena" width="32%" />
+  <img src="docs/assets/screenshots/create_agent.png" alt="Create agent NFT" width="32%" />
+</p>
+<p align="center"><em>Landing · Arena · Create Agent</em></p>
+
+<p align="center">
+  <img src="docs/assets/screenshots/verify.png" alt="Verify page" width="32%" />
+  <img src="docs/assets/screenshots/verify_ai_decision.png" alt="Verified AI decision" width="32%" />
+  <img src="docs/assets/screenshots/onchain_confirmations.png" alt="On-chain confirmations" width="32%" />
+</p>
+<p align="center"><em>Verify · Decoded Decision · On-Chain Proof</em></p>
+
+---
+
+## Overview
+
+MindClash is a GameFi platform where humans compete against autonomous AI agents in real-time crypto price prediction battles. Every AI decision is recorded on-chain on Mantle Sepolia — creating an immutable, publicly verifiable audit trail.
+
+| | |
+|---|---|
+| **AI engine** | Groq LLM (`llama-3.3-70b-versatile`) with technical-analysis fallback |
+| **On-chain** | ERC-8004 Agent NFTs — `AgentNFT.recordDecision()` on Mantle Sepolia |
+| **Price data** | Live Bybit feed (BTC, ETH, SOL, MNT) |
+| **Verify decisions** | [/verify](https://www.mindclash.xyz/verify) — paste any tx hash, see decoded AI output |
 
 ---
 
@@ -31,7 +70,7 @@ The first implementation of the **ERC-8004** standard — on-chain identity for 
 ## How It Works
 
 1. **AI agents** analyze live prices from Bybit (BTC, ETH, SOL, MNT)
-2. **Prediction submitted** on-chain via `AgentRegistry.recordDecision()`
+2. **Prediction submitted** on-chain via `AgentNFT.recordDecision()`
 3. **Round opens** — humans can place competing predictions using $CLASH tokens
 4. **Price resolves** after 60 seconds — winner determined by actual market move
 5. **Results recorded** on-chain, agent performance metrics (win rate, PnL) updated automatically
@@ -68,7 +107,7 @@ Contracts are already deployed — you only need to run the frontend.
 ### Prerequisites
 - Node.js 18+
 - MetaMask or Rabby wallet
-- Mantle Sepolia testnet MNT → [faucet.sepolia.mantle.xyz](https://faucet.sepolia.mantle.xyz)
+- Mantle Sepolia testnet MNT — use the **built-in faucet** on the app (0.5 MNT, no external site needed)
 
 ### Setup
 ```bash
@@ -107,6 +146,8 @@ npm run dev
 | `GET /api/leaderboard` | Player leaderboard |
 | `GET /api/players/:address` | Player stats |
 | `GET /api/prices` | Latest prices from Bybit |
+| `POST /api/faucet/mnt` | Built-in MNT testnet faucet (0.5 MNT) |
+| `GET /api/agents/demo/decisions` | Recent on-chain AI decisions |
 
 Live on-chain duels with MantleScan tx hashes: **https://api.mindclash.xyz**
 
@@ -141,7 +182,7 @@ cp .env.example .env
 python main.py
 ```
 
-This agent uses `AgentRegistry.recordDecision()` to submit predictions on-chain, identical to the production Node.js bots. Useful if you prefer Python for extending agent logic.
+This agent uses `AgentNFT.recordDecision()` to submit predictions on-chain, identical to the production Node.js bots. Useful if you prefer Python for extending agent logic.
 
 ---
 
@@ -157,9 +198,26 @@ This repository satisfies the **open-source submission** requirement while keepi
 | AI decision engine (`backend/src/neural-decision.js`) | VPS / PM2 / Caddy deployment config |
 | All 6 deployed contract addresses | Production SQLite database |
 
-**Why this is compliant:** Judges can audit contracts, run the frontend, inspect AI logic, and verify on-chain activity via MantleScan. The live demo at mindclash.xyz proves end-to-end behavior.
+**Why this is compliant:** Anyone can audit contracts, run the frontend, inspect AI logic, and verify on-chain activity via MantleScan. The live demo at mindclash.xyz proves end-to-end behavior.
 
 See [SECURITY.md](./SECURITY.md) for the pre-push checklist.
+
+---
+
+## Verify On-Chain AI Decisions
+
+No wallet or local setup required:
+
+1. Open [mindclash.xyz/verify](https://www.mindclash.xyz/verify)
+2. Click a live example chip (loads latest txs from the AgentNFT contract)
+3. Confirm: agent name, direction, confidence, reasoning, MantleScan link
+
+Or inspect the contract directly: [AgentNFT on MantleScan](https://sepolia.mantlescan.xyz/address/0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837) — recent `recordDecision` transactions from each bot wallet.
+
+API check for recent decisions:
+```bash
+curl -s https://api.mindclash.xyz/api/agents/demo/decisions
+```
 
 ---
 
@@ -188,6 +246,7 @@ See [SECURITY.md](./SECURITY.md) for the pre-push checklist.
 ├── ai-agent/                         # Python reference agent (alternative runner)
 │   └── main.py                       # Entry point; uses AGENT_PRIVATE_KEY from .env
 ├── deployed-addresses.json           # All contract addresses + verification links
+├── docs/assets/screenshots/          # README screenshots (landing, arena, verify)
 └── scripts/check-secrets.js          # Pre-push secret scanner (CI)
 ```
 
@@ -201,7 +260,7 @@ See [SECURITY.md](./SECURITY.md) for the pre-push checklist.
 | Smart Contracts | Solidity 0.8.19+, OpenZeppelin, Hardhat |
 | Frontend | Next.js 14, React 18, TypeScript, Tailwind CSS |
 | Animations | Framer Motion |
-| Wallet | RainbowKit, Wagmi v1, Viem |
+| Wallet | RainbowKit, Wagmi v2, Viem |
 | Price Feed | Bybit WebSocket API (live) + REST |
 | Oracle | Pyth Network (on-chain settlement) |
 | AI / LLM | Groq — llama-3.3-70b-versatile |

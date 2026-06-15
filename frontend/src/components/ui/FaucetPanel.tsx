@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useConnectModal } from '@rainbow-me/rainbowkit';
 import { CLASH_TOKEN_ADDRESS, CLASH_ABI } from '@/contexts/ClashContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.mindclash.xyz/api';
@@ -17,6 +18,7 @@ function formatCooldown(seconds: number): string {
 
 export function FaucetPanel() {
   const { address, isConnected } = useAccount();
+  const { openConnectModal } = useConnectModal();
 
   // ── MNT faucet state ──────────────────────────────────────────────────────
   const [mntClaiming, setMntClaiming] = useState(false);
@@ -103,12 +105,24 @@ export function FaucetPanel() {
   const claimVariant = isSuccess ? 'green' : (!canClaim && timeLeft > 0) ? 'gray' : 'purple';
 
   const handleClaimClash = () => {
-    if (!isConnected || isBusy || isSuccess || (!canClaim && timeLeft > 0)) return;
+    if (!isConnected) {
+      openConnectModal?.();
+      return;
+    }
+    if (isBusy || isSuccess || (!canClaim && timeLeft > 0)) return;
     doClaimFaucet({
       address: CLASH_TOKEN_ADDRESS,
       abi: CLASH_ABI,
       functionName: 'claimFaucet',
     });
+  };
+
+  const handleMntClick = () => {
+    if (!isConnected) {
+      openConnectModal?.();
+      return;
+    }
+    handleClaimMnt();
   };
 
   return (
@@ -147,11 +161,12 @@ export function FaucetPanel() {
             </div>
           </div>
           <motion.button
-            whileTap={{ scale: (!isConnected || mntClaiming || mntDone || mntCooldown > 0) ? 1 : 0.95 }}
-            onClick={handleClaimMnt}
-            disabled={!isConnected || mntClaiming || mntDone || mntCooldown > 0}
-            className={`step-btn ${mntDone ? 'green' : mntCooldown > 0 ? 'gray' : 'blue'}`}
+            whileTap={{ scale: (!isConnected || (!mntClaiming && !mntDone && mntCooldown === 0)) ? 0.95 : 1 }}
+            onClick={handleMntClick}
+            disabled={isConnected && (mntClaiming || mntDone || mntCooldown > 0)}
+            className={`step-btn ${!isConnected ? 'cyan' : mntDone ? 'green' : mntCooldown > 0 ? 'gray' : 'blue'}`}
           >
+            {!isConnected && <i className="fa-solid fa-wallet" style={{ fontSize: 9 }} />}
             {mntClaiming && <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: 9 }} />}
             {mntDone && <i className="fa-solid fa-circle-check" style={{ fontSize: 9 }} />}
             {mntLabel}
@@ -183,11 +198,12 @@ export function FaucetPanel() {
             </div>
           </div>
           <motion.button
-            whileTap={{ scale: (!isConnected || isBusy || isSuccess || (!canClaim && timeLeft > 0)) ? 1 : 0.95 }}
+            whileTap={{ scale: (!isConnected || (!isBusy && !isSuccess && (canClaim || timeLeft === 0))) ? 0.95 : 1 }}
             onClick={handleClaimClash}
-            disabled={!isConnected || isBusy || isSuccess || (!canClaim && timeLeft > 0)}
-            className={`step-btn ${claimVariant === 'green' ? 'green' : claimVariant === 'gray' ? 'gray' : 'purple'}`}
+            disabled={isConnected && (isBusy || isSuccess || (!canClaim && timeLeft > 0))}
+            className={`step-btn ${!isConnected ? 'cyan' : claimVariant === 'green' ? 'green' : claimVariant === 'gray' ? 'gray' : 'purple'}`}
           >
+            {!isConnected && <i className="fa-solid fa-wallet" style={{ fontSize: 9 }} />}
             {(isWriting || isConfirming) && <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: 9 }} />}
             {isSuccess && <i className="fa-solid fa-circle-check" style={{ fontSize: 9 }} />}
             {!canClaim && timeLeft > 0 && !isBusy && !isSuccess && <i className="fa-solid fa-clock" style={{ fontSize: 9 }} />}

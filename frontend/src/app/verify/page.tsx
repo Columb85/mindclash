@@ -22,12 +22,12 @@ const AGENTS: Record<number, { name: string; color: string }> = {
   7: { name: 'NeuralTrader',   color: '#22c55e' },
 };
 
-interface ExampleTx { label: string; hash: string }
+interface ExampleTx { label: string; hash: string; tokenId?: number }
 
 const FALLBACK_EXAMPLES: ExampleTx[] = [
-  { label: 'AlphaPredict (UP)',     hash: '0xfad4541f5e69220063b18c35786fc0bcac3a3c4c9ecc9cbf11efdeccc493d63f' },
-  { label: 'MomentumMaster (DOWN)', hash: '0xe806b576761a15a40e62f4d9239a96b779ca659bd13996cee7cd20ab90eb12f1' },
-  { label: 'NeuralTrader (UP)',     hash: '0xb8a60acb39dc7bbff097f146142170b51f9357f3309ac3bfe5fd463a1e22289f' },
+  { label: 'AlphaPredict (UP)',     hash: '0xfad4541f5e69220063b18c35786fc0bcac3a3c4c9ecc9cbf11efdeccc493d63f', tokenId: 5 },
+  { label: 'MomentumMaster (DOWN)', hash: '0xe806b576761a15a40e62f4d9239a96b779ca659bd13996cee7cd20ab90eb12f1', tokenId: 6 },
+  { label: 'NeuralTrader (UP)',     hash: '0xb8a60acb39dc7bbff097f146142170b51f9357f3309ac3bfe5fd463a1e22289f', tokenId: 7 },
 ];
 
 interface VerifyResult {
@@ -58,6 +58,7 @@ export default function VerifyPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [examples, setExamples] = useState<ExampleTx[]>(FALLBACK_EXAMPLES);
+  const [selectedHash, setSelectedHash] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -86,7 +87,7 @@ export default function VerifyPage() {
             seen.add(tid);
             const name = AGENTS[tid]?.name || `Agent #${tid}`;
             const dir = parsed.args.direction;
-            items.push({ label: `${name} (${dir})`, hash: log.transactionHash });
+            items.push({ label: `${name} (${dir})`, hash: log.transactionHash, tokenId: tid });
           }
           if (items.length > 0) setExamples(items);
         }
@@ -94,8 +95,8 @@ export default function VerifyPage() {
     })();
   }, []);
 
-  const handleVerify = async () => {
-    const hash = input.trim();
+  const handleVerify = async (hashOverride?: string) => {
+    const hash = (hashOverride ?? input).trim();
     if (!hash || !hash.startsWith('0x')) {
       setError('Enter a valid transaction hash (0x...)');
       return;
@@ -103,6 +104,10 @@ export default function VerifyPage() {
     setLoading(true);
     setError(null);
     setResult(null);
+
+    const matched = examples.find(ex => ex.hash.toLowerCase() === hash.toLowerCase());
+    setSelectedHash(matched?.hash ?? null);
+    if (!hashOverride) setInput(hash);
 
     try {
       const prov = getProvider();
@@ -171,6 +176,19 @@ export default function VerifyPage() {
     }
   };
 
+  const handleSelectExample = (ex: ExampleTx) => {
+    setInput(ex.hash);
+    setSelectedHash(ex.hash);
+    setError(null);
+    handleVerify(ex.hash);
+  };
+
+  const handleInputChange = (value: string) => {
+    setInput(value);
+    const match = examples.find(ex => ex.hash.toLowerCase() === value.trim().toLowerCase());
+    setSelectedHash(match?.hash ?? null);
+  };
+
   return (
     <div className="min-h-screen">
       <header className="hud-topbar">
@@ -217,13 +235,13 @@ export default function VerifyPage() {
               <input
                 type="text"
                 value={input}
-                onChange={e => setInput(e.target.value)}
+                onChange={e => handleInputChange(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleVerify()}
                 placeholder="0x... transaction hash"
                 className="vf-inp"
               />
             </div>
-            <button type="button" onClick={handleVerify} disabled={loading} className="hud-btn hud-btn-green">
+            <button type="button" onClick={() => handleVerify()} disabled={loading} className="hud-btn hud-btn-green">
               {loading ? (
                 <><i className="fa-solid fa-circle-notch fa-spin" /> Verifying…</>
               ) : (
@@ -236,11 +254,29 @@ export default function VerifyPage() {
             <span style={{ fontSize: 9, color: 'var(--hud-text-3)' }}>
               <i className="fa-solid fa-circle-info" /> Try a live example:
             </span>
-            {examples.map(ex => (
-              <button key={ex.hash} type="button" onClick={() => setInput(ex.hash)} className="vf-example-chip" title={ex.hash}>
-                {ex.label}
-              </button>
-            ))}
+            {examples.map(ex => {
+              const isSelected = selectedHash === ex.hash;
+              const color = ex.tokenId ? AGENTS[ex.tokenId]?.color : '#60a5fa';
+              return (
+                <button
+                  key={ex.hash}
+                  type="button"
+                  onClick={() => handleSelectExample(ex)}
+                  className={`vf-example-chip${isSelected ? ' active' : ''}`}
+                  title={ex.hash}
+                  style={isSelected ? {
+                    borderColor: color,
+                    background: `${color}22`,
+                    color,
+                    boxShadow: `0 0 10px ${color}44`,
+                  } : undefined}
+                  aria-pressed={isSelected}
+                >
+                  {isSelected && <i className="fa-solid fa-circle-check" style={{ marginRight: 4, fontSize: 8 }} />}
+                  {ex.label}
+                </button>
+              );
+            })}
           </div>
           <div style={{ fontSize: 9, color: 'var(--hud-text-3)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <i className="fa-solid fa-circle-info" />

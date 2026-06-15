@@ -1304,10 +1304,12 @@ body.hud-app .step-btn {
   transition: filter 0.15s;
 }
 body.hud-app .step-btn.blue   { background: var(--hud-cyan-2); color: var(--hud-bg); }
+body.hud-app .step-btn.cyan   { background: rgba(0,229,255,0.08); color: var(--hud-cyan); border: 1px solid rgba(0,229,255,0.4); cursor: pointer; }
 body.hud-app .step-btn.purple { background: var(--hud-purple-2); color: #fff; }
 body.hud-app .step-btn.green  { background: var(--hud-green-3); color: var(--hud-green); border: 1px solid var(--hud-green-2); }
 body.hud-app .step-btn.gray   { background: var(--hud-panel-2); color: var(--hud-text-dim); border: 1px solid var(--hud-border); cursor: not-allowed; }
 body.hud-app .step-btn:hover:not(.gray) { filter: brightness(1.1); }
+body.hud-app .step-btn.cyan:hover { background: rgba(0,229,255,0.15); }
 body.hud-app .faucet-foot {
   margin-top: 12px;
   padding-top: 10px;
@@ -2478,6 +2480,11 @@ body.hud-app .vf-example-chip {
   cursor: pointer; clip-path: polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%);
 }
 body.hud-app .vf-example-chip:hover { background: rgba(59,130,246,0.15); }
+body.hud-app .vf-example-chip.active {
+  font-weight: 700;
+  transform: scale(1.02);
+}
+body.hud-app .vf-example-chip.active:hover { filter: brightness(1.1); }
 body.hud-app .vf-result-card { border-color: rgba(0,255,136,0.3) !important; }
 body.hud-app .vf-result-card::before {
   content: ''; display: block; height: 2px;
