@@ -23,8 +23,8 @@ const NAV_ITEMS: { id: View | 'battle' | 'rankings' | 'quests'; label: string; i
 ];
 
 const QUICK_LINKS = [
-  { href: '/duel',         id: 'duel',         label: 'Duel',       icon: 'fa-solid fa-bolt',                  color: '#ff3355' },
-  { href: '/create-agent', id: 'create-agent', label: 'Create Bot', icon: 'fa-solid fa-wand-magic-sparkles',   color: '#fbbf24' },
+  { href: '/duel',         id: 'duel',         label: 'Duel',       desc: '1v1 prediction duel',           icon: 'fa-solid fa-bolt',                color: '#ff3355' },
+  { href: '/create-agent', id: 'create-agent', label: 'Create Bot', desc: 'Build and deploy your agent',   icon: 'fa-solid fa-wand-magic-sparkles', color: '#fbbf24' },
 ];
 
 const MORE_LINKS = [
@@ -45,7 +45,9 @@ export function Navigation({ currentView, onViewChange, activePage }: Navigation
   const [moreOpen, setMoreOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [morePanelPos, setMorePanelPos] = useState({ top: 0, left: 0 });
   const moreRef = useRef<HTMLDivElement>(null);
+  const morePanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -63,11 +65,35 @@ export function Navigation({ currentView, onViewChange, activePage }: Navigation
   useEffect(() => {
     if (!moreOpen) return;
     const handler = (e: MouseEvent) => {
-      if (moreRef.current && !moreRef.current.contains(e.target as Node))
-        setMoreOpen(false);
+      const target = e.target as Node;
+      if (moreRef.current?.contains(target)) return;
+      if (morePanelRef.current?.contains(target)) return;
+      setMoreOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
+  }, [moreOpen]);
+
+  useEffect(() => {
+    if (!moreOpen || !moreRef.current) return;
+
+    const updatePos = () => {
+      const btn = moreRef.current?.querySelector('.hud-more-btn');
+      if (!btn) return;
+      const rect = btn.getBoundingClientRect();
+      setMorePanelPos({
+        top: rect.bottom + 6,
+        left: Math.max(8, rect.right - 220),
+      });
+    };
+
+    updatePos();
+    window.addEventListener('resize', updatePos);
+    window.addEventListener('scroll', updatePos, true);
+    return () => {
+      window.removeEventListener('resize', updatePos);
+      window.removeEventListener('scroll', updatePos, true);
+    };
   }, [moreOpen]);
 
   useEffect(() => {
@@ -100,11 +126,37 @@ export function Navigation({ currentView, onViewChange, activePage }: Navigation
   const handleViewNav = (id: View) => {
     closeMenus();
     if (activePage) {
-      router.push(id === 'profile' ? '/app?view=profile' : '/app');
+      router.push(id === 'profile' ? '/app?view=profile' : '/app', { scroll: false });
     } else {
       onViewChange(id);
     }
   };
+
+  const moreMenu = mounted && moreOpen ? createPortal(
+    <div
+      ref={morePanelRef}
+      className="hud-more-panel hud-more-panel--portal"
+      style={{ top: morePanelPos.top, left: morePanelPos.left }}
+    >
+      {MORE_LINKS.map(link => (
+        <Link
+          key={link.href}
+          href={link.href}
+          onClick={() => setMoreOpen(false)}
+          className="hud-more-item"
+        >
+          <span className="hud-more-icon" style={{ borderColor: `${link.color}30` }}>
+            <i className={link.icon} style={{ color: link.color }} />
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="hud-more-label" style={{ color: link.color }}>{link.label}</div>
+            <div className="hud-more-desc">{link.desc}</div>
+          </div>
+        </Link>
+      ))}
+    </div>,
+    document.body,
+  ) : null;
 
   const mobileMenu = mounted && mobileOpen ? createPortal(
     <>
@@ -214,6 +266,7 @@ export function Navigation({ currentView, onViewChange, activePage }: Navigation
                   key={id}
                   href={href}
                   prefetch={true}
+                  scroll={false}
                   className={`hud-nav-btn${isActive ? ' active' : ''}`}
                   style={isActive ? { color } : undefined}
                 >
@@ -242,11 +295,12 @@ export function Navigation({ currentView, onViewChange, activePage }: Navigation
 
           <span className="hud-nav-sep" />
 
-          {QUICK_LINKS.map(({ href, id, label, icon, color }) => (
+          {QUICK_LINKS.map(({ href, id, label, icon }) => (
             <Link
               key={id}
               href={href}
               prefetch={true}
+              scroll={false}
               className={`hud-nav-pill hud-nav-pill-${id === 'duel' ? 'red' : 'gold'}${activePage === id ? ' active' : ''}`}
             >
               <i className={icon} />
@@ -255,35 +309,26 @@ export function Navigation({ currentView, onViewChange, activePage }: Navigation
           ))}
         </nav>
 
-        <div className="relative" ref={moreRef}>
+        <div className="hud-nav-more-wrap" ref={moreRef}>
           <button
-            onClick={() => setMoreOpen(v => !v)}
+            type="button"
+            onClick={() => {
+              const btn = moreRef.current?.querySelector('.hud-more-btn');
+              if (btn) {
+                const rect = btn.getBoundingClientRect();
+                setMorePanelPos({
+                  top: rect.bottom + 6,
+                  left: Math.max(8, rect.right - 220),
+                });
+              }
+              setMoreOpen(v => !v);
+            }}
             className={`hud-more-btn${moreOpen ? ' open' : ''}`}
+            aria-expanded={moreOpen}
           >
             <span>More</span>
             <i className={`fa-solid fa-chevron-down transition-transform duration-150${moreOpen ? ' rotate-180' : ''}`} />
           </button>
-
-          {moreOpen && (
-            <div className="hud-more-panel">
-              {MORE_LINKS.map(link => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMoreOpen(false)}
-                  className="hud-more-item"
-                >
-                  <span className="hud-more-icon" style={{ borderColor: `${link.color}30` }}>
-                    <i className={link.icon} style={{ color: link.color }} />
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="hud-more-label" style={{ color: link.color }}>{link.label}</div>
-                    <div className="hud-more-desc">{link.desc}</div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
@@ -298,6 +343,7 @@ export function Navigation({ currentView, onViewChange, activePage }: Navigation
         <i className={`fa-solid ${mobileOpen ? 'fa-xmark' : 'fa-bars'}`} />
       </button>
     </div>
+    {moreMenu}
     {mobileMenu}
     </>
   );

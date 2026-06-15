@@ -35,7 +35,7 @@ export function ClashBalance() {
         <span style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 12, fontWeight: 500, color: '#fff' }}>
           {clashBalance.toLocaleString()}
         </span>
-        <span style={{ fontFamily: 'var(--hud-font-head)', fontSize: 9, fontWeight: 700, color: '#a855f7', letterSpacing: '0.1em' }}>
+        <span style={{ fontFamily: 'var(--hud-font-head)', fontSize: 9, fontWeight: 700, color: '#a855f7', letterSpacing: '0.1em' }} className="hud-util-label">
           CLASH
         </span>
       </div>
@@ -53,7 +53,7 @@ export function ClashBalance() {
         <span style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 12, fontWeight: 500, color: '#fff' }}>
           {clashPoints.toLocaleString()}
         </span>
-        <span style={{ fontFamily: 'var(--hud-font-head)', fontSize: 9, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.1em' }}>
+        <span style={{ fontFamily: 'var(--hud-font-head)', fontSize: 9, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.1em' }} className="hud-util-label">
           PTS
         </span>
       </div>

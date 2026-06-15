@@ -201,7 +201,7 @@ export function FaucetPanel() {
             whileTap={{ scale: (!isConnected || (!isBusy && !isSuccess && (canClaim || timeLeft === 0))) ? 0.95 : 1 }}
             onClick={handleClaimClash}
             disabled={isConnected && (isBusy || isSuccess || (!canClaim && timeLeft > 0))}
-            className={`step-btn ${!isConnected ? 'cyan' : claimVariant === 'green' ? 'green' : claimVariant === 'gray' ? 'gray' : 'purple'}`}
+            className={`step-btn ${claimVariant === 'green' ? 'green' : claimVariant === 'gray' ? 'gray' : 'purple'}`}
           >
             {!isConnected && <i className="fa-solid fa-wallet" style={{ fontSize: 9 }} />}
             {(isWriting || isConfirming) && <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: 9 }} />}
