@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 
 /** SSR-rendered black splash — visible in first HTML paint, before React hydrates */
 export function LandingSplashOverlay() {
+  const pathname = usePathname();
   const [phase, setPhase] = useState<'visible' | 'fading' | 'gone'>('visible');
 
   useEffect(() => {
@@ -12,7 +14,12 @@ export function LandingSplashOverlay() {
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
-  if (phase === 'gone') return null;
+  // Client nav to /app (etc.) — dismiss immediately; layout SSR may still think we're on /
+  useEffect(() => {
+    if (pathname !== '/') setPhase('gone');
+  }, [pathname]);
+
+  if (pathname !== '/' || phase === 'gone') return null;
 
   return (
     <div
@@ -29,7 +36,7 @@ export function LandingSplashOverlay() {
         gap: 28,
         transition: 'opacity 0.5s ease',
         opacity: phase === 'fading' ? 0 : 1,
-        pointerEvents: phase === 'fading' ? 'none' : 'auto',
+        pointerEvents: 'none',
       }}
     >
       <img

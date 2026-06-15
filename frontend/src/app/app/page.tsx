@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, Suspense, useRef } from 'react';
+import { useState, useEffect, Suspense, useCallback } from 'react';
 import { useAccount } from 'wagmi';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { HudConnectButton } from '@/components/ui/HudConnectButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
@@ -29,6 +29,25 @@ import { useKeyboardShortcuts, KeyboardHints } from '@/hooks/useKeyboardShortcut
 import { useClash } from '@/contexts/ClashContext';
 import { useRooms } from '@/contexts/RoomsContext';
 import toast from 'react-hot-toast';
+
+const ACTIVE_ROOM_KEY = 'mindclash_active_room';
+const IN_ROOM_VIEW_KEY = 'mindclash_in_room_view';
+
+function loadStoredRoomId(): string | null {
+  if (typeof window === 'undefined') return null;
+  return sessionStorage.getItem(ACTIVE_ROOM_KEY);
+}
+
+function wasInRoomView(): boolean {
+  if (typeof window === 'undefined') return false;
+  return sessionStorage.getItem(IN_ROOM_VIEW_KEY) === 'true';
+}
+
+function setInRoomView(active: boolean) {
+  if (typeof window === 'undefined') return;
+  if (active) sessionStorage.setItem(IN_ROOM_VIEW_KEY, 'true');
+  else sessionStorage.removeItem(IN_ROOM_VIEW_KEY);
+}
 
 /** Collapsible AI Agent Monitor — matches mockup .ai-section */
 function AIMonitorSection() {
@@ -83,6 +102,7 @@ function HomeContent() {
   const { address } = useAccount();
   const { clashBalance } = useClash();
   const { rooms } = useRooms();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { setViewingRoom, pinRoom } = useActiveRound();
   const [currentView, setCurrentView] = useState<View>('lobby');
@@ -93,37 +113,66 @@ function HomeContent() {
   const liveCount  = rooms.filter(r => r.status === 'live').length;
   const openCount  = rooms.filter(r => r.status === 'open').length;
 
-  const handleEnterRoom = (room: Room) => {
-    setActiveRoomId(room.id);
+  const enterGameView = useCallback((roomId: string, syncUrl = true) => {
+    setActiveRoomId(roomId);
     setCurrentView('game');
-    pinRoom(room.id);
+    pinRoom(roomId);
+    setInRoomView(true);
+    if (syncUrl) {
+      router.replace(`/app?room=${encodeURIComponent(roomId)}`, { scroll: false });
+    }
+  }, [pinRoom, router]);
+
+  const handleEnterRoom = (room: Room) => {
+    enterGameView(room.id);
   };
 
-  // Deep-link: /app?room=ROOM_ID or /app?view=profile
+  // Deep-link: /app?room=ROOM_ID or /app?view=profile; restore room after reload
   useEffect(() => {
     const roomId = searchParams.get('room');
     const view = searchParams.get('view');
     if (roomId) {
-      setActiveRoomId(roomId);
-      setCurrentView('game');
-      pinRoom(roomId);
-    } else if (view === 'profile') {
-      setCurrentView('profile');
+      enterGameView(roomId, false);
+      return;
     }
-  }, [searchParams, pinRoom]);
+    if (view === 'profile') {
+      setCurrentView('profile');
+      return;
+    }
+
+    const storedRoomId = loadStoredRoomId();
+    if (storedRoomId && wasInRoomView()) {
+      enterGameView(storedRoomId, true);
+    }
+  }, [searchParams, enterGameView]);
+
+  // Once rooms load, validate stored room still exists and is joinable
+  useEffect(() => {
+    if (currentView !== 'game' || !activeRoomId || rooms.length === 0) return;
+    const room = rooms.find(r => r.id === activeRoomId);
+    if (!room) {
+      setCurrentView('lobby');
+      setInRoomView(false);
+      router.replace('/app', { scroll: false });
+      toast('That round is no longer available', { icon: '⏳' });
+      return;
+    }
+    if (room.status !== 'open' && room.status !== 'live') {
+      setCurrentView('lobby');
+      setInRoomView(false);
+      router.replace('/app', { scroll: false });
+    }
+  }, [rooms, activeRoomId, currentView, router]);
 
   // Custom event from ActiveRoundContext when already on /app
   useEffect(() => {
     const handler = (e: Event) => {
       const roomId = (e as CustomEvent<{ roomId: string }>).detail?.roomId;
-      if (roomId) {
-        setActiveRoomId(roomId);
-        setCurrentView('game');
-      }
+      if (roomId) enterGameView(roomId);
     };
     window.addEventListener('mindclash:return-to-round', handler);
     return () => window.removeEventListener('mindclash:return-to-round', handler);
-  }, []);
+  }, [enterGameView]);
 
   // Sync viewing room for away-detection
   useEffect(() => {
@@ -149,6 +198,8 @@ function HomeContent() {
 
   const handleBackToLobby = () => {
     setCurrentView('lobby');
+    setInRoomView(false);
+    router.replace('/app', { scroll: false });
     // Keep activeRoomId so user can return via banner; viewingRoom cleared by effect
   };
 

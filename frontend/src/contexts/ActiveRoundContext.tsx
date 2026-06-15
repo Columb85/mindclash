@@ -103,9 +103,9 @@ export function ActiveRoundProvider({ children }: { children: ReactNode }) {
     if (active) {
       setPinnedRoomId(active.id);
       savePinnedId(active.id);
-    } else if (pinnedRoomId) {
+    } else if (pinnedRoomId && rooms.length > 0) {
       const pinned = rooms.find(r => r.id === pinnedRoomId);
-      // Resolved rooms are cleared by the resolution watcher after processing
+      // Wait for rooms to load before clearing; resolved rooms handled by resolution watcher
       if (!pinned) clearPin();
     }
   }, [rooms, address, pinnedRoomId, clearPin]);

@@ -40,22 +40,18 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" style={{ background: '#000' }}>
       <head>
-        {/* HUD assets — internal app pages only (landing untouched) */}
-        {!isLanding && (
-          <>
-            <link rel="preconnect" href="https://fonts.googleapis.com" />
-            <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-            <link
-              href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;600&display=swap"
-              rel="stylesheet"
-            />
-            <link
-              rel="stylesheet"
-              href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
-              crossOrigin="anonymous"
-            />
-          </>
-        )}
+        {/* HUD fonts/icons — always in head so client-side / → /app nav still loads them */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;600&display=swap"
+          rel="stylesheet"
+        />
+        <link
+          rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+          crossOrigin="anonymous"
+        />
         {/* Instant black paint on landing — runs before first body paint */}
         {isLanding && (
           <script
@@ -70,7 +66,7 @@ export default function RootLayout({
         style={{ background: '#000' }}
       >
         <BodyClassManager />
-        {isLanding && <LandingSplashOverlay />}
+        <LandingSplashOverlay />
         <ConditionalBackground />
         <LanguageProvider>
           <Providers>

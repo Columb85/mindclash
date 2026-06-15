@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useQuests } from '@/contexts/QuestsContext';
@@ -43,7 +44,12 @@ export function Navigation({ currentView, onViewChange, activePage }: Navigation
   const hasIncompleteQuests = completedCount < totalCount;
   const [moreOpen, setMoreOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const closeMenus = () => {
     setMoreOpen(false);
@@ -83,7 +89,102 @@ export function Navigation({ currentView, onViewChange, activePage }: Navigation
     }
   };
 
+  const mobileMenu = mounted && mobileOpen ? createPortal(
+    <>
+      <div className="hud-mobile-menu-backdrop" onClick={closeMenus} aria-hidden />
+      <div className="hud-mobile-menu-panel" role="dialog" aria-label="Navigation menu">
+        <div className="hud-mobile-menu-section">
+          <div className="hud-mobile-menu-heading">Main</div>
+          {NAV_ITEMS.map(({ id, label, icon, color, href }) => {
+            const active = isNavItemActive(id, href);
+            if (href) {
+              return (
+                <Link
+                  key={id}
+                  href={href}
+                  onClick={closeMenus}
+                  className={`hud-mobile-menu-item${active ? ' active' : ''}`}
+                  style={active ? { borderColor: `${color}55` } : undefined}
+                >
+                  <span className="hud-mobile-menu-icon" style={{ color }}>
+                    <i className={icon} />
+                  </span>
+                  <span className="hud-mobile-menu-label">{label}</span>
+                  {active && <i className="fa-solid fa-chevron-right hud-mobile-menu-arrow" style={{ color }} />}
+                </Link>
+              );
+            }
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => handleViewNav(id as View)}
+                className={`hud-mobile-menu-item${active ? ' active' : ''}`}
+                style={active ? { borderColor: `${color}55` } : undefined}
+              >
+                <span className="hud-mobile-menu-icon" style={{ color }}>
+                  <i className={icon} />
+                </span>
+                <span className="hud-mobile-menu-label">{label}</span>
+                {id === 'quests' && hasIncompleteQuests && <span className="hud-nav-badge hud-nav-badge--menu" />}
+                {active && <i className="fa-solid fa-chevron-right hud-mobile-menu-arrow" style={{ color }} />}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="hud-mobile-menu-section">
+          <div className="hud-mobile-menu-heading">Quick Actions</div>
+          {QUICK_LINKS.map(({ href, id, label, icon, color }) => {
+            const active = activePage === id;
+            return (
+              <Link
+                key={id}
+                href={href}
+                onClick={closeMenus}
+                className={`hud-mobile-menu-item${active ? ' active' : ''}`}
+                style={active ? { borderColor: `${color}55` } : undefined}
+              >
+                <span className="hud-mobile-menu-icon" style={{ color }}>
+                  <i className={icon} />
+                </span>
+                <span className="hud-mobile-menu-label">{label}</span>
+                {active && <i className="fa-solid fa-chevron-right hud-mobile-menu-arrow" style={{ color }} />}
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="hud-mobile-menu-section">
+          <div className="hud-mobile-menu-heading">More</div>
+          {MORE_LINKS.map(link => {
+            const active = pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href));
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={closeMenus}
+                className={`hud-mobile-menu-item hud-mobile-menu-item--compact${active ? ' active' : ''}`}
+                style={active ? { borderColor: `${link.color}55` } : undefined}
+              >
+                <span className="hud-mobile-menu-icon hud-mobile-menu-icon--sm" style={{ color: link.color }}>
+                  <i className={link.icon} />
+                </span>
+                <div className="hud-mobile-menu-text">
+                  <span className="hud-mobile-menu-label">{link.label}</span>
+                  <span className="hud-mobile-menu-desc">{link.desc}</span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </>,
+    document.body,
+  ) : null;
+
   return (
+    <>
     <div className="hud-topbar-nav-center">
       {/* ── Desktop nav ─────────────────────────────────────────────────── */}
       <div className="hud-nav-desktop">
@@ -179,100 +280,8 @@ export function Navigation({ currentView, onViewChange, activePage }: Navigation
       >
         <i className={`fa-solid ${mobileOpen ? 'fa-xmark' : 'fa-bars'}`} />
       </button>
-
-      {/* ── Mobile drawer ───────────────────────────────────────────────── */}
-      {mobileOpen && (
-        <>
-          <div className="hud-mobile-menu-backdrop" onClick={closeMenus} aria-hidden />
-          <div className="hud-mobile-menu-panel" role="dialog" aria-label="Navigation menu">
-            <div className="hud-mobile-menu-section">
-              <div className="hud-mobile-menu-heading">Main</div>
-              {NAV_ITEMS.map(({ id, label, icon, color, href }) => {
-                const active = isNavItemActive(id, href);
-                if (href) {
-                  return (
-                    <Link
-                      key={id}
-                      href={href}
-                      onClick={closeMenus}
-                      className={`hud-mobile-menu-item${active ? ' active' : ''}`}
-                      style={active ? { borderColor: `${color}55` } : undefined}
-                    >
-                      <span className="hud-mobile-menu-icon" style={{ color }}>
-                        <i className={icon} />
-                      </span>
-                      <span className="hud-mobile-menu-label">{label}</span>
-                      {active && <i className="fa-solid fa-chevron-right hud-mobile-menu-arrow" style={{ color }} />}
-                    </Link>
-                  );
-                }
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => handleViewNav(id as View)}
-                    className={`hud-mobile-menu-item${active ? ' active' : ''}`}
-                    style={active ? { borderColor: `${color}55` } : undefined}
-                  >
-                    <span className="hud-mobile-menu-icon" style={{ color }}>
-                      <i className={icon} />
-                    </span>
-                    <span className="hud-mobile-menu-label">{label}</span>
-                    {id === 'quests' && hasIncompleteQuests && <span className="hud-nav-badge hud-nav-badge--menu" />}
-                    {active && <i className="fa-solid fa-chevron-right hud-mobile-menu-arrow" style={{ color }} />}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="hud-mobile-menu-section">
-              <div className="hud-mobile-menu-heading">Quick Actions</div>
-              {QUICK_LINKS.map(({ href, id, label, icon, color }) => {
-                const active = activePage === id;
-                return (
-                  <Link
-                    key={id}
-                    href={href}
-                    onClick={closeMenus}
-                    className={`hud-mobile-menu-item${active ? ' active' : ''}`}
-                    style={active ? { borderColor: `${color}55` } : undefined}
-                  >
-                    <span className="hud-mobile-menu-icon" style={{ color }}>
-                      <i className={icon} />
-                    </span>
-                    <span className="hud-mobile-menu-label">{label}</span>
-                    {active && <i className="fa-solid fa-chevron-right hud-mobile-menu-arrow" style={{ color }} />}
-                  </Link>
-                );
-              })}
-            </div>
-
-            <div className="hud-mobile-menu-section">
-              <div className="hud-mobile-menu-heading">More</div>
-              {MORE_LINKS.map(link => {
-                const active = pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href));
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={closeMenus}
-                    className={`hud-mobile-menu-item hud-mobile-menu-item--compact${active ? ' active' : ''}`}
-                    style={active ? { borderColor: `${link.color}55` } : undefined}
-                  >
-                    <span className="hud-mobile-menu-icon hud-mobile-menu-icon--sm" style={{ color: link.color }}>
-                      <i className={link.icon} />
-                    </span>
-                    <div className="hud-mobile-menu-text">
-                      <span className="hud-mobile-menu-label">{link.label}</span>
-                      <span className="hud-mobile-menu-desc">{link.desc}</span>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        </>
-      )}
     </div>
+    {mobileMenu}
+    </>
   );
 }
