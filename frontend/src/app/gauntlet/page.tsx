@@ -54,6 +54,7 @@ export default function GauntletPage() {
   const endsAtRef = useRef(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const [error, setError] = useState<string | null>(null);
   const champ = CHAMPIONS[roundIdx] ?? CHAMPIONS[0];
   const wins = results.filter(r => r.winner === 'human').length;
 
@@ -62,10 +63,12 @@ export default function GauntletPage() {
     setRoundIdx(0);
     setResults([]);
     setDirection(null);
+    setError(null);
   };
 
   const submitPick = useCallback(async () => {
     if (!direction) return;
+    setError(null);
     setPhase('analyzing');
     try {
       const analysis = await analyzeBotDecision(champ.tokenId, asset, champ.strategy);
@@ -74,7 +77,8 @@ export default function GauntletPage() {
       endsAtRef.current = Math.floor(Date.now() / 1000) + ROUND_DURATION;
       setCountdown(ROUND_DURATION);
       setPhase('fighting');
-    } catch {
+    } catch (e) {
+      setError('Failed to fetch market data. Please try again.');
       setPhase('picking');
     }
   }, [direction, champ, asset]);
@@ -188,11 +192,15 @@ export default function GauntletPage() {
                 <div className="gnt-intro-hero">
                   <i className="fa-solid fa-shield-halved" />
                   <h2>The Agent Gauntlet</h2>
-                  <p>Face all 3 AI champions in sequence. Beat each round to prove human supremacy.</p>
+                  <p>Face all 3 AI champions in sequence. Predict price direction better than each bot to win. Beat all 3 to prove human supremacy.</p>
+                </div>
+                <div style={{ fontSize: 9, color: 'var(--hud-text-3)', textAlign: 'center', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  Your opponents (in order)
                 </div>
                 <div className="gnt-champ-grid">
-                  {CHAMPIONS.map(c => (
+                  {CHAMPIONS.map((c, i) => (
                     <div key={c.tokenId} className="gnt-champ-card" style={{ borderColor: `${c.color}44` }}>
+                      <div style={{ fontSize: 8, color: 'var(--hud-text-3)', marginBottom: 4 }}>Round {i + 1}</div>
                       <i className="fa-solid fa-robot" style={{ color: c.color, fontSize: 20 }} />
                       <div className="cn" style={{ color: c.color }}>{c.name}</div>
                       <div className="ct">{c.title}</div>
@@ -200,7 +208,7 @@ export default function GauntletPage() {
                     </div>
                   ))}
                 </div>
-                <div className="ca-field-lbl" style={{ textAlign: 'center' }}>Select Asset</div>
+                <div className="ca-field-lbl" style={{ textAlign: 'center' }}>Select Asset for all rounds</div>
                 <div className="hud-chip-row" style={{ justifyContent: 'center', marginBottom: 12 }}>
                   {ASSETS.map(a => (
                     <button key={a} type="button" onClick={() => setAsset(a)} className={`hud-chip${asset === a ? ' active' : ''}`}>{a}</button>
@@ -231,6 +239,11 @@ export default function GauntletPage() {
                     <div className="dir-lbl">DOWN</div>
                   </button>
                 </div>
+                {error && (
+                  <div style={{ fontSize: 10, color: 'var(--hud-red)', textAlign: 'center', marginBottom: 8 }}>
+                    <i className="fa-solid fa-exclamation-triangle" /> {error}
+                  </div>
+                )}
                 <button type="button" onClick={submitPick} disabled={!direction} className="hud-btn hud-btn-gold hud-btn-full">
                   Lock In &amp; Fight
                 </button>

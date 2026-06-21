@@ -54,7 +54,7 @@ export function ClashBalance() {
           {clashPoints.toLocaleString()}
         </span>
         <span style={{ fontFamily: 'var(--hud-font-head)', fontSize: 9, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.1em' }} className="hud-util-label">
-          PTS
+          XP
         </span>
       </div>
     </div>

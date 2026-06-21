@@ -3556,6 +3556,9 @@ body.hud-app .winners-feed {
   background: var(--hud-panel);
   border: 1px solid var(--hud-border);
   padding: 12px;
+  max-height: 260px;
+  overflow: hidden;
+  align-self: start;
 }
 body.hud-app .winners-hdr {
   display: flex;

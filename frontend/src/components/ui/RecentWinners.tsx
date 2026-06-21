@@ -54,7 +54,7 @@ export function RecentWinners() {
         <span>Recent Winners</span>
       </div>
       <AnimatePresence mode="popLayout">
-        {winners.slice(0, 5).map((w, i) => (
+        {winners.slice(0, 6).map((w, i) => (
           <motion.div
             key={`${w.address}-${w.time}`}
             className="winner-row"

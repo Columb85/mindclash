@@ -217,7 +217,7 @@ export function FaucetPanel() {
           <span className="step-icon gold"><i className="fa-solid fa-bolt" /></span>
           <div className="step-text">
             <div className="st">Place your first prediction</div>
-            <div className="sd">Minimum 10 CLASH. Beat the bots, earn PTS.</div>
+            <div className="sd">Minimum 10 CLASH. Beat the bots, earn XP.</div>
           </div>
         </div>
 

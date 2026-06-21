@@ -85,22 +85,9 @@ function insertYou(list: LeaderboardEntry[], you: LeaderboardEntry): Leaderboard
   return combined.map(e => (e.id === you.id ? { ...e, isYou: true } : e));
 }
 
-const INITIAL_PLAYERS: LeaderboardEntry[] = [
-  { id: '0x1234...abcd', name: '0x1234…abcd', level: 42, rankName: 'Diamond', rankColor: '#00e5ff', rankId: 'diamond', wins: 187, predictions: 312, winRate: 59.9, netProfit: 12847, volume: 3120 },
-  { id: '0x5678...efgh', name: '0x5678…efgh', level: 38, rankName: 'Platinum', rankColor: '#a855f7', rankId: 'platinum', wins: 156, predictions: 289, winRate: 54.0, netProfit: 8934, volume: 2890 },
-  { id: '0x9abc...ijkl', name: '0x9abc…ijkl', level: 35, rankName: 'Platinum', rankColor: '#a855f7', rankId: 'platinum', wins: 142, predictions: 276, winRate: 51.4, netProfit: 6721, volume: 2760 },
-  { id: '0xdef0...mnop', name: '0xdef0…mnop', level: 31, rankName: 'Gold', rankColor: '#fbbf24', rankId: 'gold', wins: 128, predictions: 258, winRate: 49.6, netProfit: 4532, volume: 2580 },
-  { id: '0x1111...qrst', name: '0x1111…qrst', level: 28, rankName: 'Gold', rankColor: '#fbbf24', rankId: 'gold', wins: 115, predictions: 241, winRate: 47.7, netProfit: 3218, volume: 2410 },
-  { id: '0x2222...uvwx', name: '0x2222…uvwx', level: 25, rankName: 'Silver', rankColor: '#e5e7eb', rankId: 'silver', wins: 98, predictions: 215, winRate: 45.6, netProfit: 2104, volume: 2150 },
-  { id: '0x3333...yzab', name: '0x3333…yzab', level: 22, rankName: 'Silver', rankColor: '#e5e7eb', rankId: 'silver', wins: 82, predictions: 189, winRate: 43.4, netProfit: 1456, volume: 1890 },
-  { id: '0x4444...cdef', name: '0x4444…cdef', level: 19, rankName: 'Bronze', rankColor: '#f97316', rankId: 'bronze', wins: 67, predictions: 162, winRate: 41.4, netProfit: 892, volume: 1620 },
-];
+const INITIAL_PLAYERS: LeaderboardEntry[] = [];
 
-const INITIAL_AI: LeaderboardEntry[] = [
-  { id: 'ai-5', name: '🤖 AlphaPredict', level: 45, rankName: 'Diamond', rankColor: '#00D4AA', rankId: 'diamond', wins: 372, predictions: 729, winRate: 51.0, netProfit: -842, volume: 7290, isAI: true, tokenId: 5 },
-  { id: 'ai-6', name: '🤖 MomentumBot', level: 41, rankName: 'Platinum', rankColor: '#00D4AA', rankId: 'platinum', wins: 305, predictions: 612, winRate: 49.8, netProfit: -1256, volume: 6120, isAI: true, tokenId: 6 },
-  { id: 'ai-7', name: '🤖 NeuralTrader', level: 52, rankName: 'Diamond', rankColor: '#00D4AA', rankId: 'diamond', wins: 374, predictions: 660, winRate: 56.7, netProfit: 2842, volume: 6600, isAI: true, tokenId: 7 },
-];
+const INITIAL_AI: LeaderboardEntry[] = [];
 
 export function LeaderboardProvider({ children }: { children: ReactNode }) {
   const { stats } = usePlayer();
@@ -111,17 +98,17 @@ export function LeaderboardProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     const load = async () => {
       try {
-        const res = await fetch('/api/leaderboard?limit=20');
+        const res = await fetch(`${API_URL}/leaderboard?limit=20`);
         if (!res.ok) return;
         const data = await res.json();
         if (cancelled || !data.data?.length) return;
         setAiAgents((data.data as any[]).map(a => aiAgentToEntry({
-          tokenId: a.tokenId,
+          tokenId: a.tokenId ?? 0,
           name: a.name,
-          totalDecisions: a.totalDecisions,
-          correctDecisions: a.correctDecisions,
-          winRate: a.winRate,
-          totalPnL: a.totalPnL,
+          totalDecisions: a.totalDecisions ?? 0,
+          correctDecisions: a.successfulDecisions ?? a.correctDecisions ?? 0,
+          winRate: a.winRate ?? 0,
+          totalPnL: a.totalPnL ?? 0,
           explorerUrl: a.explorerUrl,
         })));
       } catch { /* keep previous */ }
@@ -171,14 +158,8 @@ export function LeaderboardProvider({ children }: { children: ReactNode }) {
       [...humans, ...aiAgents].sort((a, b) => b.netProfit - a.netProfit);
 
     const allTime = insertYou(withAI(humanPlayers), you);
-    const weekly  = insertYou(withAI(humanPlayers.map(p => playerToEntry({
-      address: p.id, level: p.level, wins: p.wins, totalPredictions: p.predictions,
-      winRate: p.winRate, totalWon: p.netProfit,
-    }, 0.18))), { ...you, netProfit: Math.floor(you.netProfit * 0.3) });
-    const daily   = insertYou(withAI(humanPlayers.map(p => playerToEntry({
-      address: p.id, level: p.level, wins: p.wins, totalPredictions: p.predictions,
-      winRate: p.winRate, totalWon: p.netProfit,
-    }, 0.03))), { ...you, netProfit: Math.floor(you.netProfit * 0.05) });
+    const weekly  = allTime;
+    const daily   = allTime;
 
     const findRank = (list: LeaderboardEntry[]) => {
       const idx = list.findIndex(e => e.isYou);

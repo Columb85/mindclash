@@ -150,7 +150,7 @@ export function UserProfile({ userAddress }: UserProfileProps) {
             </div>
             <div className="prof-xp">
               <div className="prof-xp-labels">
-                <span>{current} / {needed} PTS → LVL {nextLevel}</span>
+                <span>{current} / {needed} XP → LVL {nextLevel}</span>
                 <span>{Math.round(pct)}%</span>
               </div>
               <div className="prof-xp-track">
@@ -269,7 +269,7 @@ export function UserProfile({ userAddress }: UserProfileProps) {
                 {netProfit >= 0 ? '+' : ''}{netProfit.toFixed(0)}
               </span>
             </div>
-            <div className="prof-perf-row"><span className="k">Total PTS</span><span className="v cyan">{stats.xp.toLocaleString()}</span></div>
+            <div className="prof-perf-row"><span className="k">Total XP</span><span className="v cyan">{stats.xp.toLocaleString()}</span></div>
           </div>
 
           <div className="hud-section-panel">
@@ -417,7 +417,7 @@ export function UserProfile({ userAddress }: UserProfileProps) {
             <span className="prof-ach-count">System bots</span>
           </div>
           <p className="prof-arena-note">
-            These are protocol AI bots in Arena rounds — not your wallet&apos;s agents. Beat them to earn bonus PTS.
+            These are protocol AI bots in Arena rounds — not your wallet&apos;s agents. Beat them to earn bonus XP.
           </p>
           <div className="prof-agents-grid">
             {myAgents.map(agent => (

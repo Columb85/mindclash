@@ -119,11 +119,19 @@ function QuestCard({
 }: { 
   quest: QuestItem; 
   type: 'daily' | 'weekly' | 'ach';
-  onClaim: (id: string) => void;
+  onClaim: (id: string, xp: number) => void;
 }) {
+  const claimType = type === 'ach' ? 'ach' : type;
+  const alreadyClaimed = getClaimedIds(claimType).has(quest.id);
   const [showFloat, setShowFloat] = useState(false);
-  const [localStatus, setLocalStatus] = useState(quest.status);
+  const [localStatus, setLocalStatus] = useState<QuestItem['status']>(
+    alreadyClaimed ? 'done' : quest.status
+  );
   const buttonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!alreadyClaimed) setLocalStatus(quest.status);
+  }, [quest.status, alreadyClaimed]);
   
   const pct = Math.min(100, (quest.progress / quest.target) * 100);
   const fillColor = localStatus === 'done' || localStatus === 'claimable' 
@@ -137,7 +145,8 @@ function QuestCard({
     setShowFloat(true);
     setTimeout(() => {
       setLocalStatus('done');
-      onClaim(quest.id);
+      markClaimed(claimType, quest.id);
+      onClaim(quest.id, quest.xp);
     }, 450);
   };
   
@@ -201,8 +210,9 @@ function QuestCard({
   );
 }
 
-function countClaimable(quests: QuestItem[]) {
-  return quests.filter(q => q.status === 'claimable').length;
+function countClaimable(quests: QuestItem[], type: 'daily' | 'weekly' | 'ach') {
+  const claimed = getClaimedIds(type);
+  return quests.filter(q => q.status === 'claimable' && !claimed.has(q.id)).length;
 }
 
 function TabBadge({ count }: { count: number }) {
@@ -242,6 +252,34 @@ function getDailyBonusKey() {
   return `mindclash_daily_bonus_${today}`;
 }
 
+function getClaimedKey(type: 'daily' | 'weekly' | 'ach'): string {
+  const now = new Date();
+  if (type === 'daily') {
+    return `mindclash_claimed_daily_${now.toISOString().split('T')[0]}`;
+  }
+  if (type === 'weekly') {
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - now.getDay());
+    return `mindclash_claimed_weekly_${weekStart.toISOString().split('T')[0]}`;
+  }
+  return 'mindclash_claimed_achievements';
+}
+
+function getClaimedIds(type: 'daily' | 'weekly' | 'ach'): Set<string> {
+  try {
+    const raw = localStorage.getItem(getClaimedKey(type));
+    if (raw) return new Set(JSON.parse(raw) as string[]);
+  } catch { /* ignore */ }
+  return new Set();
+}
+
+function markClaimed(type: 'daily' | 'weekly' | 'ach', id: string) {
+  const key = getClaimedKey(type);
+  const set = getClaimedIds(type);
+  set.add(id);
+  try { localStorage.setItem(key, JSON.stringify([...set])); } catch { /* ignore */ }
+}
+
 export default function QuestsPage() {
   const [currentView, setCurrentView] = useState<View>('lobby');
   const [tab, setTab] = useState<Tab>('daily');
@@ -253,7 +291,6 @@ export default function QuestsPage() {
   const weeklyQuests = useMemo(() => buildWeeklyQuests(stats), [stats]);
   const achievements = useMemo(() => buildAchievements(stats), [stats]);
   
-  const totalXp = stats.xp;
   const dailyBonusRef = useRef<HTMLButtonElement>(null);
   
   const streak = stats.currentStreak;
@@ -301,15 +338,15 @@ export default function QuestsPage() {
     return 'Claim 1 000 CLASH';
   }, [isBonusPending, isBonusConfirming, isBonusSuccess, canClaimBonus, bonusCooldown]);
 
-  const [showBonusFloat, setShowBonusFloat] = useState(false);
+  const [bonusXp, setBonusXp] = useState(0);
 
-  const handleQuestClaim = useCallback((_id: string) => {
-    // Quest completion tracked via PlayerContext stats
+  const handleQuestClaim = useCallback((_id: string, xp: number) => {
+    setBonusXp(prev => prev + xp);
   }, []);
 
-  const unclaimedDaily = countClaimable(dailyQuests);
-  const unclaimedWeekly = countClaimable(weeklyQuests);
-  const unclaimedAchievements = countClaimable(achievements);
+  const unclaimedDaily = countClaimable(dailyQuests, 'daily');
+  const unclaimedWeekly = countClaimable(weeklyQuests, 'weekly');
+  const unclaimedAchievements = countClaimable(achievements, 'ach');
   const unclaimedSeason = 0;
 
   return (
@@ -369,8 +406,8 @@ export default function QuestsPage() {
               <i className="fa-solid fa-star" /> Total XP Progress
             </div>
             <div className="xp-labels">
-              <span>Lifetime PTS</span>
-              <span>{totalXp.toLocaleString()} XP</span>
+              <span>Lifetime XP</span>
+              <span>{(stats.xp + bonusXp).toLocaleString()} XP</span>
             </div>
             <div className="xp-track">
               <div className="xp-fill" style={{ width: `${levelProgress.pct}%` }} />
@@ -399,7 +436,7 @@ export default function QuestsPage() {
                 />
               </div>
               <div className="level-xp">
-                {levelProgress.current} / {levelProgress.needed} PTS to next level
+                {levelProgress.current} / {levelProgress.needed} XP to next level
               </div>
             </div>
           </div>
@@ -539,7 +576,7 @@ export default function QuestsPage() {
               <div className="sp-title">
                 <i className="fa-solid fa-ticket" /> Season 1 Pass — Genesis
               </div>
-              <div className="sp-sub">Ends Jul 1, 2026 · Level {stats.level} · {totalXp.toLocaleString()} XP</div>
+              <div className="sp-sub">Ends Jul 1, 2026 · Level {stats.level} · {(stats.xp + bonusXp).toLocaleString()} XP</div>
             </div>
             <div className="sp-strip">
               {seasonTiers.map((tier, i) => (
