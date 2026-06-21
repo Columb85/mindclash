@@ -3,6 +3,7 @@
  */
 
 const { ethers } = require('ethers');
+const { getErc8004AgentId, getUserAgentsWithErc8004 } = require('./db');
 
 const AGENT_NFT_ABI = [
   'function recordDecision(uint256 tokenId, string direction, uint256 confidence, uint256 stake, string reasoning) returns (bytes32)',
@@ -32,6 +33,12 @@ const REPUTATION_ABI = [
 ];
 const ERC8004_MAP = { 5: 304, 6: 305, 7: 306 };
 
+function resolveErc8004Id(tokenId) {
+  if (ERC8004_MAP[tokenId]) return ERC8004_MAP[tokenId];
+  const row = getErc8004AgentId.get(tokenId);
+  return row?.erc8004_agent_id ?? null;
+}
+
 let _reputationSigner = null;
 function getReputationSigner() {
   if (_reputationSigner) return _reputationSigner;
@@ -42,22 +49,53 @@ function getReputationSigner() {
   return _reputationSigner;
 }
 
-async function submitERC8004Reputation(tokenId, wasCorrect, asset) {
-  const erc8004Id = ERC8004_MAP[tokenId];
+function isRateLimitError(err) {
+  const msg = String(err?.message || err?.shortMessage || '').toLowerCase();
+  const code = err?.error?.code ?? err?.code;
+  return msg.includes('rate limit') || code === -32016 || code === 429;
+}
+
+// Serialise reputation txs — single wallet, so only one tx at a time
+let _repQueue = Promise.resolve();
+
+function submitERC8004Reputation(tokenId, wasCorrect, asset) {
+  _repQueue = _repQueue
+    .then(() => _doSubmitReputation(tokenId, wasCorrect, asset))
+    .catch(() => {});
+  return _repQueue;
+}
+
+async function _doSubmitReputation(tokenId, wasCorrect, asset) {
+  const erc8004Id = resolveErc8004Id(tokenId);
   if (!erc8004Id) return;
   const signer = getReputationSigner();
   if (!signer) return;
-  try {
-    const contract = new ethers.Contract(REPUTATION_REGISTRY, REPUTATION_ABI, signer);
-    const value = wasCorrect ? 100 : 0;
-    const tx = await contract.giveFeedback(
-      erc8004Id, value, 0, 'accuracy', asset || '',
-      `https://api.mindclash.xyz/api/agents/${tokenId}`,
-      '', ethers.ZeroHash
-    );
-    console.log(`[ERC8004] Reputation for #${erc8004Id}: ${wasCorrect ? 'CORRECT' : 'WRONG'} tx=${tx.hash}`);
-  } catch (err) {
-    console.error(`[ERC8004] Reputation failed #${erc8004Id}:`, err.message);
+
+  const contract = new ethers.Contract(REPUTATION_REGISTRY, REPUTATION_ABI, signer);
+  const value = wasCorrect ? 100 : 0;
+
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      const nonce = await signer.getNonce();
+      const tx = await contract.giveFeedback(
+        erc8004Id, value, 0, 'accuracy', asset || '',
+        `https://api.mindclash.xyz/api/agents/${tokenId}`,
+        '', ethers.ZeroHash,
+        { nonce }
+      );
+      await tx.wait();
+      console.log(`[ERC8004] Reputation for #${erc8004Id}: ${wasCorrect ? 'CORRECT' : 'WRONG'} tx=${tx.hash}`);
+      return;
+    } catch (err) {
+      const retryable = isRateLimitError(err) || String(err.message || '').includes('nonce');
+      if (!retryable || attempt === 5) {
+        console.error(`[ERC8004] Reputation failed #${erc8004Id}:`, err.message);
+        return;
+      }
+      const waitMs = Math.min(60000, 5000 * attempt);
+      console.warn(`[ERC8004] Retry ${attempt}/5 for #${erc8004Id} in ${waitMs / 1000}s (${err.message})`);
+      await new Promise(r => setTimeout(r, waitMs));
+    }
   }
 }
 
@@ -247,6 +285,53 @@ async function resolvePendingBacklog(batchPerBot = 2) {
   }
 }
 
+async function resolveUserAgentsBacklog(batchPerAgent = 2) {
+  if (!isEnabled()) return;
+  const signer = getReputationSigner();
+  if (!signer) return;
+
+  const userAgents = getUserAgentsWithErc8004.all();
+  if (!userAgents.length) return;
+
+  const contract = new ethers.Contract(process.env.AGENT_NFT_ADDRESS, AGENT_NFT_ABI, signer);
+
+  for (const { token_id: tokenId } of userAgents) {
+    try {
+      const recent = await contract.getRecentDecisions(tokenId, 500);
+      const fullLen = await getDecisionCount(contract, tokenId);
+      const baseIdx = fullLen - recent.length;
+      let resolved = 0;
+
+      for (let i = 0; i < recent.length && resolved < batchPerAgent; i++) {
+        const d = recent[i];
+        const pnl = Number(d.pnl);
+        if (d.wasCorrect || pnl !== 0) continue;
+
+        const asset = parseAssetFromReasoning(d.reasoning);
+        const ts = Number(d.timestamp);
+        const winningDirection = await fetchPriceOutcome(asset, ts, 60);
+        if (!winningDirection) continue;
+
+        const index = baseIdx + i;
+        const stake = Number(d.stake) || 250;
+        try {
+          const result = await resolveDecisionAt(contract, tokenId, index, d.direction, winningDirection, stake);
+          if (result) submitERC8004Reputation(tokenId, result.wasCorrect, asset).catch(() => {});
+          console.log(`[ONCHAIN] UserAgent #${tokenId} idx=${index} → ${result?.wasCorrect ? 'WIN' : 'LOSS'} tx=${result?.hash}`);
+          resolved++;
+          await new Promise(r => setTimeout(r, 1500));
+        } catch (err) {
+          if (!err.message?.includes('already resolved')) {
+            console.error(`[ONCHAIN] UserAgent #${tokenId} idx=${index}:`, err.message);
+          }
+        }
+      }
+    } catch (err) {
+      console.error(`[ONCHAIN] UserAgent scan #${tokenId}:`, err.message);
+    }
+  }
+}
+
 module.exports = {
   AGENT_NFT_ABI,
   BOTS,
@@ -256,4 +341,5 @@ module.exports = {
   recordAndResolveRound,
   recordWithDelayedResolve,
   resolvePendingBacklog,
+  resolveUserAgentsBacklog,
 };

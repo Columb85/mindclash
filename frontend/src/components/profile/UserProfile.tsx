@@ -228,20 +228,20 @@ export function UserProfile({ userAddress }: UserProfileProps) {
           <div className="prof-stat-card">
             <i className="fa-solid fa-bullseye prof-sc-icon cyan" />
             <div className="prof-sc-label">Predictions</div>
-            <div className="prof-sc-val cyan">{stats.totalPredictions.toLocaleString()}</div>
-            <div className="prof-sc-sub">Total rounds played</div>
+            <div className="prof-sc-val cyan">{(stats.totalPredictions + agentDecisions).toLocaleString()}</div>
+            <div className="prof-sc-sub">{stats.totalPredictions > 0 ? `${stats.totalPredictions} arena + ${agentDecisions} agent` : agentDecisions > 0 ? 'Agent on-chain decisions' : 'Total rounds played'}</div>
           </div>
           <div className="prof-stat-card">
             <i className="fa-solid fa-trophy prof-sc-icon green" />
             <div className="prof-sc-label">Wins</div>
-            <div className="prof-sc-val green">{stats.wins.toLocaleString()}</div>
-            <div className="prof-sc-sub">{winRate.toFixed(1)}% win rate</div>
+            <div className="prof-sc-val green">{(stats.wins + agentCorrect).toLocaleString()}</div>
+            <div className="prof-sc-sub">{totalResolved + agentDecisions > 0 ? `${(((stats.wins + agentCorrect) / Math.max(1, totalResolved + agentDecisions)) * 100).toFixed(1)}% win rate` : '0.0% win rate'}</div>
           </div>
           <div className="prof-stat-card">
             <i className="fa-solid fa-percent prof-sc-icon purple" />
             <div className="prof-sc-label">Win Rate</div>
-            <div className="prof-sc-val purple">{winRate.toFixed(0)}%</div>
-            <div className="prof-sc-sub">{winRate >= 51 ? 'Above avg (51%)' : 'Below avg (51%)'}</div>
+            <div className="prof-sc-val purple">{totalResolved + agentDecisions > 0 ? `${(((stats.wins + agentCorrect) / Math.max(1, totalResolved + agentDecisions)) * 100).toFixed(0)}%` : '0%'}</div>
+            <div className="prof-sc-sub">{((stats.wins + agentCorrect) / Math.max(1, totalResolved + agentDecisions)) * 100 >= 51 ? 'Above avg (51%)' : 'Below avg (51%)'}</div>
           </div>
           <div className="prof-stat-card">
             <i className="fa-solid fa-coins prof-sc-icon gold" />

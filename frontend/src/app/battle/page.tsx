@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
@@ -137,6 +137,8 @@ export default function BattlePage() {
     setSubmitted(true);
     setTimeout(() => setSubmitted(false), 1500);
   }, [isConnected]);
+
+  const [showComingSoon, setShowComingSoon] = useState(true);
 
   const currentPrice = prices[asset];
   const userWinRate = stats ? ((stats.wins / Math.max(1, stats.wins + stats.losses)) * 100).toFixed(1) : '0.0';
@@ -478,6 +480,66 @@ export default function BattlePage() {
 
       {/* Help FAB */}
       <HowItWorks />
+
+      {/* Coming Soon overlay */}
+      <AnimatePresence>
+        {showComingSoon && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center"
+            style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+            onClick={() => setShowComingSoon(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.8, y: 30, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 10, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              onClick={e => e.stopPropagation()}
+              className="relative w-full max-w-sm mx-4 rounded-2xl border border-purple-500/30 p-8 text-center"
+              style={{
+                background: 'linear-gradient(180deg, rgba(139,92,246,0.15) 0%, rgba(10,10,15,0.98) 50%)',
+                boxShadow: '0 0 80px rgba(139,92,246,0.2), 0 25px 50px rgba(0,0,0,0.6)',
+              }}
+            >
+              <div className="mb-4">
+                <i className="fa-solid fa-khanda text-5xl text-purple-400 opacity-80" />
+              </div>
+              <h2 className="text-2xl font-black text-white mb-2">
+                Battle Mode
+              </h2>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold mb-4"
+                style={{ background: 'rgba(250,204,21,0.15)', color: '#fbbf24', border: '1px solid rgba(250,204,21,0.3)' }}
+              >
+                <i className="fa-solid fa-clock text-xs" />
+                Coming Soon
+              </div>
+              <p className="text-gray-400 text-sm leading-relaxed mb-6">
+                Real-time Human vs AI prediction battles with live staking, round timers, and on-chain resolution.
+                Currently in development.
+              </p>
+              <div className="flex gap-3 justify-center">
+                <Link
+                  href="/app"
+                  className="px-5 py-2.5 rounded-lg text-sm font-bold text-white"
+                  style={{ background: 'linear-gradient(135deg, #a855f7, #7c3aed)' }}
+                >
+                  <i className="fa-solid fa-border-all mr-2" />
+                  Play Arena
+                </Link>
+                <button
+                  onClick={() => setShowComingSoon(false)}
+                  className="px-5 py-2.5 rounded-lg text-sm font-medium text-gray-300 border border-gray-600 hover:border-gray-400 transition-colors"
+                >
+                  Preview UI
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

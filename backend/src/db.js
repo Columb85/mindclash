@@ -114,6 +114,14 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_user_agents_token ON user_agents(token_id);
 `);
 
+// Migration: add erc8004_agent_id column if missing
+(() => {
+  const cols = db.prepare("PRAGMA table_info(user_agents)").all().map(c => c.name);
+  if (!cols.includes('erc8004_agent_id')) {
+    db.exec("ALTER TABLE user_agents ADD COLUMN erc8004_agent_id INTEGER DEFAULT NULL");
+  }
+})();
+
 // Safe migration: dedupe predictions then add unique index
 (() => {
   const hasIndex = db.prepare(
@@ -389,7 +397,26 @@ const getAllUserAgents = db.prepare(
 const insertUserAgent = db.prepare(`
   INSERT INTO user_agents (creator_address, token_id, name, strategy, version, tx_hash, created_at)
   VALUES (@creator_address, @token_id, @name, @strategy, @version, @tx_hash, @created_at)
+  ON CONFLICT(creator_address) DO UPDATE SET
+    token_id   = excluded.token_id,
+    name       = excluded.name,
+    strategy   = excluded.strategy,
+    version    = excluded.version,
+    tx_hash    = COALESCE(excluded.tx_hash, user_agents.tx_hash),
+    created_at = excluded.created_at
 `);
+
+const setErc8004AgentId = db.prepare(
+  'UPDATE user_agents SET erc8004_agent_id = ? WHERE token_id = ?'
+);
+
+const getErc8004AgentId = db.prepare(
+  'SELECT erc8004_agent_id FROM user_agents WHERE token_id = ?'
+);
+
+const getUserAgentsWithErc8004 = db.prepare(
+  'SELECT token_id, erc8004_agent_id FROM user_agents WHERE erc8004_agent_id IS NOT NULL'
+);
 
 const rowToUserAgent = (row) => row ? ({
   creatorAddress: row.creator_address,
@@ -399,6 +426,7 @@ const rowToUserAgent = (row) => row ? ({
   version:        row.version,
   txHash:         row.tx_hash,
   createdAt:      row.created_at,
+  erc8004AgentId: row.erc8004_agent_id,
 }) : null;
 
 // ── Exports ────────────────────────────────────────────────────────────────
@@ -424,6 +452,9 @@ module.exports = {
   getAllUserAgents,
   insertUserAgent,
   rowToUserAgent,
+  setErc8004AgentId,
+  getErc8004AgentId,
+  getUserAgentsWithErc8004,
   // recent wins
   getRecentWins,
   // signatures

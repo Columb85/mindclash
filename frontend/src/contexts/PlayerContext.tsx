@@ -209,13 +209,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [address]);
 
   // Persist: localStorage always, API debounced 2s when wallet connected
-  const persist = useCallback((s: PlayerStats) => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch { /* ignore */ }
-    if (address) {
-      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
-      syncTimerRef.current = setTimeout(() => pushPlayerStats(address, s), 2000);
-    }
+  const persistRef = useRef<(s: PlayerStats) => void>(() => {});
+  useEffect(() => {
+    persistRef.current = (s: PlayerStats) => {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+      if (address) {
+        if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+        syncTimerRef.current = setTimeout(() => pushPlayerStats(address, s), 2000);
+      }
+    };
   }, [address]);
+
+  const persist = useCallback((s: PlayerStats) => persistRef.current(s), []);
 
   const recordPrediction = useCallback((stake: number): Achievement[] => {
     const newlyUnlocked: Achievement[] = [];
@@ -254,7 +259,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return next;
     });
     return newlyUnlocked;
-  }, []);
+  }, [persist]);
 
   const recordResult = useCallback((result: PredictionResult): Achievement[] => {
     const newlyUnlocked: Achievement[] = [];
@@ -312,7 +317,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return next;
     });
     return newlyUnlocked;
-  }, []);
+  }, [persist]);
 
   const resetStats = useCallback(() => {
     setStats(DEFAULT_STATS);

@@ -7,7 +7,7 @@
  */
 
 const { generateDecision } = require('./neural-decision');
-const { BOTS, isEnabled, recordWithDelayedResolve, resolvePendingBacklog } = require('./onchain-agent');
+const { BOTS, isEnabled, recordWithDelayedResolve, resolvePendingBacklog, resolveUserAgentsBacklog } = require('./onchain-agent');
 
 const ASSETS = ['BTC', 'ETH', 'SOL', 'MNT'];
 const INTERVAL_MS = 30 * 60 * 1000;
@@ -54,7 +54,10 @@ function start() {
     resolvePendingBacklog(3).catch(() => {});
     tick();
     timer = setInterval(tick, INTERVAL_MS);
-    backlogTimer = setInterval(() => resolvePendingBacklog(2).catch(() => {}), 10 * 60 * 1000);
+    backlogTimer = setInterval(() => {
+      resolvePendingBacklog(2).catch(() => {});
+      resolveUserAgentsBacklog(2).catch(() => {});
+    }, 10 * 60 * 1000);
   }, 30_000);
 }
 

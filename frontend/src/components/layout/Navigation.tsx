@@ -31,7 +31,7 @@ const MORE_LINKS = [
   { href: '/agent-lab',   label: 'Agent Lab', desc: 'Mint, test & verify on-chain', icon: 'fa-solid fa-flask',          color: '#00e5ff' },
   { href: '/',            label: 'Home',      desc: 'Back to landing page',           icon: 'fa-solid fa-house',          color: '#00e5ff' },
   { href: '/gauntlet',    label: 'Gauntlet',  desc: 'Beat all 3 champions',           icon: 'fa-solid fa-shield-halved',  color: '#f97316' },
-  { href: '/showdown',    label: 'Showdown',  desc: 'Head-to-head battle',            icon: 'fa-solid fa-fire',           color: '#f97316' },
+  { href: '/showdown',    label: 'Showdown',  desc: 'AI vs AI strategy battle',       icon: 'fa-solid fa-fire',           color: '#f97316' },
   { href: '/leaderboard', label: 'Rankings',  desc: 'On-chain leaderboard',           icon: 'fa-solid fa-trophy',         color: '#c9a84c' },
   { href: '/verify',      label: 'Verify',    desc: 'On-chain tx proofs',             icon: 'fa-solid fa-circle-check',   color: '#39ff90' },
   { href: '/autonomous',  label: 'Bot Loop',  desc: 'Autonomous agent mode',          icon: 'fa-solid fa-robot',          color: '#00e5ff' },

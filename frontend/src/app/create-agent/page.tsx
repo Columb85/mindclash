@@ -91,6 +91,7 @@ export default function CreateAgentPage() {
   const [selectedAsset, setSelectedAsset] = useState('BTC');
   const [pendingDecision, setPendingDecision] = useState<DecisionResult | null>(null);
   const [isFetchingDecision, setIsFetchingDecision] = useState(false);
+  const [lastRecordedTx, setLastRecordedTx] = useState<{ hash: string; direction: string; asset: string; reasoning: string } | null>(null);
 
   const { writeContract: writeRecordDecision, data: recordTxHash, isPending: isRecording } = useWriteContract();
   const { isLoading: isWaitingRecord, isSuccess: isRecordSuccess } = useWaitForTransactionReceipt({
@@ -112,12 +113,18 @@ export default function CreateAgentPage() {
   const { feedbackCount, summaryValue, hasReputation } = useERC8004Reputation(erc8004AgentId);
 
   useEffect(() => {
-    if (isRecordSuccess) {
-      toast.success('Decision recorded on Mantle ✓');
+    if (isRecordSuccess && recordTxHash) {
+      setLastRecordedTx({
+        hash: recordTxHash,
+        direction: pendingDecision?.direction || 'UP',
+        asset: pendingDecision?.asset || selectedAsset,
+        reasoning: pendingDecision?.reasoning || '',
+      });
+      toast.success('Decision recorded on Mantle!');
       setPendingDecision(null);
       refetchProfile();
     }
-  }, [isRecordSuccess, refetchProfile]);
+  }, [isRecordSuccess, recordTxHash, refetchProfile]);
 
   const handleERC8004Register = () => {
     const id = mintedTokenId || tokenId;
@@ -146,8 +153,15 @@ export default function CreateAgentPage() {
     if (isERC8004Success && erc8004AgentId !== null) {
       toast.success(`ERC-8004 Agent #${erc8004AgentId} registered!`);
       refetchERC8004();
+      if (tokenId > 0) {
+        fetch(`${API_URL}/agents/erc8004-link`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tokenId, erc8004AgentId }),
+        }).catch(() => {});
+      }
     }
-  }, [isERC8004Success, erc8004AgentId, refetchERC8004]);
+  }, [isERC8004Success, erc8004AgentId, refetchERC8004, tokenId]);
 
   const handleFetchDecision = async () => {
     if (!tokenId || tokenId <= 0) return;
@@ -632,6 +646,84 @@ export default function CreateAgentPage() {
                       {recordTxHash.slice(0, 20)}…
                     </a>
                   )}
+                </motion.div>
+              )}
+
+              {!pendingDecision && lastRecordedTx && (
+                <motion.div
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  style={{
+                    padding: '16px',
+                    borderRadius: 12,
+                    background: 'rgba(0,200,100,0.06)',
+                    border: '1px solid rgba(0,200,100,0.2)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <i className="fa-solid fa-circle-check" style={{ color: 'var(--hud-green)', fontSize: 18 }} />
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--hud-green)' }}>
+                        Decision Recorded On-Chain
+                      </div>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
+                        {lastRecordedTx.direction} on {lastRecordedTx.asset}
+                      </div>
+                    </div>
+                  </div>
+
+                  <a
+                    href={`${EXPLORER}/tx/${lastRecordedTx.hash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                      background: 'rgba(0,200,255,0.06)',
+                      border: '1px solid rgba(0,200,255,0.15)',
+                      color: 'var(--hud-cyan)',
+                      fontSize: 12,
+                      fontFamily: 'var(--font-mono, monospace)',
+                      textDecoration: 'none',
+                      marginBottom: 12,
+                    }}
+                  >
+                    <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 10 }} />
+                    {lastRecordedTx.hash.slice(0, 10)}...{lastRecordedTx.hash.slice(-8)}
+                  </a>
+
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 8,
+                    padding: '10px 12px',
+                    borderRadius: 8,
+                    background: 'rgba(255,200,0,0.06)',
+                    border: '1px solid rgba(255,200,0,0.15)',
+                    fontSize: 12,
+                    color: 'rgba(255,255,255,0.7)',
+                    lineHeight: 1.5,
+                  }}>
+                    <i className="fa-solid fa-clock" style={{ color: 'var(--hud-gold)', marginTop: 2, flexShrink: 0 }} />
+                    <div>
+                      <strong style={{ color: 'var(--hud-gold)' }}>Auto-Resolve:</strong>{' '}
+                      The backend oracle will verify the market price and resolve this decision within ~10 minutes.
+                      Result (WIN/LOSS) and ERC-8004 reputation feedback will be recorded automatically.
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setLastRecordedTx(null)}
+                    className="hud-btn hud-btn-ghost"
+                    style={{ marginTop: 10, width: '100%', justifyContent: 'center' }}
+                  >
+                    <i className="fa-solid fa-brain" />
+                    Make Another Decision
+                  </button>
                 </motion.div>
               )}
             </div>

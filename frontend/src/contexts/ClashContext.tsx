@@ -49,7 +49,7 @@ interface ClashContextType {
   clashPoints: number;
   addPoints: (amount: number, reason: string) => void;
   isLoading: boolean;
-  refetchBalance: () => void;
+  refetchBalance: (optimisticDeduct?: number) => void;
 }
 
 const ClashContext = createContext<ClashContextType | undefined>(undefined);
@@ -69,6 +69,7 @@ const POINTS_REWARDS = {
 export function ClashProvider({ children }: { children: ReactNode }) {
   const { address, isConnected } = useAccount();
   const [clashPoints, setClashPoints] = useState(0);
+  const [balanceOffset, setBalanceOffset] = useState(0);
 
   // ── Real on-chain $CLASH balance ─────────────────────────────────────────────
   const { data: rawBalance, isLoading: balanceLoading, refetch } = useReadContract({
@@ -83,10 +84,13 @@ export function ClashProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  const clashBalance = rawBalance !== undefined
+  const onChainBalance = rawBalance !== undefined
     ? Math.floor(Number(formatUnits(rawBalance as bigint, 18)))
     : 0;
+  const clashBalance = Math.max(0, onChainBalance - balanceOffset);
   const isLoading = balanceLoading && isConnected && !!address;
+
+  useEffect(() => { setBalanceOffset(0); }, [rawBalance]);
 
   // ── Off-chain points (localStorage) ─────────────────────────────────────────
   useEffect(() => {
@@ -110,7 +114,10 @@ export function ClashProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <ClashContext.Provider value={{ clashBalance, clashPoints, addPoints, isLoading, refetchBalance: () => { refetch(); } }}>
+    <ClashContext.Provider value={{ clashBalance, clashPoints, addPoints, isLoading, refetchBalance: (optimisticDeduct?: number) => {
+      if (optimisticDeduct) setBalanceOffset(prev => prev + optimisticDeduct);
+      setTimeout(() => refetch(), 2500);
+    } }}>
       {children}
     </ClashContext.Provider>
   );

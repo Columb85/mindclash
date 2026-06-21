@@ -146,7 +146,8 @@ function HomeContent() {
     }
   }, [searchParams, enterGameView]);
 
-  // Once rooms load, validate stored room still exists and is joinable
+  // Once rooms load, validate stored room still exists and is joinable.
+  // Allow 'resolved' so the ResolutionReveal modal can display results.
   useEffect(() => {
     if (!roomsReady || currentView !== 'game' || !activeRoomId) return;
     const room = rooms.find(r => r.id === activeRoomId);
@@ -157,7 +158,7 @@ function HomeContent() {
       toast('That round is no longer available', { icon: '⏳' });
       return;
     }
-    if (room.status !== 'open' && room.status !== 'live') {
+    if (room.status !== 'open' && room.status !== 'live' && room.status !== 'resolved') {
       setCurrentView('lobby');
       setInRoomView(false);
       router.replace('/app', { scroll: false });
@@ -351,7 +352,7 @@ function HomeContent() {
                     <i className="fa-solid fa-arrow-left text-xs" />
                     Back to Lobby
                   </button>
-                  <GameRoundInterface roomId={activeRoomId} />
+                  <GameRoundInterface roomId={activeRoomId} onRoundComplete={handleBackToLobby} />
                 </div>
               )}
             </motion.main>

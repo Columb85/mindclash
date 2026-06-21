@@ -8,7 +8,7 @@ const express  = require('express');
 const rateLimit = require('express-rate-limit');
 const { ethers } = require('ethers');
 const router = express.Router();
-const { getAllAgentStats, saveAgentsBatch, getUserAgentByCreator, insertUserAgent, rowToUserAgent } = require('../db');
+const { getAllAgentStats, saveAgentsBatch, getUserAgent, insertUserAgent, setErc8004AgentId, getErc8004AgentId } = require('../db');
 const { generateDecision } = require('../neural-decision');
 
 // Rate limit for on-chain demo endpoint (costs gas + Groq credits)
@@ -103,7 +103,6 @@ router.post('/stats', requireAdminAuth, (req, res) => {
     saveAgentsBatch(rows);
     res.json({ success: true, saved: rows.length, timestamp: Date.now() });
   } catch (err) {
-    console.error('saveAgentsBatch error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -122,6 +121,7 @@ router.post('/decide', async (req, res, next) => {
 
     const aiResult = await generateDecision({ agentTokenId: tokenId, asset, duration, strategy });
 
+    // Fetch current price for response
     const symbol    = `${asset}USDT`;
     const priceResp = await fetch(`https://api.bybit.com/v5/market/tickers?category=spot&symbol=${symbol}`);
     const priceJson = await priceResp.json();
@@ -141,16 +141,25 @@ router.post('/decide', async (req, res, next) => {
 // ── GET /api/agents/mine/:address — get user-registered agent ────────────────
 router.get('/mine/:address', (req, res) => {
   const address = req.params.address.toLowerCase();
-  const row = getUserAgentByCreator.get(address);
+  const agent = getUserAgent.get(address);
 
-  if (!row) {
+  if (!agent) {
     return res.json({ success: true, data: null, chainTokenId: 0 });
   }
 
   res.json({
     success: true,
-    data: rowToUserAgent(row),
-    chainTokenId: row.token_id,
+    data: {
+      id: agent.id,
+      creatorAddress: agent.creator_address,
+      tokenId: agent.token_id,
+      name: agent.name,
+      strategy: agent.strategy,
+      version: agent.version,
+      txHash: agent.tx_hash,
+      createdAt: agent.created_at,
+    },
+    chainTokenId: agent.token_id,
   });
 });
 
@@ -174,6 +183,20 @@ router.post('/register', (req, res) => {
     });
 
     res.json({ success: true, message: 'Agent registered' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/agents/erc8004-link — save tokenId→erc8004AgentId mapping ─────
+router.post('/erc8004-link', (req, res) => {
+  const { tokenId, erc8004AgentId } = req.body;
+  if (tokenId == null || erc8004AgentId == null) {
+    return res.status(400).json({ error: 'tokenId and erc8004AgentId are required' });
+  }
+  try {
+    setErc8004AgentId.run(Number(erc8004AgentId), Number(tokenId));
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
