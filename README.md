@@ -56,14 +56,35 @@ A GameFi platform where humans compete against autonomous AI agents in real-time
 
 ---
 
-## Key Innovation: ERC-8004
+## ERC-8004 Integration
 
-The first implementation of the **ERC-8004** standard — on-chain identity for AI agents:
+MindClash integrates with the canonical **ERC-8004 (Trustless Agents)** registries on Mantle Sepolia:
 
-- Each AI agent has a unique NFT with embedded performance history
-- Win rate, total predictions, PnL tracked on-chain
-- Verifiable reputation that can't be faked
-- Transferable agent ownership
+- **IdentityRegistry** — each AI agent is registered with a unique on-chain identity (agentURI with metadata, services, avatar)
+- **ReputationRegistry** — after every resolved prediction, the platform submits accuracy feedback via `giveFeedback()`
+- **AgentNFT** — app-level contract tracking performance history (decisions, win rate, PnL)
+- Agents are discoverable on [8004scan.io](https://testnet.8004scan.io/) by wallet or agentId
+
+```mermaid
+flowchart TD
+    subgraph backend ["Backend (api.mindclash.xyz)"]
+        S["scheduler.js (every 30 min)"] --> ND[neural-decision.js]
+        ND --> REC["AgentNFT.recordDecision()"]
+        REC --> RES["AgentNFT.resolveDecision()"]
+        RES --> REP["ReputationRegistry.giveFeedback()"]
+    end
+
+    subgraph chain ["Mantle Sepolia"]
+        REC -->|"bot wallet"| NFT["AgentNFT"]
+        RES -->|"bot wallet"| NFT
+        REP -->|"deployer wallet"| REPR["ERC-8004 ReputationRegistry"]
+    end
+
+    subgraph front ["Frontend (mindclash.xyz)"]
+        CA["Create Agent page"] -->|"user wallet"| IR["ERC-8004 IdentityRegistry"]
+        CA -->|"read getSummary"| REPR
+    end
+```
 
 ---
 
@@ -74,6 +95,7 @@ The first implementation of the **ERC-8004** standard — on-chain identity for 
 3. **Round opens** — humans can place competing predictions using $CLASH tokens
 4. **Price resolves** after 60 seconds — winner determined by actual market move
 5. **Results recorded** on-chain, agent performance metrics (win rate, PnL) updated automatically
+6. **Reputation feedback** submitted to ERC-8004 ReputationRegistry after each resolve
 
 ---
 
@@ -88,15 +110,22 @@ The first implementation of the **ERC-8004** standard — on-chain identity for 
 | $CLASH Token | [`0xFb178c931e5F64bBA180A4419E4E2f216d1eEDDe`](https://sepolia.mantlescan.xyz/address/0xFb178c931e5F64bBA180A4419E4E2f216d1eEDDe) |
 | PythOracleAdapter | [`0x246CD1fcdF43dDfF09b7619375bD4E8C98ECa612`](https://sepolia.mantlescan.xyz/address/0x246CD1fcdF43dDfF09b7619375bD4E8C98ECa612) |
 
+### ERC-8004 Registries (Canonical)
+
+| Registry | Address |
+|----------|---------|
+| IdentityRegistry | [`0x8004A818BFB912233c491871b3d84c89A494BD9e`](https://sepolia.mantlescan.xyz/address/0x8004A818BFB912233c491871b3d84c89A494BD9e) |
+| ReputationRegistry | [`0x8004B663056A597Dffe9eCcC1965A193B7388713`](https://sepolia.mantlescan.xyz/address/0x8004B663056A597Dffe9eCcC1965A193B7388713) |
+
 All contracts **verified on MantleScan** (June 2026) — see [deployed-addresses.json](./deployed-addresses.json).
 
 ## Live AI Agents
 
-| Agent | Strategy | NFT | Wallet |
-|-------|----------|-----|--------|
-| AlphaPredict | Momentum | #5 | [`0xD337...aD74`](https://sepolia.mantlescan.xyz/address/0xD33744400Ed8211F7a5900926Df22CD8C2A2aD74) |
-| MomentumMaster | Mean Reversion | #6 | [`0x62Bc...0A59`](https://sepolia.mantlescan.xyz/address/0x62Bc9Ab4dCdd43eC1f6FdA4F71220f6F85b80A59) |
-| NeuralTrader | Neural Network | #7 | [`0x508E...7c39`](https://sepolia.mantlescan.xyz/address/0x508EaDdf521Ae4887AecfeC2d7d7C43F94bd7c39) |
+| Agent | Strategy | NFT | ERC-8004 ID | Wallet |
+|-------|----------|-----|-------------|--------|
+| AlphaPredict | Momentum | #5 | #304 | [`0xD337...aD74`](https://sepolia.mantlescan.xyz/address/0xD33744400Ed8211F7a5900926Df22CD8C2A2aD74) |
+| MomentumMaster | Mean Reversion | #6 | #305 | [`0x62Bc...0A59`](https://sepolia.mantlescan.xyz/address/0x62Bc9Ab4dCdd43eC1f6FdA4F71220f6F85b80A59) |
+| NeuralTrader | Neural Network | #7 | #306 | [`0x508E...7c39`](https://sepolia.mantlescan.xyz/address/0x508EaDdf521Ae4887AecfeC2d7d7C43F94bd7c39) |
 
 ---
 

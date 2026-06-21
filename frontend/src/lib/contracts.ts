@@ -179,11 +179,107 @@ export const AGENT_REGISTRY_ABI = [
   }
 ] as const;
 
+// ── ERC-8004 IdentityRegistry ABI ──────────────────────────────────────────
+// Official: github.com/erc-8004/erc-8004-contracts  (abis/IdentityRegistry.json)
+// Docs:     erc-8004.quicknode.com/docs/contracts
+export const IDENTITY_REGISTRY_ABI = [
+  {
+    "inputs": [{ "internalType": "string", "name": "agentURI", "type": "string" }],
+    "name": "register",
+    "outputs": [{ "internalType": "uint256", "name": "agentId", "type": "uint256" }],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "agentId", "type": "uint256" },
+      { "internalType": "string", "name": "newURI", "type": "string" }
+    ],
+    "name": "setAgentURI",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "owner", "type": "address" }],
+    "name": "balanceOf",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "tokenId", "type": "uint256" }],
+    "name": "tokenURI",
+    "outputs": [{ "internalType": "string", "name": "", "type": "string" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "tokenId", "type": "uint256" }],
+    "name": "ownerOf",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "agentId", "type": "uint256" },
+      { "indexed": false, "internalType": "string", "name": "agentURI", "type": "string" },
+      { "indexed": true, "internalType": "address", "name": "owner", "type": "address" }
+    ],
+    "name": "Registered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "agentId", "type": "uint256" },
+      { "indexed": false, "internalType": "string", "name": "newURI", "type": "string" },
+      { "indexed": true, "internalType": "address", "name": "updatedBy", "type": "address" }
+    ],
+    "name": "URIUpdated",
+    "type": "event"
+  },
+] as const;
+
+// ── ERC-8004 ReputationRegistry ABI ─────────────────────────────────────
+// Official: github.com/erc-8004/erc-8004-contracts  (abis/ReputationRegistry.json)
+export const REPUTATION_REGISTRY_ABI = [
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "agentId", "type": "uint256" },
+      { "internalType": "address[]", "name": "clientAddresses", "type": "address[]" },
+      { "internalType": "string", "name": "tag1", "type": "string" },
+      { "internalType": "string", "name": "tag2", "type": "string" }
+    ],
+    "name": "getSummary",
+    "outputs": [
+      { "internalType": "uint64", "name": "count", "type": "uint64" },
+      { "internalType": "int128", "name": "summaryValue", "type": "int128" },
+      { "internalType": "uint8", "name": "summaryValueDecimals", "type": "uint8" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "agentId", "type": "uint256" }],
+    "name": "getClients",
+    "outputs": [{ "internalType": "address[]", "name": "", "type": "address[]" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+] as const;
+
 // Contract addresses (will be updated after deployment)
 export const CONTRACTS = {
   mantleSepolia: {
     agentNFT: (process.env.NEXT_PUBLIC_AGENT_NFT_ADDRESS || '') as Address,
     agentRegistry: (process.env.NEXT_PUBLIC_AGENT_REGISTRY_ADDRESS || '') as Address,
+    // Official ERC-8004 IdentityRegistry — CREATE2-deterministic, same on all testnets
+    identityRegistry: '0x8004A818BFB912233c491871b3d84c89A494BD9e' as Address,
+    // Official ERC-8004 ReputationRegistry — CREATE2-deterministic
+    reputationRegistry: '0x8004B663056A597Dffe9eCcC1965A193B7388713' as Address,
   }
 };
 

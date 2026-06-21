@@ -13,6 +13,7 @@ import { ModeIndicator } from '@/components/ui/ModeIndicator';
 import { OnlineCounter } from '@/components/ui/OnlineCounter';
 import { useCreateAgent, useAgentProfile, parseMintError } from '@/hooks/useAgentContract';
 import { useMyAgent } from '@/hooks/useMyAgent';
+import { useRegisterERC8004, useERC8004Balance, useERC8004Reputation, buildERC8004URI } from '@/hooks/useERC8004';
 import { AGENT_STRATEGIES, MAX_AGENTS_PER_WALLET } from '@/lib/agent-config';
 import { AGENT_NFT_ABI, CONTRACTS, loadDeployedAddresses } from '@/lib/contracts';
 
@@ -96,6 +97,20 @@ export default function CreateAgentPage() {
     hash: recordTxHash,
   });
 
+  const { hasERC8004Identity, refetch: refetchERC8004 } = useERC8004Balance();
+  const {
+    registerAgent: registerERC8004,
+    isLoading: isRegisteringERC8004,
+    isSuccess: isERC8004Success,
+    isError: isERC8004Error,
+    error: erc8004Error,
+    txHash: erc8004TxHash,
+    erc8004AgentId,
+    reset: resetERC8004,
+  } = useRegisterERC8004();
+
+  const { feedbackCount, summaryValue, hasReputation } = useERC8004Reputation(erc8004AgentId);
+
   useEffect(() => {
     if (isRecordSuccess) {
       toast.success('Decision recorded on Mantle ✓');
@@ -103,6 +118,36 @@ export default function CreateAgentPage() {
       refetchProfile();
     }
   }, [isRecordSuccess, refetchProfile]);
+
+  const handleERC8004Register = () => {
+    const id = mintedTokenId || tokenId;
+    if (!id || id <= 0) return;
+    const agentURI = buildERC8004URI({
+      name: name.trim() || displayName,
+      tokenId: id,
+      strategy: strategy.name,
+    });
+    registerERC8004(agentURI);
+  };
+
+  useEffect(() => {
+    if (isERC8004Error && erc8004Error) {
+      const msg = String((erc8004Error as { shortMessage?: string })?.shortMessage || erc8004Error.message || '');
+      if (msg.includes('rejected') || msg.includes('denied')) {
+        toast.error('ERC-8004 registration cancelled.');
+      } else {
+        toast.error('ERC-8004 registration failed. You can retry.');
+      }
+      resetERC8004();
+    }
+  }, [isERC8004Error, erc8004Error, resetERC8004]);
+
+  useEffect(() => {
+    if (isERC8004Success && erc8004AgentId !== null) {
+      toast.success(`ERC-8004 Agent #${erc8004AgentId} registered!`);
+      refetchERC8004();
+    }
+  }, [isERC8004Success, erc8004AgentId, refetchERC8004]);
 
   const handleFetchDecision = async () => {
     if (!tokenId || tokenId <= 0) return;
@@ -418,6 +463,65 @@ export default function CreateAgentPage() {
               </div>
             </div>
 
+            {/* ── ERC-8004 Panel (existing agent) ───────────────── */}
+            <div className="hud-section-panel" style={{ padding: '16px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(0,200,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <i className="fa-solid fa-fingerprint" style={{ color: 'var(--hud-cyan)', fontSize: 14 }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--hud-cyan)' }}>ERC-8004 Identity</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>Global agent registry on Mantle Sepolia</div>
+                </div>
+              </div>
+
+              {!hasERC8004Identity && !isERC8004Success && !isRegisteringERC8004 && (
+                <button type="button" onClick={handleERC8004Register} disabled={isWrongNetwork} className="hud-btn hud-btn-cyan" style={{ width: '100%', justifyContent: 'center' }}>
+                  <i className="fa-solid fa-id-badge" />
+                  Register in ERC-8004
+                </button>
+              )}
+
+              {isRegisteringERC8004 && (
+                <div style={{ textAlign: 'center', padding: '6px 0', fontSize: 12 }}>
+                  <i className="fa-solid fa-circle-notch fa-spin" style={{ color: 'var(--hud-cyan)', marginRight: 6 }} />
+                  Registering…
+                </div>
+              )}
+
+              {(isERC8004Success || hasERC8004Identity) && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                  <i className="fa-solid fa-circle-check" style={{ color: 'var(--hud-green)' }} />
+                  <span style={{ color: 'var(--hud-green)', fontWeight: 600 }}>
+                    {erc8004AgentId !== null ? `ERC-8004 Agent #${erc8004AgentId}` : 'Registered in ERC-8004'}
+                  </span>
+                  {erc8004TxHash && (
+                    <a
+                      href={`${EXPLORER}/tx/${erc8004TxHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: 'var(--hud-cyan)', fontSize: 10, marginLeft: 'auto' }}
+                    >
+                      <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 9 }} /> TX
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {hasReputation && (
+                <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 8, background: 'rgba(0,200,255,0.06)', border: '1px solid rgba(0,200,255,0.12)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                    <i className="fa-solid fa-star" style={{ color: 'var(--hud-gold)', fontSize: 11 }} />
+                    <span style={{ color: 'rgba(255,255,255,0.7)' }}>Reputation:</span>
+                    <span style={{ color: 'var(--hud-gold)', fontWeight: 700 }}>{summaryValue}</span>
+                    <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>
+                      ({feedbackCount} feedback{feedbackCount !== 1 ? 's' : ''})
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="hud-section-panel ca-record-panel">
               <div className="ca-panel-hdr">
                 <div className="ca-panel-icon" style={{ background: 'var(--hud-purple-dim)', color: 'var(--hud-purple)' }}>
@@ -659,6 +763,70 @@ export default function CreateAgentPage() {
                   View transaction
                 </a>
               )}
+              {/* ── ERC-8004 Global Identity Registration ───────────── */}
+              <div style={{ marginTop: 20, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', marginBottom: 10 }}>
+                  <i className="fa-solid fa-fingerprint" style={{ color: 'var(--hud-cyan)', fontSize: 14 }} />
+                  <span style={{ fontSize: 13, color: 'var(--hud-cyan)', fontWeight: 600, letterSpacing: '0.02em' }}>
+                    ERC-8004 Global Identity
+                  </span>
+                </div>
+
+                {!hasERC8004Identity && !isERC8004Success && !isRegisteringERC8004 && (
+                  <button type="button" onClick={handleERC8004Register} className="hud-btn hud-btn-cyan" style={{ width: '100%', justifyContent: 'center' }}>
+                    <i className="fa-solid fa-id-badge" />
+                    Register in ERC-8004 Registry
+                  </button>
+                )}
+
+                {isRegisteringERC8004 && (
+                  <div style={{ textAlign: 'center', padding: '8px 0', fontSize: 13 }}>
+                    <i className="fa-solid fa-circle-notch fa-spin" style={{ color: 'var(--hud-cyan)', marginRight: 8 }} />
+                    Registering in ERC-8004 IdentityRegistry…
+                  </div>
+                )}
+
+                {(isERC8004Success || hasERC8004Identity) && (
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ color: 'var(--hud-green)', fontSize: 13, fontWeight: 600 }}>
+                      <i className="fa-solid fa-circle-check" style={{ marginRight: 6 }} />
+                      {erc8004AgentId !== null
+                        ? `ERC-8004 Agent #${erc8004AgentId} — registered!`
+                        : 'Registered in ERC-8004'}
+                    </div>
+                    {erc8004TxHash && (
+                      <a
+                        href={`${EXPLORER}/tx/${erc8004TxHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ca-tx-link"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, fontSize: 11 }}
+                      >
+                        <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 9 }} />
+                        ERC-8004 TX
+                      </a>
+                    )}
+                  </div>
+                )}
+
+                {hasReputation && (
+                  <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 8, background: 'rgba(0,200,255,0.06)', border: '1px solid rgba(0,200,255,0.12)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, justifyContent: 'center' }}>
+                      <i className="fa-solid fa-star" style={{ color: 'var(--hud-gold)', fontSize: 11 }} />
+                      <span style={{ color: 'rgba(255,255,255,0.7)' }}>Reputation:</span>
+                      <span style={{ color: 'var(--hud-gold)', fontWeight: 700 }}>{summaryValue}</span>
+                      <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>
+                        ({feedbackCount} feedback{feedbackCount !== 1 ? 's' : ''})
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', textAlign: 'center', marginTop: 8 }}>
+                  IdentityRegistry 0x8004A818…4BD9e · ReputationRegistry 0x8004B663…8713
+                </p>
+              </div>
+
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 20 }}>
                 <Link href="/app" className="hud-btn hud-btn-ghost">
                   ← Back to Arena

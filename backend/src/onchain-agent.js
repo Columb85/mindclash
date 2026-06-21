@@ -25,6 +25,42 @@ const BOT_MAP = {
 const ASSETS = ['BTC', 'ETH', 'SOL', 'MNT'];
 const RESOLVE_DELAY_MS = 61_000;
 
+// ── ERC-8004 ReputationRegistry (canonical, CREATE2-deterministic) ───────
+const REPUTATION_REGISTRY = '0x8004B663056A597Dffe9eCcC1965A193B7388713';
+const REPUTATION_ABI = [
+  'function giveFeedback(uint256 agentId, int128 value, uint8 valueDecimals, string tag1, string tag2, string endpoint, string feedbackURI, bytes32 feedbackHash) external',
+];
+const ERC8004_MAP = { 5: 304, 6: 305, 7: 306 };
+
+let _reputationSigner = null;
+function getReputationSigner() {
+  if (_reputationSigner) return _reputationSigner;
+  const pk = process.env.REPUTATION_PRIVATE_KEY || process.env.AGENT_PRIVATE_KEY;
+  if (!pk || pk.includes('your_testnet')) return null;
+  const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+  _reputationSigner = new ethers.Wallet(pk, provider);
+  return _reputationSigner;
+}
+
+async function submitERC8004Reputation(tokenId, wasCorrect, asset) {
+  const erc8004Id = ERC8004_MAP[tokenId];
+  if (!erc8004Id) return;
+  const signer = getReputationSigner();
+  if (!signer) return;
+  try {
+    const contract = new ethers.Contract(REPUTATION_REGISTRY, REPUTATION_ABI, signer);
+    const value = wasCorrect ? 100 : 0;
+    const tx = await contract.giveFeedback(
+      erc8004Id, value, 0, 'accuracy', asset || '',
+      `https://api.mindclash.xyz/api/agents/${tokenId}`,
+      '', ethers.ZeroHash
+    );
+    console.log(`[ERC8004] Reputation for #${erc8004Id}: ${wasCorrect ? 'CORRECT' : 'WRONG'} tx=${tx.hash}`);
+  } catch (err) {
+    console.error(`[ERC8004] Reputation failed #${erc8004Id}:`, err.message);
+  }
+}
+
 function isEnabled() {
   return process.env.ENABLE_ONCHAIN_SIGNING === 'true';
 }
@@ -116,6 +152,7 @@ async function recordAndResolveRound(bot, predDirection, winningDirection, asset
     const recordReceipt = await recordTx.wait();
 
     const resolved = await resolveDecisionAt(contract, bot.tokenId, index, predDirection, winningDirection, stake);
+    if (resolved) submitERC8004Reputation(bot.tokenId, resolved.wasCorrect, asset).catch(() => {});
     console.log(
       `[ONCHAIN] Bot #${bot.tokenId} ${predDirection} vs ${winningDirection} → ${resolved?.wasCorrect ? 'WIN' : 'LOSS'} ` +
       `record=${recordReceipt.hash} resolve=${resolved?.hash}`
@@ -152,6 +189,7 @@ async function recordWithDelayedResolve(bot, direction, asset, confidence, stake
           return;
         }
         const resolved = await resolveDecisionAt(contract, bot.tokenId, index, direction, winningDirection, stake);
+        if (resolved) submitERC8004Reputation(bot.tokenId, resolved.wasCorrect, asset).catch(() => {});
         console.log(`[ONCHAIN] Bot #${bot.tokenId} idx=${index} delayed resolve → ${resolved?.wasCorrect ? 'WIN' : 'LOSS'} tx=${resolved?.hash}`);
       } catch (err) {
         console.error(`[ONCHAIN] Bot #${bot.tokenId} delayed resolve failed:`, err.message);
@@ -193,6 +231,7 @@ async function resolvePendingBacklog(batchPerBot = 2) {
         const stake = Number(d.stake) || 250;
         try {
           const result = await resolveDecisionAt(contract, bot.tokenId, index, d.direction, winningDirection, stake);
+          if (result) submitERC8004Reputation(bot.tokenId, result.wasCorrect, asset).catch(() => {});
           console.log(`[ONCHAIN] Backlog #${bot.tokenId} idx=${index} → ${result?.wasCorrect ? 'WIN' : 'LOSS'} tx=${result?.hash}`);
           resolved++;
           await new Promise(r => setTimeout(r, 1500));
