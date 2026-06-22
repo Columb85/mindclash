@@ -40,9 +40,10 @@ MindClash is a GameFi platform where humans compete against autonomous AI agents
 | | |
 |---|---|
 | **AI engine** | Groq LLM (`llama-3.3-70b-versatile`) with technical-analysis fallback |
-| **On-chain** | ERC-8004 Agent NFTs — `AgentNFT.recordDecision()` on Mantle Sepolia |
+| **Decision log** | `AgentNFT.recordDecision()` — direction, confidence, reasoning on Mantle Sepolia |
+| **ERC-8004** | Canonical IdentityRegistry (#304–306) + ReputationRegistry `giveFeedback()` |
 | **Price data** | Live Bybit feed (BTC, ETH, SOL, MNT) |
-| **Verify decisions** | [/verify](https://www.mindclash.xyz/verify) — paste any tx hash, see decoded AI output |
+| **Verify decisions** | [/verify](https://www.mindclash.xyz/verify) — decode any AgentNFT tx hash from on-chain calldata |
 
 ---
 
@@ -58,12 +59,20 @@ A GameFi platform where humans compete against autonomous AI agents in real-time
 
 ## ERC-8004 Integration
 
-MindClash integrates with the canonical **ERC-8004 (Trustless Agents)** registries on Mantle Sepolia:
+MindClash uses a **two-layer on-chain model** — an application decision log plus the canonical [ERC-8004 (Trustless Agents)](https://eips.ethereum.org/EIPS/eip-8004) registries on Mantle Sepolia:
 
-- **IdentityRegistry** — each AI agent is registered with a unique on-chain identity (agentURI with metadata, services, avatar)
-- **ReputationRegistry** — after every resolved prediction, the platform submits accuracy feedback via `giveFeedback()`
-- **AgentNFT** — app-level contract tracking performance history (decisions, win rate, PnL)
-- Agents are discoverable on [8004scan.io](https://testnet.8004scan.io/) by wallet or agentId
+| Layer | Contract | Role |
+|-------|----------|------|
+| **App** | `AgentNFT` | Decision log — `recordDecision()`, `resolveDecision()`, win rate, PnL |
+| **ERC-8004** | `IdentityRegistry` | Portable agent identity — `register(agentURI)`, discoverable metadata |
+| **ERC-8004** | `ReputationRegistry` | Trust signals — `giveFeedback()` after each resolved prediction |
+
+Production agents (MindClash NFT #5–#7) are registered in IdentityRegistry as ERC-8004 IDs **#304–#306**. New agents can register via the Create Agent page or `scripts/register-erc8004.js`.
+
+- **IdentityRegistry** — each agent gets a unique on-chain identity (agentURI with metadata, services, avatar)
+- **ReputationRegistry** — accuracy feedback via `giveFeedback()` (submitted by the platform wallet, not the agent owner — per EIP-8004 rules)
+- **AgentNFT** — separate MindClash contract; not the ERC-8004 IdentityRegistry, but linked in each agent's registration file
+- Agents are listed on [8004scan (Mantle Sepolia)](https://testnet.8004scan.io/) — identity, services, and reputation quality scores
 
 ```mermaid
 flowchart TD
@@ -101,9 +110,11 @@ flowchart TD
 
 ## Deployed Contracts (Mantle Sepolia, Chain ID: 5003)
 
+### MindClash Protocol
+
 | Contract | Address |
 |----------|---------|
-| AgentNFT (ERC-8004) | [`0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837`](https://sepolia.mantlescan.xyz/address/0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837) |
+| AgentNFT (decision log) | [`0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837`](https://sepolia.mantlescan.xyz/address/0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837) |
 | AgentRegistry | [`0xbD19d3ec1B4d0f3852729b0dcC87bd739839cBDC`](https://sepolia.mantlescan.xyz/address/0xbD19d3ec1B4d0f3852729b0dcC87bd739839cBDC) |
 | RoundEngine | [`0x69656D3220fDF9F59F005b0D73834D6af2E9cf9a`](https://sepolia.mantlescan.xyz/address/0x69656D3220fDF9F59F005b0D73834D6af2E9cf9a) |
 | Treasury | [`0xA82615C3882170BAFCFb145C19B2D388E7aF5952`](https://sepolia.mantlescan.xyz/address/0xA82615C3882170BAFCFb145C19B2D388E7aF5952) |
@@ -126,6 +137,20 @@ All contracts **verified on MantleScan** (June 2026) — see [deployed-addresses
 | AlphaPredict | Momentum | #5 | #304 | [`0xD337...aD74`](https://sepolia.mantlescan.xyz/address/0xD33744400Ed8211F7a5900926Df22CD8C2A2aD74) |
 | MomentumMaster | Mean Reversion | #6 | #305 | [`0x62Bc...0A59`](https://sepolia.mantlescan.xyz/address/0x62Bc9Ab4dCdd43eC1f6FdA4F71220f6F85b80A59) |
 | NeuralTrader | Neural Network | #7 | #306 | [`0x508E...7c39`](https://sepolia.mantlescan.xyz/address/0x508EaDdf521Ae4887AecfeC2d7d7C43F94bd7c39) |
+
+### On-Chain Verification
+
+Agent identity, AI decisions, and reputation feedback are publicly auditable on Mantle Sepolia — no wallet required. `/verify` decodes any AgentNFT transaction hash (direction, confidence, reasoning from on-chain calldata).
+
+| Resource | Link |
+|----------|------|
+| **Verify AI decisions (UI)** | [mindclash.xyz/verify](https://www.mindclash.xyz/verify) |
+| **AgentNFT** — on-chain AI decisions (`recordDecision` / `resolveDecision`) | [MantleScan → AgentNFT](https://sepolia.mantlescan.xyz/address/0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837) |
+| **IdentityRegistry** — canonical ERC-8004 agent identities | [MantleScan → IdentityRegistry](https://sepolia.mantlescan.xyz/address/0x8004A818BFB912233c491871b3d84c89A494BD9e) |
+| **ReputationRegistry** — `giveFeedback()` after each resolve | [MantleScan → ReputationRegistry](https://sepolia.mantlescan.xyz/address/0x8004B663056A597Dffe9eCcC1965A193B7388713) |
+| ERC-8004 agent **#304** AlphaPredict | [8004scan](https://testnet.8004scan.io/agents/mantle-sepolia/304?tab=quality) · [MantleScan identity](https://sepolia.mantlescan.xyz/token/0x8004A818BFB912233c491871b3d84c89A494BD9e?a=304) · [agent wallet](https://sepolia.mantlescan.xyz/address/0xD33744400Ed8211F7a5900926Df22CD8C2A2aD74) |
+| ERC-8004 agent **#305** MomentumMaster | [8004scan](https://testnet.8004scan.io/agents/mantle-sepolia/305?tab=quality) · [MantleScan identity](https://sepolia.mantlescan.xyz/token/0x8004A818BFB912233c491871b3d84c89A494BD9e?a=305) · [agent wallet](https://sepolia.mantlescan.xyz/address/0x62Bc9Ab4dCdd43eC1f6FdA4F71220f6F85b80A59) |
+| ERC-8004 agent **#306** NeuralTrader | [8004scan](https://testnet.8004scan.io/agents/mantle-sepolia/306?tab=quality) · [MantleScan identity](https://sepolia.mantlescan.xyz/token/0x8004A818BFB912233c491871b3d84c89A494BD9e?a=306) · [agent wallet](https://sepolia.mantlescan.xyz/address/0x508EaDdf521Ae4887AecfeC2d7d7C43F94bd7c39) |
 
 ---
 
@@ -225,7 +250,8 @@ This repository satisfies the **open-source submission** requirement while keepi
 | Frontend UI (`frontend/`) | Production `.env` |
 | Backend API — read-only default (`backend/`) | On-chain signing relayer for agents #5–#7 |
 | AI decision engine (`backend/src/neural-decision.js`) | VPS / PM2 / Caddy deployment config |
-| All 6 deployed contract addresses | Production SQLite database |
+| ERC-8004 scripts (`scripts/register-erc8004.js`, `submit-erc8004-reputation.js`) | Production SQLite database |
+| All deployed contract addresses + canonical ERC-8004 registry addresses | — (public; see [deployed-addresses.json](./deployed-addresses.json)) |
 
 **Why this is compliant:** Anyone can audit contracts, run the frontend, inspect AI logic, and verify on-chain activity via MantleScan. The live demo at mindclash.xyz proves end-to-end behavior.
 
@@ -238,10 +264,12 @@ See [SECURITY.md](./SECURITY.md) for the pre-push checklist.
 No wallet or local setup required:
 
 1. Open [mindclash.xyz/verify](https://www.mindclash.xyz/verify)
-2. Click a live example chip (loads latest txs from the AgentNFT contract)
-3. Confirm: agent name, direction, confidence, reasoning, MantleScan link
+2. Paste any AgentNFT tx hash, or click an example chip (recent `recordDecision` per live agent)
+3. Confirm decoded output: agent name, direction, confidence, reasoning — read directly from on-chain calldata via RPC
 
-Or inspect the contract directly: [AgentNFT on MantleScan](https://sepolia.mantlescan.xyz/address/0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837) — recent `recordDecision` transactions from each bot wallet.
+For ERC-8004 identity and reputation, see [On-Chain Verification](#on-chain-verification) above.
+
+Or inspect the contract directly: [AgentNFT on MantleScan](https://sepolia.mantlescan.xyz/address/0xEEc82Ecd81d889D7f1681741cfC1Fc1B7eC4B837) — `recordDecision` / `resolveDecision` transactions from each agent wallet.
 
 API check for recent decisions:
 ```bash
@@ -268,15 +296,18 @@ curl -s https://api.mindclash.xyz/api/agents/demo/decisions
 │       ├── quests/                   # Quest system
 │       ├── autonomous/               # AI autonomous mode viewer
 │       └── verify/                   # Verify on-chain AI decisions
-├── contracts/                        # ERC-8004 core (AgentNFT, AgentRegistry)
+├── contracts/                        # AgentNFT, AgentRegistry (MindClash app layer)
 ├── protocol/                         # RoundEngine, Treasury, ClashToken, PythOracleAdapter
+├── scripts/
+│   ├── register-erc8004.js             # Register agents in canonical IdentityRegistry
+│   ├── submit-erc8004-reputation.js    # Backfill / submit ReputationRegistry feedback
+│   └── check-secrets.js                # Pre-push secret scanner (CI)
 ├── backend/                          # Node.js REST API (read-only by default)
 │   └── src/neural-decision.js        # Groq LLM AI decision engine
 ├── ai-agent/                         # Python reference agent (alternative runner)
 │   └── main.py                       # Entry point; uses AGENT_PRIVATE_KEY from .env
 ├── deployed-addresses.json           # All contract addresses + verification links
 ├── docs/assets/screenshots/          # README screenshots (landing, arena, verify)
-└── scripts/check-secrets.js          # Pre-push secret scanner (CI)
 ```
 
 ---
@@ -293,6 +324,7 @@ curl -s https://api.mindclash.xyz/api/agents/demo/decisions
 | Price Feed | Bybit WebSocket API (live) + REST |
 | Oracle | Pyth Network (on-chain settlement) |
 | AI / LLM | Groq — llama-3.3-70b-versatile |
+| Agent identity & trust | ERC-8004 IdentityRegistry + ReputationRegistry (canonical, Mantle Sepolia) |
 
 ---
 
