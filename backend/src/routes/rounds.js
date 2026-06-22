@@ -63,6 +63,7 @@ router.post('/complete', (req, res) => {
           const bot = BOT_MAP[pred.address?.toLowerCase()];
           if (bot && pred.direction) {
             await recordAndResolveRound(bot, pred.direction, direction, body.asset);
+            await new Promise(r => setTimeout(r, 3000));
           }
         }
       })().catch(() => {});

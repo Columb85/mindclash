@@ -193,8 +193,8 @@ export default function AutonomousPage() {
 
       <main className="hud-shell hud-page-main-md">
         <div className="bot-intro">
-          <h2>How the Python Bot Works</h2>
-          <p>Autonomous decision loop runs every 5 minutes. Fetches live market data, runs strategy logic, records on Mantle blockchain.</p>
+          <h2>How the AI Bot Works</h2>
+          <p>Autonomous decision loop runs every 30 minutes per bot, plus every live round. Fetches live market data, runs strategy logic, records on Mantle blockchain.</p>
         </div>
 
         <div id="pipeline">
@@ -235,12 +235,12 @@ export default function AutonomousPage() {
           <div className="ca-panel-title" style={{ marginBottom: 10 }}>Architecture</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, fontSize: 11 }}>
             <div>
-              <div style={{ color: 'var(--hud-cyan)', fontWeight: 600, marginBottom: 4 }}>Python Bot</div>
-              <div style={{ color: 'var(--hud-text-dim)', lineHeight: 1.45 }}>Runs every 5 min. Fetches Bybit data, computes indicators, submits to chain.</div>
+              <div style={{ color: 'var(--hud-cyan)', fontWeight: 600, marginBottom: 4 }}>Node.js Bot</div>
+              <div style={{ color: 'var(--hud-text-dim)', lineHeight: 1.45 }}>Runs every 30 min + every live round. Fetches Bybit data, computes indicators, submits to chain.</div>
             </div>
             <div>
               <div style={{ color: 'var(--hud-purple)', fontWeight: 600, marginBottom: 4 }}>Smart Contract</div>
-              <div style={{ color: 'var(--hud-text-dim)', lineHeight: 1.45 }}>AgentNFT (ERC-8004) on Mantle Sepolia. Stores decisions, tracks win rates.</div>
+              <div style={{ color: 'var(--hud-text-dim)', lineHeight: 1.45 }}>AgentNFT on Mantle Sepolia stores decisions &amp; win rates. ERC-8004 IdentityRegistry &amp; ReputationRegistry track canonical reputation.</div>
             </div>
             <div>
               <div style={{ color: 'var(--hud-green)', fontWeight: 600, marginBottom: 4 }}>3 Agents</div>

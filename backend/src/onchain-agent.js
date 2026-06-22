@@ -103,11 +103,21 @@ function isEnabled() {
   return process.env.ENABLE_ONCHAIN_SIGNING === 'true';
 }
 
+const _walletCache = {};
 function getBotWallet(bot) {
+  if (_walletCache[bot.tokenId]) return _walletCache[bot.tokenId];
   const pk = process.env[bot.envKey] || process.env.AGENT_PRIVATE_KEY;
   if (!pk || pk.includes('your_testnet') || pk === '0x' + '0'.repeat(64)) return null;
   const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
-  return new ethers.Wallet(pk, provider);
+  _walletCache[bot.tokenId] = new ethers.Wallet(pk, provider);
+  return _walletCache[bot.tokenId];
+}
+
+const _botQueues = {};
+function enqueueBot(botTokenId, fn) {
+  if (!_botQueues[botTokenId]) _botQueues[botTokenId] = Promise.resolve();
+  _botQueues[botTokenId] = _botQueues[botTokenId].then(fn).catch(() => {});
+  return _botQueues[botTokenId];
 }
 
 function getContract(wallet) {
@@ -173,33 +183,37 @@ async function resolveDecisionAt(contract, tokenId, decisionIndex, predDirection
   return { hash: receipt.hash, wasCorrect, pnl };
 }
 
-async function recordAndResolveRound(bot, predDirection, winningDirection, asset, options = {}) {
-  if (!isEnabled()) return null;
-  const wallet = getBotWallet(bot);
-  if (!wallet || !winningDirection) return null;
+function recordAndResolveRound(bot, predDirection, winningDirection, asset, options = {}) {
+  if (!isEnabled()) return Promise.resolve(null);
+  if (!winningDirection) return Promise.resolve(null);
 
-  const confidence = options.confidence ?? (700 + Math.floor(Math.random() * 200));
-  const stake = options.stake ?? 250;
-  const reasoning = options.reasoning ?? `Round prediction: ${predDirection} on ${asset}`;
+  return enqueueBot(bot.tokenId, async () => {
+    const wallet = getBotWallet(bot);
+    if (!wallet) return null;
 
-  try {
-    const contract = getContract(wallet);
-    const index = await getDecisionCount(contract, bot.tokenId);
+    const confidence = options.confidence ?? (700 + Math.floor(Math.random() * 200));
+    const stake = options.stake ?? 250;
+    const reasoning = options.reasoning ?? `Round prediction: ${predDirection} on ${asset}`;
 
-    const recordTx = await contract.recordDecision(bot.tokenId, predDirection, confidence, stake, reasoning);
-    const recordReceipt = await recordTx.wait();
+    try {
+      const contract = getContract(wallet);
+      const index = await getDecisionCount(contract, bot.tokenId);
 
-    const resolved = await resolveDecisionAt(contract, bot.tokenId, index, predDirection, winningDirection, stake);
-    if (resolved) submitERC8004Reputation(bot.tokenId, resolved.wasCorrect, asset).catch(() => {});
-    console.log(
-      `[ONCHAIN] Bot #${bot.tokenId} ${predDirection} vs ${winningDirection} → ${resolved?.wasCorrect ? 'WIN' : 'LOSS'} ` +
-      `record=${recordReceipt.hash} resolve=${resolved?.hash}`
-    );
-    return { recordHash: recordReceipt.hash, resolveHash: resolved?.hash, index, wasCorrect: resolved?.wasCorrect };
-  } catch (err) {
-    console.error(`[ONCHAIN] Bot #${bot.tokenId} record+resolve failed:`, err.message);
-    return null;
-  }
+      const recordTx = await contract.recordDecision(bot.tokenId, predDirection, confidence, stake, reasoning);
+      const recordReceipt = await recordTx.wait();
+
+      const resolved = await resolveDecisionAt(contract, bot.tokenId, index, predDirection, winningDirection, stake);
+      if (resolved) submitERC8004Reputation(bot.tokenId, resolved.wasCorrect, asset).catch(() => {});
+      console.log(
+        `[ONCHAIN] Bot #${bot.tokenId} ${predDirection} vs ${winningDirection} → ${resolved?.wasCorrect ? 'WIN' : 'LOSS'} ` +
+        `record=${recordReceipt.hash} resolve=${resolved?.hash}`
+      );
+      return { recordHash: recordReceipt.hash, resolveHash: resolved?.hash, index, wasCorrect: resolved?.wasCorrect };
+    } catch (err) {
+      console.error(`[ONCHAIN] Bot #${bot.tokenId} record+resolve failed:`, err.message);
+      return null;
+    }
+  });
 }
 
 async function recordWithDelayedResolve(bot, direction, asset, confidence, stake, reasoning) {
