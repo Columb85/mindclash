@@ -77,7 +77,7 @@ Production agents (MindClash NFT #5–#7) are registered in IdentityRegistry as 
 ```mermaid
 flowchart TD
     subgraph backend ["Backend (api.mindclash.xyz)"]
-        S["scheduler.js (every 30 min)"] --> ND[neural-decision.js]
+        AE["arena-engine.js (continuous)"] --> ND[neural-decision.js]
         ND --> REC["AgentNFT.recordDecision()"]
         REC --> RES["AgentNFT.resolveDecision()"]
         RES --> REP["ReputationRegistry.giveFeedback()"]

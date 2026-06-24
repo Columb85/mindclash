@@ -29,7 +29,7 @@ const payoutsRouter     = require('./routes/payouts');
 // Initialize DB (creates file + tables on first run)
 require('./db');
 
-const scheduler = require('./scheduler');
+const arenaEngine = require('./arena-engine');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -167,7 +167,7 @@ app.use((req, res) => {
 });
 
 // ── Start server ────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log('═══════════════════════════════════════════════════════');
   console.log('  🚀 MindClash Backend API Server');
   console.log('═══════════════════════════════════════════════════════');
@@ -185,7 +185,24 @@ app.listen(PORT, () => {
   console.log('  GET  /api/contracts/stats - Protocol stats');
   console.log('═══════════════════════════════════════════════════════\n');
 
-  scheduler.start();
+  arenaEngine.start();
+});
+
+function shutdown(signal) {
+  console.log(`[SERVER] ${signal} received — shutting down gracefully`);
+  arenaEngine.stop();
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(1), 8000).unref();
+}
+
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] uncaughtException:', err);
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[ERROR] unhandledRejection:', reason);
 });
 
 module.exports = app;

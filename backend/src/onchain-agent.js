@@ -3,7 +3,7 @@
  */
 
 const { ethers } = require('ethers');
-const { getErc8004AgentId, getUserAgentsWithErc8004 } = require('./db');
+const { getErc8004AgentId, getUserAgentsWithErc8004, getDecisionIndex, upsertDecisionIndex } = require('./db');
 
 const AGENT_NFT_ABI = [
   'function recordDecision(uint256 tokenId, string direction, uint256 confidence, uint256 stake, string reasoning) returns (bytes32)',
@@ -125,8 +125,19 @@ function getContract(wallet) {
 }
 
 async function getDecisionCount(contract, tokenId) {
+  const cached = getDecisionIndex.get(tokenId);
+  if (cached && cached.decision_index > 0) return cached.decision_index;
   const recent = await contract.getRecentDecisions(tokenId, 10000);
-  return recent.length;
+  const count = recent.length;
+  upsertDecisionIndex.run(tokenId, count, Math.floor(Date.now() / 1000));
+  return count;
+}
+
+function incrementDecisionIndex(tokenId) {
+  const cached = getDecisionIndex.get(tokenId);
+  const next = (cached?.decision_index ?? 0) + 1;
+  upsertDecisionIndex.run(tokenId, next, Math.floor(Date.now() / 1000));
+  return next;
 }
 
 async function fetchSpotPrice(asset) {
@@ -201,6 +212,7 @@ function recordAndResolveRound(bot, predDirection, winningDirection, asset, opti
 
       const recordTx = await contract.recordDecision(bot.tokenId, predDirection, confidence, stake, reasoning);
       const recordReceipt = await recordTx.wait();
+      incrementDecisionIndex(bot.tokenId);
 
       const resolved = await resolveDecisionAt(contract, bot.tokenId, index, predDirection, winningDirection, stake);
       if (resolved) submitERC8004Reputation(bot.tokenId, resolved.wasCorrect, asset).catch(() => {});
@@ -216,43 +228,49 @@ function recordAndResolveRound(bot, predDirection, winningDirection, asset, opti
   });
 }
 
-async function recordWithDelayedResolve(bot, direction, asset, confidence, stake, reasoning) {
-  if (!isEnabled()) return null;
-  const wallet = getBotWallet(bot);
-  if (!wallet) return null;
+function recordWithDelayedResolve(bot, direction, asset, confidence, stake, reasoning) {
+  if (!isEnabled()) return Promise.resolve(null);
 
-  try {
-    const startPrice = await fetchSpotPrice(asset);
-    const contract = getContract(wallet);
-    const index = await getDecisionCount(contract, bot.tokenId);
+  return enqueueBot(bot.tokenId, async () => {
+    const wallet = getBotWallet(bot);
+    if (!wallet) return null;
 
-    const recordTx = await contract.recordDecision(bot.tokenId, direction, confidence, stake, reasoning);
-    const recordReceipt = await recordTx.wait();
-    console.log(`[ONCHAIN] ${bot.name} #${bot.tokenId} recorded ${direction} ${asset} idx=${index} tx=${recordReceipt.hash}`);
+    try {
+      const startPrice = await fetchSpotPrice(asset);
+      const contract = getContract(wallet);
+      const index = await getDecisionCount(contract, bot.tokenId);
 
-    setTimeout(async () => {
-      try {
-        const endPrice = await fetchSpotPrice(asset);
-        let winningDirection = null;
-        if (endPrice > startPrice) winningDirection = 'UP';
-        else if (endPrice < startPrice) winningDirection = 'DOWN';
-        if (!winningDirection) {
-          console.log(`[ONCHAIN] Bot #${bot.tokenId} idx=${index} flat price — skip resolve`);
-          return;
-        }
-        const resolved = await resolveDecisionAt(contract, bot.tokenId, index, direction, winningDirection, stake);
-        if (resolved) submitERC8004Reputation(bot.tokenId, resolved.wasCorrect, asset).catch(() => {});
-        console.log(`[ONCHAIN] Bot #${bot.tokenId} idx=${index} delayed resolve → ${resolved?.wasCorrect ? 'WIN' : 'LOSS'} tx=${resolved?.hash}`);
-      } catch (err) {
-        console.error(`[ONCHAIN] Bot #${bot.tokenId} delayed resolve failed:`, err.message);
-      }
-    }, RESOLVE_DELAY_MS);
+      const recordTx = await contract.recordDecision(bot.tokenId, direction, confidence, stake, reasoning);
+      const recordReceipt = await recordTx.wait();
+      incrementDecisionIndex(bot.tokenId);
+      console.log(`[ONCHAIN] ${bot.name} #${bot.tokenId} recorded ${direction} ${asset} idx=${index} tx=${recordReceipt.hash}`);
 
-    return { recordHash: recordReceipt.hash, index };
-  } catch (err) {
-    console.error(`[ONCHAIN] ${bot.name} record failed:`, err.message);
-    return null;
-  }
+      setTimeout(async () => {
+        enqueueBot(bot.tokenId, async () => {
+          try {
+            const endPrice = await fetchSpotPrice(asset);
+            let winningDirection = null;
+            if (endPrice > startPrice) winningDirection = 'UP';
+            else if (endPrice < startPrice) winningDirection = 'DOWN';
+            if (!winningDirection) {
+              console.log(`[ONCHAIN] Bot #${bot.tokenId} idx=${index} flat price — skip resolve`);
+              return;
+            }
+            const resolved = await resolveDecisionAt(contract, bot.tokenId, index, direction, winningDirection, stake);
+            if (resolved) submitERC8004Reputation(bot.tokenId, resolved.wasCorrect, asset).catch(() => {});
+            console.log(`[ONCHAIN] Bot #${bot.tokenId} idx=${index} delayed resolve → ${resolved?.wasCorrect ? 'WIN' : 'LOSS'} tx=${resolved?.hash}`);
+          } catch (err) {
+            console.error(`[ONCHAIN] Bot #${bot.tokenId} delayed resolve failed:`, err.message);
+          }
+        });
+      }, RESOLVE_DELAY_MS);
+
+      return { recordHash: recordReceipt.hash, index };
+    } catch (err) {
+      console.error(`[ONCHAIN] ${bot.name} record failed:`, err.message);
+      return null;
+    }
+  });
 }
 
 async function resolvePendingBacklog(batchPerBot = 2) {

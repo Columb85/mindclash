@@ -297,9 +297,12 @@ export function RoomsProvider({ children }: { children: ReactNode }) {
           }
           if (status === 'live' && nowSec >= room.endTime) {
             status   = 'resolved';
-            endPrice = price; // lock end price at real market price
-            // Fire-and-forget: persist resolved round to DB
-            postRoundComplete({ ...room, status: 'resolved', endPrice });
+            endPrice = price;
+            const botAddrs = new Set(BOT_PROFILES.map(b => b.address.toLowerCase()));
+            const hasHuman = room.predictions.some(p => !botAddrs.has(p.address.toLowerCase()));
+            if (hasHuman) {
+              postRoundComplete({ ...room, status: 'resolved', endPrice });
+            }
           }
 
           const effectivePrice = status === 'resolved' ? (room.endPrice ?? price) : price;
@@ -325,6 +328,19 @@ export function RoomsProvider({ children }: { children: ReactNode }) {
           const hasFutureRoom = roomsForTrack.some(r => r.status === 'open' || r.status === 'live');
           if (!hasFutureRoom) {
             next = [...next, spawnRoom(track, nowSec, pricesRef.current[track.asset] ?? SEED_PRICES[track.asset])];
+          }
+        }
+
+        // Prune: keep at most 3 resolved rooms per track to prevent memory growth
+        const MAX_RESOLVED_PER_TRACK = 3;
+        for (const track of TRACKS) {
+          const key = trackKey(track);
+          const resolved = next
+            .filter(r => r.id.startsWith(key) && r.status === 'resolved')
+            .sort((a, b) => (b.endTime ?? 0) - (a.endTime ?? 0));
+          if (resolved.length > MAX_RESOLVED_PER_TRACK) {
+            const staleIds = new Set(resolved.slice(MAX_RESOLVED_PER_TRACK).map(r => r.id));
+            next = next.filter(r => !staleIds.has(r.id));
           }
         }
 

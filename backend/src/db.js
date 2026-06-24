@@ -114,6 +114,15 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_user_agents_token ON user_agents(token_id);
 `);
 
+// Migration: bot_decision_index — cached on-chain decision count per tokenId
+db.exec(`
+  CREATE TABLE IF NOT EXISTS bot_decision_index (
+    token_id       INTEGER PRIMARY KEY,
+    decision_index INTEGER NOT NULL DEFAULT 0,
+    updated_at     INTEGER NOT NULL DEFAULT 0
+  )
+`);
+
 // Migration: add erc8004_agent_id column if missing
 (() => {
   const cols = db.prepare("PRAGMA table_info(user_agents)").all().map(c => c.name);
@@ -429,6 +438,18 @@ const rowToUserAgent = (row) => row ? ({
   erc8004AgentId: row.erc8004_agent_id,
 }) : null;
 
+// ── Bot decision index cache ───────────────────────────────────────────────
+const getDecisionIndex = db.prepare(
+  'SELECT decision_index FROM bot_decision_index WHERE token_id = ?'
+);
+const upsertDecisionIndex = db.prepare(`
+  INSERT INTO bot_decision_index (token_id, decision_index, updated_at)
+  VALUES (?, ?, ?)
+  ON CONFLICT(token_id) DO UPDATE SET
+    decision_index = excluded.decision_index,
+    updated_at     = excluded.updated_at
+`);
+
 // ── Exports ────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -464,4 +485,7 @@ module.exports = {
   // payouts
   getPayoutClaim,
   insertPayoutClaim,
+  // decision index cache
+  getDecisionIndex,
+  upsertDecisionIndex,
 };
