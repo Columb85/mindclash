@@ -1,6 +1,8 @@
 'use client';
 
 import { Direction } from '@/types/room';
+import { ShareOnXButton } from '@/components/ui/ShareOnXButton';
+import { buildRoundResultShareText } from '@/lib/share-x';
 
 interface RoundResultToastProps {
   toastId: string;
@@ -47,6 +49,15 @@ export function RoundResultToast({
 
   const icon = isWin ? '🎉' : isTie ? '🤝' : '💀';
 
+  const shareText = buildRoundResultShareText({
+    asset,
+    winner,
+    outcome,
+    stake,
+    profit: isWin ? profit : undefined,
+    token: 'CLASH',
+  });
+
   return (
     <div
       style={{
@@ -72,22 +83,25 @@ export function RoundResultToast({
             {isWin && ` · Payout ${payout.toFixed(0)} CLASH`}
             {ptsGained > 0 && ` · +${ptsGained} XP`}
           </div>
-          <button
-            onClick={onViewResults}
-            style={{
-              background: 'rgba(0,212,170,0.12)',
-              border: '1px solid rgba(0,212,170,0.35)',
-              color: '#00d4aa',
-              padding: '5px 12px',
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              cursor: 'pointer',
-              clipPath: 'polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%)',
-            }}
-          >
-            VIEW RESULTS
-          </button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              onClick={onViewResults}
+              style={{
+                background: 'rgba(0,212,170,0.12)',
+                border: '1px solid rgba(0,212,170,0.35)',
+                color: '#00d4aa',
+                padding: '5px 12px',
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                cursor: 'pointer',
+                clipPath: 'polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%)',
+              }}
+            >
+              VIEW RESULTS
+            </button>
+            <ShareOnXButton text={shareText} compact label="Share on X" />
+          </div>
         </div>
       </div>
     </div>

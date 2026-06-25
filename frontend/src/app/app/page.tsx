@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { HudConnectButton } from '@/components/ui/HudConnectButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import { MindClashLogo } from '@/components/ui/MindClashLogo';
 import { GameRoundInterface } from '@/components/game/GameRoundInterface';
 import { RoomsList } from '@/components/game/RoomsList';
 import { UserProfile } from '@/components/profile/UserProfile';
@@ -210,8 +211,7 @@ function HomeContent() {
         <div className="hud-topbar">
           <div className="hud-topbar-inner">
             <span className="hud-logo-text">
-              <span className="logo-mind">Mind</span>
-              <span className="logo-clash">Clash</span>
+              <MindClashLogo />
             </span>
           </div>
         </div>
@@ -227,8 +227,7 @@ function HomeContent() {
         <header className="hud-topbar">
           <div className="hud-topbar-inner">
             <Link href="/" className="hud-logo-text">
-              <span className="logo-mind">Mind</span>
-              <span className="logo-clash">Clash</span>
+              <MindClashLogo />
             </Link>
             <Navigation currentView={currentView} onViewChange={setCurrentView} />
             <div className="hud-topbar-right">

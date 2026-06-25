@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Share2, ExternalLink, ArrowUp, ArrowDown, Copy, Check, X } from 'lucide-react';
+import { buildDecisionShareText, openShareOnX } from '@/lib/share-x';
 
 const EXPLORER = 'https://sepolia.mantlescan.xyz';
 
@@ -34,14 +35,14 @@ export function ShareableDecisionCard({ decision, onClose }: Props) {
     ? `${window.location.origin}/verify?tx=${decision.txHash}`
     : null;
 
-  const shareText = [
-    `🤖 ${decision.agentName} predicted ${decision.direction} on $${decision.asset}`,
-    `Confidence: ${confPct}% | Strategy: ${decision.strategy}`,
-    `Verified on-chain on Mantle 🔗`,
-    explorerUrl ? explorerUrl : '',
-    '',
-    '#MindClash #AI #OnChain #Mantle',
-  ].filter(Boolean).join('\n');
+  const shareText = buildDecisionShareText({
+    agentName: decision.agentName,
+    direction: decision.direction,
+    asset: decision.asset,
+    confidence: decision.confidence,
+    strategy: decision.strategy,
+    txHash: decision.txHash,
+  });
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(shareText);
@@ -49,10 +50,7 @@ export function ShareableDecisionCard({ decision, onClose }: Props) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleShareX = () => {
-    const text = encodeURIComponent(shareText);
-    window.open(`https://x.com/intent/tweet?text=${text}`, '_blank');
-  };
+  const handleShareX = () => openShareOnX(shareText);
 
   const handleShareTelegram = () => {
     const text = encodeURIComponent(shareText);
