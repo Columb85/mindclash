@@ -672,6 +672,7 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
         winner={winner ?? 'TIE'}
         startPrice={room.startPrice ?? 0}
         endPrice={room.endPrice ?? 0}
+        asset={room.asset}
         token={room.token}
         userOutcome={userOutcome}
         userPayout={userPayout}
