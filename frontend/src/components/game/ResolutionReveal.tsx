@@ -10,7 +10,6 @@ import {
 import confetti from 'canvas-confetti';
 import { Direction } from '@/types/room';
 import type { BotResult } from './GameRoundInterface';
-import { MindClashLogo } from '@/components/ui/MindClashLogo';
 import { ShareOnXButton } from '@/components/ui/ShareOnXButton';
 import { buildRoundResultShareText } from '@/lib/share-x';
 import { ASSETS } from '@/lib/web3-config';
@@ -40,6 +39,12 @@ const RESOLVE_STEPS = [
 ];
 const STEP_MS = 700;
 
+const CRACKS = [
+  'M50 50 L8 12', 'M50 50 L92 8', 'M50 50 L98 45', 'M50 50 L88 92',
+  'M50 50 L55 98', 'M50 50 L12 88', 'M50 50 L2 52', 'M50 50 L18 28',
+  'M50 50 L72 18', 'M50 50 L38 6', 'M50 50 L62 94', 'M50 50 L94 68',
+];
+
 export function ResolutionReveal({
   open,
   onClose,
@@ -64,16 +69,13 @@ export function ResolutionReveal({
   const assetKey = asset.toUpperCase() as keyof typeof ASSETS;
   const assetMeta = ASSETS[assetKey] ?? ASSETS.BTC;
 
-  // Phase machine
   const [phase, setPhase] = useState<'resolving' | 'reveal'>('resolving');
   const [currentStep, setCurrentStep] = useState(0);
-  const [showCard, setShowCard] = useState(false);
 
   useEffect(() => {
-    if (!open) { setPhase('resolving'); setCurrentStep(0); setShowCard(false); return; }
+    if (!open) { setPhase('resolving'); setCurrentStep(0); return; }
     setPhase('resolving');
     setCurrentStep(0);
-    setShowCard(false);
     const timers: ReturnType<typeof setTimeout>[] = [];
     RESOLVE_STEPS.forEach((_, i) => {
       timers.push(setTimeout(() => setCurrentStep(i + 1), STEP_MS * (i + 1)));
@@ -82,21 +84,6 @@ export function ResolutionReveal({
     return () => timers.forEach(clearTimeout);
   }, [open]);
 
-  useEffect(() => {
-    if (phase !== 'reveal' || !open) return;
-    const t = setTimeout(() => setShowCard(true), 1200);
-    return () => clearTimeout(t);
-  }, [phase, open]);
-
-  // Lock body scroll
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
-  }, [open]);
-
-  // Animated PTS counter
   const [displayPts, setDisplayPts] = useState(0);
   useEffect(() => {
     if (!open || phase !== 'reveal' || ptsGained <= 0) { setDisplayPts(0); return; }
@@ -110,29 +97,21 @@ export function ResolutionReveal({
     return () => clearInterval(timer);
   }, [open, phase, ptsGained]);
 
-  // Confetti
-  const fireConfetti = useCallback((burst = false) => {
-    const duration = burst ? 3200 : 2500;
-    const end = Date.now() + duration;
+  const fireConfetti = useCallback(() => {
     const colors = ['#00ff88', '#fbbf24', '#00e5ff', '#a855f7'];
+    const end = Date.now() + 2800;
     const frame = () => {
-      confetti({ particleCount: burst ? 5 : 3, angle: 60, spread: 55, origin: { x: 0, y: 0.55 }, colors, zIndex: 9999 });
-      confetti({ particleCount: burst ? 5 : 3, angle: 120, spread: 55, origin: { x: 1, y: 0.55 }, colors, zIndex: 9999 });
+      confetti({ particleCount: 4, angle: 60, spread: 55, origin: { x: 0, y: 0.6 }, colors });
+      confetti({ particleCount: 4, angle: 120, spread: 55, origin: { x: 1, y: 0.6 }, colors });
       if (Date.now() < end) requestAnimationFrame(frame);
     };
     frame();
-    setTimeout(() => {
-      confetti({ particleCount: burst ? 140 : 100, spread: burst ? 90 : 70, origin: { y: 0.45 }, colors, zIndex: 9999 });
-    }, burst ? 80 : 200);
+    setTimeout(() => confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 }, colors }), 150);
   }, []);
 
   useEffect(() => {
     if (phase === 'reveal' && userOutcome === 'win') fireConfetti();
   }, [phase, userOutcome, fireConfetti]);
-
-  useEffect(() => {
-    if (showCard && userOutcome === 'win') fireConfetti(true);
-  }, [showCard, userOutcome, fireConfetti]);
 
   const winnerConfig = {
     UP:   { color: '#22c55e', glow: 'rgba(34,197,94,0.35)', label: 'UP' },
@@ -146,6 +125,8 @@ export function ResolutionReveal({
   const totalSteps = RESOLVE_STEPS.length;
   const progress = Math.min(100, (currentStep / totalSteps) * 100);
   const resultAmount = isWin ? userPayout - userStake : userStake;
+  const accentColor = isWin ? '#00ff88' : isLoss ? '#ff3355' : winnerConfig.color;
+  const displayToken = `$${token.toUpperCase()}`;
 
   const shareText = userOutcome
     ? buildRoundResultShareText({ asset, winner, outcome: userOutcome, stake: userStake, profit: isWin ? resultAmount : undefined, token, payoutTxHash })
@@ -155,221 +136,241 @@ export function ResolutionReveal({
     ? 'M2 14 L8 11 L14 12 L20 8 L26 9 L32 4 L38 2'
     : 'M2 4 L8 7 L14 6 L20 10 L26 9 L32 13 L38 14';
 
-  const accentColor = isWin ? '#00ff88' : isLoss ? '#ff3355' : winnerConfig.color;
-
-  function formatPrice(p: number) {
+  function fmtPrice(p: number) {
     return p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  const modal = (
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          style={{ position: 'fixed', inset: 0, zIndex: 9000 }}
-          className="rr-backdrop"
+          className="rr-overlay"
+          onClick={isResolving ? undefined : onClose}
         >
-          {/* ── PHASE 1: RESOLVE ── */}
-          {isResolving && (
-            <div className="rr-center">
+          {/* Red flash + cracks for loss */}
+          {isLoss && !isResolving && (
+            <>
               <motion.div
-                initial={{ scale: 0.8, opacity: 0, y: 30 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                transition={{ type: 'spring', damping: 22, stiffness: 300 }}
-                className="rr-resolve-card"
-              >
-                <div className="rr-resolve-inner">
-                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}>
-                    <Loader2 className="w-10 h-10 text-indigo-400" />
-                  </motion.div>
-                  <div className="rr-resolve-title">Resolving Round</div>
-
-                  <div className="rr-progress-track">
-                    <motion.div
-                      className="rr-progress-fill"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progress}%` }}
-                      transition={{ type: 'spring', damping: 20, stiffness: 150 }}
-                    />
-                  </div>
-                  <div className="rr-progress-pct">{Math.round(progress)}%</div>
-
-                  <div className="rr-steps">
-                    {RESOLVE_STEPS.map((step, i) => {
-                      const done = currentStep > i;
-                      const active = currentStep === i;
-                      return (
-                        <motion.div
-                          key={step.label}
-                          initial={{ opacity: 0, x: -8 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: i * 0.1 }}
-                          className={`rr-step ${done ? 'rr-step--done' : active ? 'rr-step--active' : ''}`}
-                        >
-                          <div className="rr-step-icon">
-                            {done ? <CheckCircle2 className="w-5 h-5" /> : <step.icon className="w-5 h-5" />}
-                          </div>
-                          <span>{step.label}</span>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </motion.div>
-            </div>
+                className="rr-red-flash"
+                initial={{ opacity: 0.6 }}
+                animate={{ opacity: 0 }}
+                transition={{ duration: 0.4 }}
+              />
+              <svg className="rr-cracks" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+                {CRACKS.map((d, i) => (
+                  <motion.path
+                    key={d}
+                    d={d}
+                    fill="none"
+                    stroke="rgba(255,255,255,0.7)"
+                    strokeWidth={0.5}
+                    vectorEffect="non-scaling-stroke"
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    animate={{ pathLength: 1, opacity: [0, 1, 0.6] }}
+                    transition={{ duration: 0.35, delay: i * 0.025, ease: 'easeOut' }}
+                  />
+                ))}
+              </svg>
+            </>
           )}
 
-          {/* ── PHASE 2: REVEAL ── */}
-          {!isResolving && (
-            <div className="rr-reveal" onClick={showCard ? onClose : undefined}>
-              {/* Glow background */}
-              <div className="rr-glow" style={{
-                background: `radial-gradient(ellipse 80% 60% at 50% 30%, ${accentColor}30 0%, transparent 60%), radial-gradient(ellipse 100% 100% at 50% 50%, transparent 20%, rgba(0,0,0,0.9) 100%)`,
-              }} />
+          <motion.div
+            key={phase}
+            initial={{ scale: 0.85, y: 30, opacity: 0 }}
+            animate={{ scale: 1, y: 0, opacity: 1 }}
+            exit={{ scale: 0.9, y: -20, opacity: 0 }}
+            transition={{ type: 'spring', damping: 22, stiffness: 300 }}
+            onClick={e => e.stopPropagation()}
+            className={`rr-modal ${isLoss && !isResolving ? 'rr-modal--shake' : ''}`}
+            style={{
+              borderColor: isResolving ? '#4f46e5' : accentColor,
+              boxShadow: `0 0 60px ${isResolving ? 'rgba(79,70,229,0.25)' : accentColor + '30'}, 0 20px 40px rgba(0,0,0,0.5)`,
+            }}
+          >
+            {!isResolving && (
+              <button onClick={onClose} className="rr-close" aria-label="Close">
+                <X className="w-5 h-5" />
+              </button>
+            )}
 
-              {/* Hero section */}
-              <div className="rr-hero">
-                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                  <MindClashLogo size="overlay" />
+            {isResolving ? (
+              /* ── RESOLVE ── */
+              <div className="rr-resolve-inner">
+                <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}>
+                  <Loader2 className="w-10 h-10 text-indigo-400" />
                 </motion.div>
+                <div className="rr-resolve-title">Resolving Round</div>
 
+                <div className="rr-progress-track">
+                  <motion.div
+                    className="rr-progress-fill"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progress}%` }}
+                    transition={{ type: 'spring', damping: 20, stiffness: 150 }}
+                  />
+                </div>
+                <div className="rr-progress-pct">{Math.round(progress)}%</div>
+
+                <div className="rr-steps">
+                  {RESOLVE_STEPS.map((step, i) => {
+                    const done = currentStep > i;
+                    const active = currentStep === i;
+                    return (
+                      <motion.div
+                        key={step.label}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.1 }}
+                        className={`rr-step ${done ? 'rr-step--done' : active ? 'rr-step--active' : ''}`}
+                      >
+                        <div className="rr-step-icon">
+                          {done ? <CheckCircle2 className="w-5 h-5" /> : <step.icon className="w-5 h-5" />}
+                        </div>
+                        <span>{step.label}</span>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              /* ── REVEAL ── */
+              <div className="rr-reveal-inner">
+                {/* Title */}
                 <motion.div
-                  className="rr-hero-title"
-                  style={{ color: accentColor, textShadow: `0 0 40px ${accentColor}88, 0 0 80px ${accentColor}44` }}
-                  initial={{ scale: 1.4, opacity: 0, y: 16 }}
-                  animate={{ scale: showCard ? 0.75 : 1, opacity: 1, y: 0 }}
-                  transition={{ type: 'spring', damping: 12, stiffness: 260, delay: 0.08 }}
+                  className="rr-result-title"
+                  style={{ color: accentColor, textShadow: `0 0 24px ${accentColor}66` }}
+                  initial={{ scale: 1.3, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', damping: 14, stiffness: 260 }}
                 >
-                  {isWin ? 'YOU WIN' : isLoss ? 'YOU LOSE' : 'TIE'}
+                  {isWin ? 'YOU WIN!' : isLoss ? 'YOU LOSE' : 'TIE'}
                 </motion.div>
 
                 <motion.div
-                  className="rr-hero-amount"
+                  className="rr-result-amount"
+                  style={{ color: isWin ? '#a7f3d0' : isLoss ? '#fca5a5' : '#d1d5db' }}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.25, duration: 0.35 }}
+                  transition={{ delay: 0.15 }}
                 >
-                  {isWin ? '+' : isLoss ? '-' : ''}{resultAmount.toFixed(0)} {token}
+                  {isWin ? '+' : isLoss ? '-' : ''}{resultAmount.toFixed(0)} {displayToken}
                 </motion.div>
 
+                {/* Asset row */}
                 <motion.div
-                  className="rr-hero-market"
+                  className="rr-asset-row"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.25 }}
+                >
+                  <div className="rr-asset-left">
+                    <div className="rr-asset-badge" style={{ background: `${assetMeta.color}22`, color: assetMeta.color, border: `1px solid ${assetMeta.color}55` }}>
+                      {assetMeta.icon}
+                    </div>
+                    <div>
+                      <div className="rr-asset-symbol">{assetMeta.symbol}</div>
+                      <div className="rr-asset-name">{assetMeta.name}</div>
+                    </div>
+                  </div>
+                  <div className="rr-asset-price">
+                    <span className="rr-price-val">${fmtPrice(endPrice)}</span>
+                    <span className="rr-price-change" style={{ color: winnerConfig.color }}>
+                      {diffPct >= 0 ? '+' : ''}{diffPct.toFixed(2)}%
+                      {diffPct >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                    </span>
+                  </div>
+                  <svg className="rr-sparkline" viewBox="0 0 40 16" aria-hidden>
+                    <path d={sparkD} fill="none" stroke={winnerConfig.color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </motion.div>
+
+                {/* Entry / Exit prices */}
+                <motion.div
+                  className="rr-prices-row"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ delay: 0.4 }}
+                  transition={{ delay: 0.3 }}
                 >
-                  MARKET WENT {winnerConfig.label} {diffPct >= 0 ? '↑' : '↓'}
-                </motion.div>
-              </div>
-
-              {/* Detail card */}
-              <AnimatePresence>
-                {showCard && (
-                  <motion.div
-                    className="rr-card-wrap"
-                    initial={{ y: 60, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    exit={{ y: 60, opacity: 0 }}
-                    transition={{ type: 'spring', damping: 24, stiffness: 280 }}
-                    onClick={e => e.stopPropagation()}
-                  >
-                    <div className={`rr-card ${isWin ? 'rr-card--win' : isLoss ? 'rr-card--loss' : 'rr-card--tie'}`}>
-                      {/* Asset row */}
-                      <div className="rr-asset-row">
-                        <div className="rr-asset-left">
-                          <div className="rr-asset-badge" style={{ background: `${assetMeta.color}22`, color: assetMeta.color, border: `1px solid ${assetMeta.color}55` }}>
-                            {assetMeta.icon}
-                          </div>
-                          <div>
-                            <div className="rr-asset-symbol">{assetMeta.symbol}</div>
-                            <div className="rr-asset-name">{assetMeta.name}</div>
-                          </div>
-                        </div>
-                        <div className="rr-asset-price">
-                          <span className="rr-price-val">${formatPrice(endPrice)}</span>
-                          <span className="rr-price-change" style={{ color: winnerConfig.color }}>
-                            {diffPct >= 0 ? '+' : ''}{diffPct.toFixed(2)}%
-                            {diffPct >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                          </span>
-                        </div>
-                        <svg className="rr-sparkline" viewBox="0 0 40 16" aria-hidden>
-                          <path d={sparkD} fill="none" stroke={winnerConfig.color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </div>
-
-                      {/* Stats */}
-                      <div className="rr-stats">
-                        <div className={`rr-stat ${isWin ? 'rr-stat--win' : 'rr-stat--loss'}`}>
-                          <div className="rr-stat-label">{isWin ? 'YOU WON' : 'YOU LOST'}</div>
-                          <div className="rr-stat-value">{isWin ? '+' : '-'}{resultAmount.toFixed(0)} {token}</div>
-                        </div>
-                        {ptsGained > 0 && (
-                          <div className="rr-stat rr-stat--xp">
-                            <div className="rr-stat-xp-head">
-                              <span className="rr-stat-label rr-stat-label--xp">XP EARNED</span>
-                              <Star className="w-4 h-4 text-purple-400" />
-                            </div>
-                            <div className="rr-stat-value rr-stat-value--xp">+{displayPts} XP</div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* On-chain status */}
-                      {isWin && (payoutStatus === 'claiming' || payoutStatus === 'paid' || payoutStatus === 'failed' || payoutTxHash) && (
-                        <div className="rr-payout">
-                          {payoutStatus === 'claiming' && (
-                            <span className="flex items-center gap-1 text-cyan-400"><Loader2 className="w-3 h-3 animate-spin" />Sending on-chain payout…</span>
-                          )}
-                          {payoutStatus === 'paid' && (
-                            <span className="flex items-center gap-1 text-green-400"><CheckCircle2 className="w-3 h-3" />{userPayout.toFixed(0)} {token} received on-chain</span>
-                          )}
-                          {payoutStatus === 'failed' && (
-                            <span className="flex items-center gap-1 text-red-400"><AlertCircle className="w-3 h-3" />On-chain payout failed</span>
-                          )}
-                          {payoutTxHash && (
-                            <a href={`https://sepolia.mantlescan.xyz/tx/${payoutTxHash}`} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">View payout tx ↗</a>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Buttons */}
-                      <div className="rr-actions">
-                        <button type="button" onClick={onClose} className={`rr-btn-primary ${isWin ? 'rr-btn--win' : 'rr-btn--loss'}`}>
-                          {isWin ? 'CLAIM & CONTINUE' : 'CONTINUE'}
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
-                        {shareText && <ShareOnXButton text={shareText} className="rr-btn-share" />}
-                      </div>
-
-                      {isWin && <p className="rr-footer">Your rewards have been credited to your account.</p>}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Tie fallback — no card, just continue button */}
-              {userOutcome === 'tie' && showCard && (
-                <motion.div
-                  className="rr-card-wrap"
-                  initial={{ y: 40, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  onClick={e => e.stopPropagation()}
-                >
-                  <div className="rr-card rr-card--tie">
-                    <div className="text-center text-sm text-gray-400 mb-3">Stake refunded: {userStake.toFixed(0)} {token}</div>
-                    <button type="button" onClick={onClose} className="rr-btn-primary rr-btn--tie">CONTINUE <ChevronRight className="w-4 h-4" /></button>
+                  <div className="rr-price-block">
+                    <span className="rr-price-label">ENTRY</span>
+                    <span className="rr-price-num">${fmtPrice(startPrice)}</span>
+                  </div>
+                  <div className="rr-price-arrow">→</div>
+                  <div className="rr-price-block">
+                    <span className="rr-price-label">EXIT</span>
+                    <span className="rr-price-num">${fmtPrice(endPrice)}</span>
+                  </div>
+                  <div className="rr-price-pct" style={{ background: `${winnerConfig.color}18`, color: winnerConfig.color }}>
+                    {diffPct >= 0 ? '+' : ''}{diffPct.toFixed(2)}%
                   </div>
                 </motion.div>
-              )}
-            </div>
-          )}
+
+                {/* Stats */}
+                <motion.div
+                  className={`rr-stats ${ptsGained <= 0 ? 'rr-stats--solo' : ''}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.35 }}
+                >
+                  <div className={`rr-stat ${isWin ? 'rr-stat--win' : 'rr-stat--loss'}`}>
+                    <div className="rr-stat-label">{isWin ? 'YOU WON' : 'YOU LOST'}</div>
+                    <div className="rr-stat-value">{isWin ? '+' : '-'}{resultAmount.toFixed(0)} {displayToken}</div>
+                  </div>
+                  {ptsGained > 0 && (
+                    <div className="rr-stat rr-stat--xp">
+                      <div className="rr-stat-xp-head">
+                        <span className="rr-stat-label rr-stat-label--xp">XP EARNED</span>
+                        <Star className="w-4 h-4 text-purple-400" />
+                      </div>
+                      <div className="rr-stat-value rr-stat-value--xp">+{displayPts} XP</div>
+                    </div>
+                  )}
+                </motion.div>
+
+                {/* On-chain status */}
+                {isWin && (payoutStatus === 'claiming' || payoutStatus === 'paid' || payoutStatus === 'failed' || payoutTxHash) && (
+                  <div className="rr-payout">
+                    {payoutStatus === 'claiming' && (
+                      <span className="flex items-center gap-1 text-cyan-400"><Loader2 className="w-3 h-3 animate-spin" />Sending on-chain payout…</span>
+                    )}
+                    {payoutStatus === 'paid' && (
+                      <span className="flex items-center gap-1 text-green-400"><CheckCircle2 className="w-3 h-3" />{userPayout.toFixed(0)} {displayToken} received on-chain</span>
+                    )}
+                    {payoutStatus === 'failed' && (
+                      <span className="flex items-center gap-1 text-red-400"><AlertCircle className="w-3 h-3" />On-chain payout failed</span>
+                    )}
+                    {payoutTxHash && (
+                      <a href={`https://sepolia.mantlescan.xyz/tx/${payoutTxHash}`} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">View payout tx ↗</a>
+                    )}
+                  </div>
+                )}
+
+                {/* Buttons */}
+                <motion.div
+                  className="rr-actions"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.45 }}
+                >
+                  <button type="button" onClick={onClose} className={`rr-btn-primary ${isWin ? 'rr-btn--win' : isLoss ? 'rr-btn--loss' : 'rr-btn--tie'}`}>
+                    {isWin ? 'CLAIM & CONTINUE' : 'CONTINUE'}
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                  {shareText && <ShareOnXButton text={shareText} className="rr-btn-share" />}
+                </motion.div>
+
+                {isWin && <p className="rr-footer">Your rewards have been credited to your account.</p>}
+              </div>
+            )}
+          </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
-
-  if (!mounted) return null;
-  return createPortal(modal, document.body);
 }
