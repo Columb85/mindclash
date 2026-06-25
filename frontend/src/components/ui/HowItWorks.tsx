@@ -90,8 +90,8 @@ export function HowItWorks() {
 
 export function QuickHelp() {
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', border: '1px solid var(--hud-border)', background: 'var(--hud-panel-2)', fontFamily: 'var(--hud-font-mono)', fontSize: 10, color: 'var(--hud-text-dim)' }}>
-      <i className="fa-solid fa-circle-question" style={{ color: 'var(--hud-cyan)', fontSize: 11 }} />
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', border: '1px solid var(--hud-border)', background: 'var(--hud-panel-2)', fontFamily: 'var(--hud-font-mono)', fontSize: 12, color: 'var(--hud-text-dim)' }}>
+      <i className="fa-solid fa-circle-question" style={{ color: 'var(--hud-cyan)', fontSize: 13 }} />
       Predict price direction before round starts. Correct predictions win!
     </div>
   );

@@ -40,7 +40,7 @@ export function ModeIndicator() {
         style={{ border: '1px solid var(--hud-border)', background: 'var(--hud-panel)', clipPath: 'polygon(4px 0,100% 0,calc(100% - 4px) 100%,0 100%)' }}
       >
         <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--hud-text-dim)' }} />
-        <span style={{ fontFamily: 'var(--hud-font-head)', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--hud-text-dim)' }}>
+        <span style={{ fontFamily: 'var(--hud-font-head)', fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--hud-text-dim)' }}>
           INIT
         </span>
       </div>
@@ -54,12 +54,12 @@ export function ModeIndicator() {
           className="hud-topbar-util"
           style={{
             display: 'flex', alignItems: 'center', gap: 5,
-            padding: '4px 10px',
+            padding: '4px 12px',
             border: '1px solid rgba(0,255,136,.3)',
             background: 'rgba(0,51,32,.5)',
             clipPath: 'polygon(4px 0,100% 0,calc(100% - 4px) 100%,0 100%)',
             fontFamily: 'var(--hud-font-head)',
-            fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
+            fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
             color: 'var(--hud-green)',
           }}
         >
@@ -76,29 +76,29 @@ export function ModeIndicator() {
         className="cursor-help"
         style={{
           display: 'flex', alignItems: 'center', gap: 5,
-          padding: '4px 10px',
+          padding: '4px 12px',
           border: '1px solid rgba(251,191,36,.3)',
           background: 'rgba(40,30,0,.5)',
           clipPath: 'polygon(4px 0,100% 0,calc(100% - 4px) 100%,0 100%)',
           fontFamily: 'var(--hud-font-head)',
-          fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
+          fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
           color: 'var(--hud-gold)',
         }}
       >
-        <span className="live-dot" style={{ width: 6, height: 6, background: 'var(--hud-gold)', boxShadow: '0 0 6px var(--hud-gold)' }} />
+        <span className="live-dot" style={{ width: 6, height: 6, background: 'var(--hud-gold)', boxShadow: '0 0 10px var(--hud-gold)' }} />
         DEMO
       </div>
 
       {/* Tooltip */}
       <div
         className="absolute top-full right-0 mt-2 w-64 p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50"
-        style={{ background: 'var(--hud-panel)', border: '1px solid var(--hud-border-hi)', clipPath: 'polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,0 100%)' }}
+        style={{ background: 'var(--hud-panel)', border: '1px solid var(--hud-border-hi)', clipPath: 'polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,0 100%)' }}
       >
         <div className="flex items-start gap-2">
           <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--hud-gold)' }} />
           <div>
             <p style={{ fontFamily: 'var(--hud-font-head)', fontSize: 12, fontWeight: 700, color: '#fff', marginBottom: 4 }}>Demo Mode Active</p>
-            <p style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 10, color: 'var(--hud-text-dim)', lineHeight: 1.5 }}>
+            <p style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 12, color: 'var(--hud-text-dim)', lineHeight: 1.5 }}>
               Contracts not deployed. AI decisions are simulated locally. Deploy to Mantle Sepolia for real on-chain tracking.
             </p>
           </div>
@@ -196,7 +196,7 @@ export function ModeIndicatorExtended() {
             <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
             <div>
               <p className="text-xs text-yellow-300 font-medium mb-1">Contracts Not Deployed</p>
-              <p className="text-[10px] text-gray-400">
+              <p className="text-[12px] text-gray-400">
                 Run <code className="bg-dark-bg px-1 rounded">npx hardhat run scripts/deploy.js --network mantleSepolia</code> to deploy.
               </p>
             </div>

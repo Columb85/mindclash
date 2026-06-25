@@ -180,7 +180,7 @@ export default function AutonomousPage() {
             Bot Loop
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 10, color: 'var(--hud-text-3)' }}>
+            <span style={{ fontSize: 12, color: 'var(--hud-text-3)' }}>
               Cycles: <strong style={{ color: '#fff', fontFamily: 'var(--hud-font-mono)' }}>{totalCycles}</strong>
             </span>
             <button type="button" onClick={togglePlay} className={`hud-btn ${playing ? 'hud-btn-red' : 'hud-btn-cyan'}`}>
@@ -233,7 +233,7 @@ export default function AutonomousPage() {
 
         <div className="hud-section-panel" style={{ marginTop: 16 }}>
           <div className="ca-panel-title" style={{ marginBottom: 10 }}>Architecture</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, fontSize: 11 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, fontSize: 13 }}>
             <div>
               <div style={{ color: 'var(--hud-cyan)', fontWeight: 600, marginBottom: 4 }}>Node.js Bot</div>
               <div style={{ color: 'var(--hud-text-dim)', lineHeight: 1.45 }}>Runs every 30 min + every live round. Fetches Bybit data, computes indicators, submits to chain.</div>

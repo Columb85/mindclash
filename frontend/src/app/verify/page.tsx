@@ -251,7 +251,7 @@ export default function VerifyPage() {
           </div>
 
           <div className="vf-example-row">
-            <span style={{ fontSize: 9, color: 'var(--hud-text-3)' }}>
+            <span style={{ fontSize: 13, color: 'var(--hud-text-3)' }}>
               <i className="fa-solid fa-circle-info" /> Try a live example:
             </span>
             {examples.map(ex => {
@@ -268,17 +268,17 @@ export default function VerifyPage() {
                     borderColor: color,
                     background: `${color}22`,
                     color,
-                    boxShadow: `0 0 10px ${color}44`,
+                    boxShadow: `0 0 12px ${color}44`,
                   } : undefined}
                   aria-pressed={isSelected}
                 >
-                  {isSelected && <i className="fa-solid fa-circle-check" style={{ marginRight: 4, fontSize: 8 }} />}
+                  {isSelected && <i className="fa-solid fa-circle-check" style={{ marginRight: 4, fontSize: 12 }} />}
                   {ex.label}
                 </button>
               );
             })}
           </div>
-          <div style={{ fontSize: 9, color: 'var(--hud-text-3)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 13, color: 'var(--hud-text-3)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <i className="fa-solid fa-circle-info" />
             Or find more hashes on
             <a href={`${EXPLORER}/address/${NFT_ADDR}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--hud-cyan)', textDecoration: 'none' }}>
@@ -290,7 +290,7 @@ export default function VerifyPage() {
         {error && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="ca-net-banner" style={{ marginTop: 12 }}>
             <i className="fa-solid fa-circle-xmark" style={{ color: 'var(--hud-red)', fontSize: 18 }} />
-            <div style={{ flex: 1, fontSize: 11, color: 'var(--hud-red)' }}>{error}</div>
+            <div style={{ flex: 1, fontSize: 13, color: 'var(--hud-red)' }}>{error}</div>
           </motion.div>
         )}
 
@@ -349,7 +349,7 @@ export default function VerifyPage() {
 
             {result.direction && (
               <div className="vf-decoded-box">
-                <div style={{ fontSize: 9, color: 'var(--hud-text-3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>
+                <div style={{ fontSize: 13, color: 'var(--hud-text-3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>
                   <i className="fa-solid fa-brain" /> Decoded AI Decision
                 </div>
                 <div
@@ -363,9 +363,9 @@ export default function VerifyPage() {
                     Confidence: <span style={{ color: 'var(--hud-gold)' }}>{result.confidence}</span> ({(result.confidence / 10).toFixed(1)}%)
                   </div>
                 )}
-                <div style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 11, color: 'var(--hud-text-3)', marginTop: 6 }}>Stake: 250 CLASH</div>
+                <div style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 13, color: 'var(--hud-text-3)', marginTop: 6 }}>Stake: 250 CLASH</div>
                 {result.reasoning && (
-                  <p style={{ fontSize: 11, color: 'var(--hud-text-dim)', fontStyle: 'italic', marginTop: 10, lineHeight: 1.5, borderTop: '1px solid var(--hud-border)', paddingTop: 10 }}>
+                  <p style={{ fontSize: 13, color: 'var(--hud-text-dim)', fontStyle: 'italic', marginTop: 10, lineHeight: 1.5, borderTop: '1px solid var(--hud-border)', paddingTop: 10 }}>
                     &ldquo;{result.reasoning}&rdquo;
                   </p>
                 )}
@@ -374,8 +374,8 @@ export default function VerifyPage() {
 
             {!result.direction && result.reasoning && (
               <div className="vf-decoded-box" style={{ marginTop: 8 }}>
-                <div style={{ fontSize: 9, color: 'var(--hud-text-3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Decoded Call</div>
-                <p style={{ fontSize: 11, color: 'var(--hud-text-dim)', lineHeight: 1.5 }}>{result.reasoning}</p>
+                <div style={{ fontSize: 13, color: 'var(--hud-text-3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Decoded Call</div>
+                <p style={{ fontSize: 13, color: 'var(--hud-text-dim)', lineHeight: 1.5 }}>{result.reasoning}</p>
               </div>
             )}
 

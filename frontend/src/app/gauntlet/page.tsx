@@ -194,13 +194,13 @@ export default function GauntletPage() {
                   <h2>The Agent Gauntlet</h2>
                   <p>Face all 3 AI champions in sequence. Predict price direction better than each bot to win. Beat all 3 to prove human supremacy.</p>
                 </div>
-                <div style={{ fontSize: 9, color: 'var(--hud-text-3)', textAlign: 'center', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                <div style={{ fontSize: 13, color: 'var(--hud-text-3)', textAlign: 'center', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                   Your opponents (in order)
                 </div>
                 <div className="gnt-champ-grid">
                   {CHAMPIONS.map((c, i) => (
                     <div key={c.tokenId} className="gnt-champ-card" style={{ borderColor: `${c.color}44` }}>
-                      <div style={{ fontSize: 8, color: 'var(--hud-text-3)', marginBottom: 4 }}>Round {i + 1}</div>
+                      <div style={{ fontSize: 12, color: 'var(--hud-text-3)', marginBottom: 4 }}>Round {i + 1}</div>
                       <i className="fa-solid fa-robot" style={{ color: c.color, fontSize: 20 }} />
                       <div className="cn" style={{ color: c.color }}>{c.name}</div>
                       <div className="ct">{c.title}</div>
@@ -227,7 +227,7 @@ export default function GauntletPage() {
                 <div className="gnt-round-hdr">
                   <div className="rn">Round {roundIdx + 1} / {CHAMPIONS.length}</div>
                   <h3>vs <span style={{ color: champ.color }}>{champ.name}</span></h3>
-                  <div style={{ fontSize: 10, color: 'var(--hud-text-3)' }}>{champ.title} — {champ.strategy} · {asset}/USDT · {ROUND_DURATION}s</div>
+                  <div style={{ fontSize: 12, color: 'var(--hud-text-3)' }}>{champ.title} — {champ.strategy} · {asset}/USDT · {ROUND_DURATION}s</div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
                   <button type="button" onClick={() => setDirection('UP')} className={`hud-dir-btn up${direction === 'UP' ? ' active' : ''}`}>
@@ -240,7 +240,7 @@ export default function GauntletPage() {
                   </button>
                 </div>
                 {error && (
-                  <div style={{ fontSize: 10, color: 'var(--hud-red)', textAlign: 'center', marginBottom: 8 }}>
+                  <div style={{ fontSize: 12, color: 'var(--hud-red)', textAlign: 'center', marginBottom: 8 }}>
                     <i className="fa-solid fa-exclamation-triangle" /> {error}
                   </div>
                 )}
@@ -265,23 +265,23 @@ export default function GauntletPage() {
                 <motion.div key={countdown} initial={{ scale: 1.05 }} animate={{ scale: 1 }} className="hud-countdown-big">
                   {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, '0')}
                 </motion.div>
-                <div style={{ textAlign: 'center', fontSize: 10, color: 'var(--hud-text-3)', marginBottom: 14 }}>
+                <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--hud-text-3)', marginBottom: 14 }}>
                   Round {roundIdx + 1} — {asset}/USDT
                 </div>
                 <div className="hud-vs-row">
                   <div className="hud-vs-card you">
-                    <div style={{ fontSize: 10, color: 'var(--hud-text-3)' }}>You</div>
+                    <div style={{ fontSize: 12, color: 'var(--hud-text-3)' }}>You</div>
                     <div style={{ fontSize: 16, fontWeight: 600, color: direction === 'UP' ? 'var(--hud-green)' : 'var(--hud-red)' }}>{direction}</div>
                   </div>
                   <div className="hud-vs-mid">VS</div>
                   <div className="hud-vs-card ai">
-                    <div style={{ fontSize: 10, color: champ.color }}>{champ.name}</div>
+                    <div style={{ fontSize: 12, color: champ.color }}>{champ.name}</div>
                     <div style={{ fontSize: 16, fontWeight: 600, color: currentAnalysis.decision.direction === 'UP' ? 'var(--hud-green)' : 'var(--hud-red)' }}>
                       {currentAnalysis.decision.direction}
                     </div>
                   </div>
                 </div>
-                <p style={{ fontSize: 9, color: 'var(--hud-text-3)', fontFamily: 'var(--hud-font-mono)', textAlign: 'center', marginTop: 10, fontStyle: 'italic' }}>
+                <p style={{ fontSize: 13, color: 'var(--hud-text-3)', fontFamily: 'var(--hud-font-mono)', textAlign: 'center', marginTop: 10, fontStyle: 'italic' }}>
                   &ldquo;{currentAnalysis.decision.reasoning}&rdquo;
                 </p>
               </div>
@@ -296,7 +296,7 @@ export default function GauntletPage() {
                   {currentResult.winner === 'agent' && `${CHAMPIONS[currentResult.championIdx].name} wins this round`}
                   {currentResult.winner === 'tie' && 'Tie!'}
                 </div>
-                <div style={{ fontSize: 10, color: 'var(--hud-text-3)', marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: 'var(--hud-text-3)', marginTop: 4 }}>
                   ${currentResult.startPrice.toLocaleString()} → ${currentResult.endPrice.toLocaleString()} ({currentResult.priceChange}%)
                 </div>
                 <div className="hud-banner-wl">
@@ -320,7 +320,7 @@ export default function GauntletPage() {
                   {wins === 0 && 'The Machines Win… This Time'}
                 </h2>
                 <div className="gnt-final-score">{wins} / {CHAMPIONS.length}</div>
-                <div style={{ fontSize: 10, color: 'var(--hud-text-3)', marginBottom: 14 }}>rounds won</div>
+                <div style={{ fontSize: 12, color: 'var(--hud-text-3)', marginBottom: 14 }}>rounds won</div>
                 <div className="gnt-round-list">
                   {results.map((r, i) => (
                     <div key={i} className="gnt-round-item">

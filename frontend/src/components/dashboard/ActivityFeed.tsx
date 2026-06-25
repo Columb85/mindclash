@@ -31,7 +31,7 @@ function EventRow({ ev }: { ev: ActivityEvent }) {
           </div>
           <div className="text-xs text-gray-500">{ev.amount} {ev.token}</div>
         </div>
-        <span className="text-[10px] text-gray-500 flex-shrink-0">{timeAgo(ev.timestamp)}</span>
+        <span className="text-[12px] text-gray-500 flex-shrink-0">{timeAgo(ev.timestamp)}</span>
       </div>
     );
   }
@@ -46,7 +46,7 @@ function EventRow({ ev }: { ev: ActivityEvent }) {
           <span className="text-gray-400">{ev.asset} round ended</span>
           <span className={`ml-2 font-bold ${isUp ? 'text-green-500' : 'text-red-500'}`}>{ev.winner} won</span>
         </div>
-        <span className="text-[10px] text-gray-500 flex-shrink-0">{timeAgo(ev.timestamp)}</span>
+        <span className="text-[12px] text-gray-500 flex-shrink-0">{timeAgo(ev.timestamp)}</span>
       </div>
     );
   }
@@ -60,7 +60,7 @@ function EventRow({ ev }: { ev: ActivityEvent }) {
           <span className="font-mono text-xs text-gray-400">{ev.actor}</span>
           <span className="text-yellow-400 font-bold ml-1">won {ev.amount} {ev.token}</span>
         </div>
-        <span className="text-[10px] text-gray-500 flex-shrink-0">{timeAgo(ev.timestamp)}</span>
+        <span className="text-[12px] text-gray-500 flex-shrink-0">{timeAgo(ev.timestamp)}</span>
       </div>
     );
   }

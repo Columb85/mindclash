@@ -96,7 +96,7 @@ export function ProtocolStats() {
           transition={{ delay: i * 0.05 }}
           className="hud-stat-card"
           style={{
-            clipPath: 'polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)',
+            clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)',
             ['--stat-color' as string]: item.color,
             ...(item.onChain ? { borderColor: 'rgba(0,212,170,.25)' } : {}),
           }}
@@ -117,7 +117,7 @@ export function ProtocolStats() {
           <div className="hud-stat-value" style={{ color: '#fff', fontSize: item.suffix ? 14 : 18 }}>
             {item.num}
             {item.suffix && (
-              <span style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 10, color: 'var(--hud-text-3)', marginLeft: 4 }}>
+              <span style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 12, color: 'var(--hud-text-3)', marginLeft: 4 }}>
                 {item.suffix}
               </span>
             )}

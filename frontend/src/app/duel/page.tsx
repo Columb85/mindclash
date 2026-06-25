@@ -317,7 +317,7 @@ function DuelPageInner() {
             Challenge AI
           </span>
           <span className="hud-badge hud-badge-gold">
-            <i className="fa-solid fa-link text-[8px]" />
+            <i className="fa-solid fa-link text-[12px]" />
             Event-Driven Duel
           </span>
         </div>
@@ -406,7 +406,7 @@ function DuelPageInner() {
                 </div>
                 {myTokenId <= 0 && (
                   <Link href="/create-agent" className="duel-create-link">
-                    <i className="fa-solid fa-plus text-[9px]" />
+                    <i className="fa-solid fa-plus text-[13px]" />
                     Create your own agent (1 per wallet)
                   </Link>
                 )}
@@ -469,7 +469,7 @@ function DuelPageInner() {
               <div className="relative">
                 <div
                   className={`hud-bot-av ${agentAvatarClass}`}
-                  style={{ width: 72, height: 72, fontSize: 32, clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' }}
+                  style={{ width: 72, height: 72, fontSize: 32, clipPath: 'polygon(12px 0,100% 0,calc(100% - 12px) 100%,0 100%)' }}
                 >
                   <i className="fa-solid fa-robot" />
                 </div>
@@ -537,7 +537,7 @@ function DuelPageInner() {
                     <span className={`hud-signal-dot ${sig.bullish ? 'up' : 'dn'}`}>
                       {sig.bullish ? '↑' : '↓'}
                     </span>
-                    <span style={{ color: 'var(--hud-text)', fontFamily: 'var(--hud-font-mono)', fontSize: 10 }}>{sig.label}</span>
+                    <span style={{ color: 'var(--hud-text)', fontFamily: 'var(--hud-font-mono)', fontSize: 12 }}>{sig.label}</span>
                   </div>
                 ))}
                 <div className="duel-reasoning">
@@ -551,13 +551,13 @@ function DuelPageInner() {
                         On-chain: {onChainTx.hash.slice(0, 10)}…
                       </span>
                       <a href={onChainTx.url} target="_blank" rel="noopener noreferrer" className="duel-explorer-link">
-                        <i className="fa-solid fa-arrow-up-right-from-square text-[8px]" />
+                        <i className="fa-solid fa-arrow-up-right-from-square text-[12px]" />
                         MantleScan
                       </a>
                     </>
                   ) : (
                     <span className="duel-onchain-pending">
-                      <i className="fa-solid fa-circle-notch fa-spin text-[9px]" />
+                      <i className="fa-solid fa-circle-notch fa-spin text-[13px]" />
                       Recording on-chain...
                     </span>
                   )}
@@ -616,13 +616,13 @@ function DuelPageInner() {
                 </div>
 
                 <div className="duel-result-cta">
-                  <button type="button" onClick={reset} className="hud-btn hud-btn-outline" style={{ fontSize: 11 }}>
-                    <i className="fa-solid fa-rotate-right text-[10px]" />
+                  <button type="button" onClick={reset} className="hud-btn hud-btn-outline" style={{ fontSize: 13 }}>
+                    <i className="fa-solid fa-rotate-right text-[12px]" />
                     Play Again
                   </button>
                   {onChainTx && (
-                    <a href={onChainTx.url} target="_blank" rel="noopener noreferrer" className="hud-btn hud-btn-gold" style={{ fontSize: 11 }}>
-                      <i className="fa-solid fa-arrow-up-right-from-square text-[10px]" />
+                    <a href={onChainTx.url} target="_blank" rel="noopener noreferrer" className="hud-btn hud-btn-gold" style={{ fontSize: 13 }}>
+                      <i className="fa-solid fa-arrow-up-right-from-square text-[12px]" />
                       MantleScan
                     </a>
                   )}
@@ -649,7 +649,7 @@ function DuelPageInner() {
 export default function DuelPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--hud-bg)', color: 'var(--hud-text-dim)', fontFamily: 'var(--hud-font-mono)', fontSize: 11 }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--hud-bg)', color: 'var(--hud-text-dim)', fontFamily: 'var(--hud-font-mono)', fontSize: 13 }}>
         <i className="fa-solid fa-circle-notch fa-spin mr-2" />
         Loading…
       </div>

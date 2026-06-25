@@ -75,7 +75,7 @@ export function MaintenancePage() {
               <h1 className="text-2xl font-black bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400 bg-clip-text text-transparent tracking-tight">
                 MindClash
               </h1>
-              <p className="text-[11px] text-purple-400 font-semibold uppercase tracking-[0.15em] mt-1">
+              <p className="text-[13px] text-purple-400 font-semibold uppercase tracking-[0.15em] mt-1">
                 Where Minds Collide
               </p>
             </motion.div>
@@ -197,7 +197,7 @@ export function MaintenancePage() {
         </div>
 
         {/* Bottom text */}
-        <p className="text-center text-[11px] text-gray-700 mt-4">
+        <p className="text-center text-[13px] text-gray-700 mt-4">
           © 2026 MindClash · Mantle Sepolia Testnet
         </p>
       </motion.div>

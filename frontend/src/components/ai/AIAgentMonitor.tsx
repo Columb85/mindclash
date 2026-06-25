@@ -274,7 +274,7 @@ export function AIAgentMonitor() {
             <span className="aim-prices-via">via Bybit</span>
           </div>
           {Object.keys(livePrices).length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '16px 0', fontFamily: 'var(--hud-font-mono)', fontSize: 9, color: 'var(--hud-text-dim)' }}>
+            <div style={{ textAlign: 'center', padding: '16px 0', fontFamily: 'var(--hud-font-mono)', fontSize: 13, color: 'var(--hud-text-dim)' }}>
               Connecting to Bybit…
             </div>
           ) : (

@@ -36,7 +36,7 @@ export function QuickJoinButton({ onJoin }: QuickJoinButtonProps) {
       <button className="quick-join-btn" onClick={() => onJoin(nextRoom)}>
         <i className="fa-solid fa-bolt" />
         Quick Join {asset}
-        <span style={{ opacity: 0.6, fontSize: 10, marginLeft: 4 }}>
+        <span style={{ opacity: 0.6, fontSize: 12, marginLeft: 4 }}>
           #{nextRoom.id?.slice(-4) || ''}
         </span>
       </button>

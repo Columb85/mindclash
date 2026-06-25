@@ -13,21 +13,21 @@ const CONNECT_BTN_STYLE: React.CSSProperties = {
   gap: 5,
   padding: '5px 12px',
   fontFamily: 'var(--hud-font-head)',
-  fontSize: 10,
+  fontSize: 12,
   fontWeight: 600,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
   background: 'transparent',
   border: '1px solid var(--hud-cyan, #00e5ff)',
   color: 'var(--hud-cyan, #00e5ff)',
-  clipPath: 'polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))',
+  clipPath: 'polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px))',
 };
 
 function ConnectPlaceholder() {
   return (
     <div className="hud-topbar-placeholder" aria-hidden>
       <button type="button" tabIndex={-1} style={CONNECT_BTN_STYLE} disabled>
-        <i className="fa-solid fa-wallet text-[9px]" />
+        <i className="fa-solid fa-wallet text-[13px]" />
         Connect
       </button>
     </div>
@@ -50,7 +50,7 @@ export function HudConnectButton() {
               onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,229,255,0.08)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
-              <i className="fa-solid fa-wallet text-[9px]" />
+              <i className="fa-solid fa-wallet text-[13px]" />
               Connect
             </button>
           );
@@ -66,7 +66,7 @@ export function HudConnectButton() {
                 gap: 5,
                 padding: '5px 12px',
                 fontFamily: 'var(--hud-font-head)',
-                fontSize: 10,
+                fontSize: 12,
                 fontWeight: 600,
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
@@ -74,10 +74,10 @@ export function HudConnectButton() {
                 border: '1px solid rgba(255,51,85,0.4)',
                 color: 'var(--hud-red, #ff3355)',
                 cursor: 'pointer',
-                clipPath: 'polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))',
+                clipPath: 'polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px))',
               }}
             >
-              <i className="fa-solid fa-triangle-exclamation text-[9px]" />
+              <i className="fa-solid fa-triangle-exclamation text-[13px]" />
               Wrong Network
             </button>
           );
@@ -92,7 +92,7 @@ export function HudConnectButton() {
               gap: 5,
               padding: '5px 12px',
               fontFamily: 'var(--hud-font-head)',
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: 600,
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
@@ -100,13 +100,13 @@ export function HudConnectButton() {
               border: '1px solid rgba(0,229,255,0.3)',
               color: 'var(--hud-cyan, #00e5ff)',
               cursor: 'pointer',
-              clipPath: 'polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))',
+              clipPath: 'polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px))',
               transition: 'background 0.15s',
             }}
             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,229,255,0.12)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,229,255,0.06)')}
           >
-            <i className="fa-solid fa-circle-check text-[9px]" style={{ color: 'var(--hud-green)' }} />
+            <i className="fa-solid fa-circle-check text-[13px]" style={{ color: 'var(--hud-green)' }} />
             {account.displayName}
           </button>
         );

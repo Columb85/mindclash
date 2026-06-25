@@ -386,7 +386,7 @@ export default function BattlePage() {
                   <p className="green">Algorithmic competition</p>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--hud-green)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--hud-green)' }}>
                 <span className="live-dot" style={{ width: 5, height: 5 }} /> Live
               </div>
             </div>
@@ -489,7 +489,7 @@ export default function BattlePage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] flex items-center justify-center"
-            style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+            style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(10px)' }}
             onClick={() => setShowComingSoon(false)}
           >
             <motion.div

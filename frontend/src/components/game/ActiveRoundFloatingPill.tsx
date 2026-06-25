@@ -33,7 +33,7 @@ export function ActiveRoundFloatingPill() {
       <span>
         {pinnedRoom.asset} {pinnedRoom.status === 'live' ? 'LIVE' : 'OPEN'} · {timeStr}
       </span>
-      <i className="fa-solid fa-arrow-right text-[9px]" />
+      <i className="fa-solid fa-arrow-right text-[13px]" />
     </button>
   );
 }

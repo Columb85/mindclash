@@ -289,7 +289,7 @@ function HomeContent() {
                       <div className="hud-page-badges">
                         {liveCount > 0 && (
                           <span className="hud-pbadge hud-pbadge-live">
-                            <span className="live-dot" style={{ width: 6, height: 6, background: 'var(--hud-red)', boxShadow: '0 0 6px var(--hud-red)' }} />
+                            <span className="live-dot" style={{ width: 6, height: 6, background: 'var(--hud-red)', boxShadow: '0 0 10px var(--hud-red)' }} />
                             {liveCount} LIVE
                           </span>
                         )}

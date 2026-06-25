@@ -87,7 +87,7 @@ export function ShareableDecisionCard({ decision, onClose }: Props) {
               </div>
               <div>
                 <div className="text-sm font-bold text-white">{decision.agentName}</div>
-                <div className="text-[10px]" style={{ color: `${decision.color}aa` }}>
+                <div className="text-[12px]" style={{ color: `${decision.color}aa` }}>
                   ERC-8004 · {decision.strategy}
                 </div>
               </div>
@@ -124,7 +124,7 @@ export function ShareableDecisionCard({ decision, onClose }: Props) {
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-lg font-black text-white">{confPct}%</span>
-                <span className="text-[9px] text-gray-500">confidence</span>
+                <span className="text-[13px] text-gray-500">confidence</span>
               </div>
             </div>
           </div>
@@ -132,14 +132,14 @@ export function ShareableDecisionCard({ decision, onClose }: Props) {
           {/* Reasoning */}
           <div className="px-5 pb-4">
             <div className="p-3 rounded-lg bg-black/30 border border-gray-800/50">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">On-chain reasoning</div>
+              <div className="text-[12px] text-gray-500 uppercase tracking-wider mb-1">On-chain reasoning</div>
               <div className="text-xs text-gray-300 font-mono leading-relaxed">{decision.reasoning}</div>
             </div>
           </div>
 
           {/* Footer with verification */}
           <div className="px-5 py-3 flex items-center justify-between" style={{ borderTop: `1px solid ${decision.color}15`, background: 'rgba(0,0,0,0.3)' }}>
-            <div className="text-[10px] text-gray-600">
+            <div className="text-[12px] text-gray-600">
               {decision.timestamp
                 ? new Date(decision.timestamp * 1000).toLocaleString()
                 : new Date().toLocaleString()}
@@ -149,7 +149,7 @@ export function ShareableDecisionCard({ decision, onClose }: Props) {
                 href={explorerUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300"
+                className="flex items-center gap-1 text-[12px] text-blue-400 hover:text-blue-300"
               >
                 <ExternalLink className="w-2.5 h-2.5" /> Verify on MantleScan
               </a>

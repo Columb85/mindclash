@@ -51,7 +51,7 @@ function NotFoundBackground() {
             top: `${15 + (i * 12) % 75}%`,
             width: 2, height: 2, borderRadius: '50%',
             background: i % 2 === 0 ? '#00D4AA' : '#a855f7',
-            boxShadow: `0 0 6px ${i % 2 === 0 ? '#00D4AA' : '#a855f7'}`,
+            boxShadow: `0 0 10px ${i % 2 === 0 ? '#00D4AA' : '#a855f7'}`,
           }}
         />
       ))}

@@ -31,11 +31,11 @@ export function ClashBalance() {
           clipPath: 'polygon(4px 0,100% 0,calc(100% - 4px) 100%,0 100%)',
         }}
       >
-        <i className="fa-solid fa-coins text-[11px]" style={{ color: '#a855f7' }} />
+        <i className="fa-solid fa-coins text-[13px]" style={{ color: '#a855f7' }} />
         <span style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 12, fontWeight: 500, color: '#fff' }}>
           {clashBalance.toLocaleString()}
         </span>
-        <span style={{ fontFamily: 'var(--hud-font-head)', fontSize: 9, fontWeight: 700, color: '#a855f7', letterSpacing: '0.1em' }} className="hud-util-label">
+        <span style={{ fontFamily: 'var(--hud-font-head)', fontSize: 13, fontWeight: 700, color: '#a855f7', letterSpacing: '0.1em' }} className="hud-util-label">
           CLASH
         </span>
       </div>
@@ -49,11 +49,11 @@ export function ClashBalance() {
           clipPath: 'polygon(4px 0,100% 0,calc(100% - 4px) 100%,0 100%)',
         }}
       >
-        <i className="fa-solid fa-bolt text-[11px]" style={{ color: '#fbbf24' }} />
+        <i className="fa-solid fa-bolt text-[13px]" style={{ color: '#fbbf24' }} />
         <span style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 12, fontWeight: 500, color: '#fff' }}>
           {clashPoints.toLocaleString()}
         </span>
-        <span style={{ fontFamily: 'var(--hud-font-head)', fontSize: 9, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.1em' }} className="hud-util-label">
+        <span style={{ fontFamily: 'var(--hud-font-head)', fontSize: 13, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.1em' }} className="hud-util-label">
           XP
         </span>
       </div>

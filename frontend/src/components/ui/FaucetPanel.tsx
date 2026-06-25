@@ -166,9 +166,9 @@ export function FaucetPanel() {
             disabled={isConnected && (mntClaiming || mntDone || mntCooldown > 0)}
             className={`step-btn ${!isConnected ? 'cyan' : mntDone ? 'green' : mntCooldown > 0 ? 'gray' : 'blue'}`}
           >
-            {!isConnected && <i className="fa-solid fa-wallet" style={{ fontSize: 9 }} />}
-            {mntClaiming && <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: 9 }} />}
-            {mntDone && <i className="fa-solid fa-circle-check" style={{ fontSize: 9 }} />}
+            {!isConnected && <i className="fa-solid fa-wallet" style={{ fontSize: 13 }} />}
+            {mntClaiming && <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: 13 }} />}
+            {mntDone && <i className="fa-solid fa-circle-check" style={{ fontSize: 13 }} />}
             {mntLabel}
           </motion.button>
         </div>
@@ -178,9 +178,9 @@ export function FaucetPanel() {
               href={`https://sepolia.mantlescan.xyz/tx/${mntTxHash}`}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 9, color: 'var(--hud-text-3)', display: 'flex', alignItems: 'center', gap: 4 }}
+              style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 13, color: 'var(--hud-text-3)', display: 'flex', alignItems: 'center', gap: 4 }}
             >
-              <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 8 }} /> {mntTxHash.slice(0, 16)}…
+              <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 12 }} /> {mntTxHash.slice(0, 16)}…
             </a>
           </div>
         )}
@@ -203,10 +203,10 @@ export function FaucetPanel() {
             disabled={isConnected && (isBusy || isSuccess || (!canClaim && timeLeft > 0))}
             className={`step-btn ${claimVariant === 'green' ? 'green' : claimVariant === 'gray' ? 'gray' : 'purple'}`}
           >
-            {!isConnected && <i className="fa-solid fa-wallet" style={{ fontSize: 9 }} />}
-            {(isWriting || isConfirming) && <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: 9 }} />}
-            {isSuccess && <i className="fa-solid fa-circle-check" style={{ fontSize: 9 }} />}
-            {!canClaim && timeLeft > 0 && !isBusy && !isSuccess && <i className="fa-solid fa-clock" style={{ fontSize: 9 }} />}
+            {!isConnected && <i className="fa-solid fa-wallet" style={{ fontSize: 13 }} />}
+            {(isWriting || isConfirming) && <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: 13 }} />}
+            {isSuccess && <i className="fa-solid fa-circle-check" style={{ fontSize: 13 }} />}
+            {!canClaim && timeLeft > 0 && !isBusy && !isSuccess && <i className="fa-solid fa-clock" style={{ fontSize: 13 }} />}
             {!isConnected ? 'Connect wallet' : claimButtonLabel}
           </motion.button>
         </div>
@@ -226,9 +226,9 @@ export function FaucetPanel() {
           <motion.div
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', marginTop: 8, background: 'var(--hud-green-dim)', border: '1px solid rgba(57,255,144,0.3)' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 12px', marginTop: 8, background: 'var(--hud-green-dim)', border: '1px solid rgba(57,255,144,0.3)' }}
           >
-            <i className="fa-solid fa-circle-check" style={{ fontSize: 11, color: 'var(--hud-green)' }} />
+            <i className="fa-solid fa-circle-check" style={{ fontSize: 13, color: 'var(--hud-green)' }} />
             <span style={{ fontFamily: 'var(--hud-font-head)', fontSize: 12, fontWeight: 700, color: 'var(--hud-green)', letterSpacing: '0.04em' }}>
               1 000 CLASH minted on-chain!
             </span>
@@ -236,16 +236,16 @@ export function FaucetPanel() {
               href={`https://sepolia.mantlescan.xyz/tx/${txHash}`}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ marginLeft: 'auto', fontFamily: 'var(--hud-font-mono)', fontSize: 9, color: 'var(--hud-text-3)', display: 'flex', alignItems: 'center', gap: 4 }}
+              style={{ marginLeft: 'auto', fontFamily: 'var(--hud-font-mono)', fontSize: 13, color: 'var(--hud-text-3)', display: 'flex', alignItems: 'center', gap: 4 }}
             >
-              <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 9 }} /> Tx
+              <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 13 }} /> Tx
             </a>
           </motion.div>
         )}
 
         {/* Error */}
         {writeError && (
-          <p style={{ marginTop: 8, fontFamily: 'var(--hud-font-mono)', fontSize: 10, color: 'var(--hud-red)' }}>
+          <p style={{ marginTop: 8, fontFamily: 'var(--hud-font-mono)', fontSize: 12, color: 'var(--hud-red)' }}>
             {writeError.message?.includes('cooldown') ? 'Faucet cooldown not expired yet.' : 'Transaction rejected.'}
           </p>
         )}

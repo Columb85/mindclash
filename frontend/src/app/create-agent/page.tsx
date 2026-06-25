@@ -425,7 +425,7 @@ export default function CreateAgentPage() {
               <div className="ca-already-title">Mint not available</div>
               <div className="ca-already-sub">{mintError}</div>
             </div>
-            <button type="button" onClick={() => setMintError(null)} className="hud-btn hud-btn-ghost" style={{ fontSize: 10 }}>
+            <button type="button" onClick={() => setMintError(null)} className="hud-btn hud-btn-ghost" style={{ fontSize: 12 }}>
               Dismiss
             </button>
           </motion.div>
@@ -485,7 +485,7 @@ export default function CreateAgentPage() {
                 </div>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--hud-cyan)' }}>ERC-8004 Identity</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>Global agent registry on Mantle Sepolia</div>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>Global agent registry on Mantle Sepolia</div>
                 </div>
               </div>
 
@@ -497,7 +497,7 @@ export default function CreateAgentPage() {
               )}
 
               {isRegisteringERC8004 && (
-                <div style={{ textAlign: 'center', padding: '6px 0', fontSize: 12 }}>
+                <div style={{ textAlign: 'center', padding: '10px 0', fontSize: 12 }}>
                   <i className="fa-solid fa-circle-notch fa-spin" style={{ color: 'var(--hud-cyan)', marginRight: 6 }} />
                   Registering…
                 </div>
@@ -514,21 +514,21 @@ export default function CreateAgentPage() {
                       href={`${EXPLORER}/tx/${erc8004TxHash}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ color: 'var(--hud-cyan)', fontSize: 10, marginLeft: 'auto' }}
+                      style={{ color: 'var(--hud-cyan)', fontSize: 12, marginLeft: 'auto' }}
                     >
-                      <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 9 }} /> TX
+                      <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 13 }} /> TX
                     </a>
                   )}
                 </div>
               )}
 
               {hasReputation && (
-                <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 8, background: 'rgba(0,200,255,0.06)', border: '1px solid rgba(0,200,255,0.12)' }}>
+                <div style={{ marginTop: 10, padding: '12px 12px', borderRadius: 8, background: 'rgba(0,200,255,0.06)', border: '1px solid rgba(0,200,255,0.12)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
-                    <i className="fa-solid fa-star" style={{ color: 'var(--hud-gold)', fontSize: 11 }} />
+                    <i className="fa-solid fa-star" style={{ color: 'var(--hud-gold)', fontSize: 13 }} />
                     <span style={{ color: 'rgba(255,255,255,0.7)' }}>Reputation:</span>
                     <span style={{ color: 'var(--hud-gold)', fontWeight: 700 }}>{summaryValue}</span>
-                    <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>
                       ({feedbackCount} feedback{feedbackCount !== 1 ? 's' : ''})
                     </span>
                   </div>
@@ -642,7 +642,7 @@ export default function CreateAgentPage() {
                       className="ca-tx-link"
                       style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 10 }}
                     >
-                      <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 9 }} />
+                      <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 13 }} />
                       {recordTxHash.slice(0, 20)}…
                     </a>
                   )}
@@ -666,7 +666,7 @@ export default function CreateAgentPage() {
                       <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--hud-green)' }}>
                         Decision Recorded On-Chain
                       </div>
-                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
+                      <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
                         {lastRecordedTx.direction} on {lastRecordedTx.asset}
                       </div>
                     </div>
@@ -680,7 +680,7 @@ export default function CreateAgentPage() {
                       display: 'flex',
                       alignItems: 'center',
                       gap: 6,
-                      padding: '8px 12px',
+                      padding: '12px 12px',
                       borderRadius: 8,
                       background: 'rgba(0,200,255,0.06)',
                       border: '1px solid rgba(0,200,255,0.15)',
@@ -691,7 +691,7 @@ export default function CreateAgentPage() {
                       marginBottom: 12,
                     }}
                   >
-                    <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 10 }} />
+                    <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 12 }} />
                     {lastRecordedTx.hash.slice(0, 10)}...{lastRecordedTx.hash.slice(-8)}
                   </a>
 
@@ -699,7 +699,7 @@ export default function CreateAgentPage() {
                     display: 'flex',
                     alignItems: 'flex-start',
                     gap: 8,
-                    padding: '10px 12px',
+                    padding: '12px 12px',
                     borderRadius: 8,
                     background: 'rgba(255,200,0,0.06)',
                     border: '1px solid rgba(255,200,0,0.15)',
@@ -872,7 +872,7 @@ export default function CreateAgentPage() {
                 )}
 
                 {isRegisteringERC8004 && (
-                  <div style={{ textAlign: 'center', padding: '8px 0', fontSize: 13 }}>
+                  <div style={{ textAlign: 'center', padding: '12px 0', fontSize: 13 }}>
                     <i className="fa-solid fa-circle-notch fa-spin" style={{ color: 'var(--hud-cyan)', marginRight: 8 }} />
                     Registering in ERC-8004 IdentityRegistry…
                   </div>
@@ -892,9 +892,9 @@ export default function CreateAgentPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="ca-tx-link"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, fontSize: 11 }}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, fontSize: 13 }}
                       >
-                        <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 9 }} />
+                        <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 13 }} />
                         ERC-8004 TX
                       </a>
                     )}
@@ -902,19 +902,19 @@ export default function CreateAgentPage() {
                 )}
 
                 {hasReputation && (
-                  <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 8, background: 'rgba(0,200,255,0.06)', border: '1px solid rgba(0,200,255,0.12)' }}>
+                  <div style={{ marginTop: 10, padding: '12px 12px', borderRadius: 8, background: 'rgba(0,200,255,0.06)', border: '1px solid rgba(0,200,255,0.12)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, justifyContent: 'center' }}>
-                      <i className="fa-solid fa-star" style={{ color: 'var(--hud-gold)', fontSize: 11 }} />
+                      <i className="fa-solid fa-star" style={{ color: 'var(--hud-gold)', fontSize: 13 }} />
                       <span style={{ color: 'rgba(255,255,255,0.7)' }}>Reputation:</span>
                       <span style={{ color: 'var(--hud-gold)', fontWeight: 700 }}>{summaryValue}</span>
-                      <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>
+                      <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>
                         ({feedbackCount} feedback{feedbackCount !== 1 ? 's' : ''})
                       </span>
                     </div>
                   </div>
                 )}
 
-                <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', textAlign: 'center', marginTop: 8 }}>
+                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', textAlign: 'center', marginTop: 8 }}>
                   IdentityRegistry 0x8004A818…4BD9e · ReputationRegistry 0x8004B663…8713
                 </p>
               </div>

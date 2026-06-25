@@ -126,12 +126,12 @@ export function BotThinkingPanel({ tokenId, name, strategy, color, asset }: Prop
           </div>
           <div>
             <div className="text-xs font-bold text-white">{name}</div>
-            <div className="text-[10px] font-mono" style={{ color: `${color}99` }}>{strategy} · #{tokenId}</div>
+            <div className="text-[12px] font-mono" style={{ color: `${color}99` }}>{strategy} · #{tokenId}</div>
           </div>
         </div>
         {(phase === 'done' || phase === 'error') && (
           <button onClick={run}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold transition"
             style={{ background: `${color}18`, border: `1px solid ${color}40`, color }}
           >
             <Brain className="w-3 h-3" /> Re-run
@@ -155,7 +155,7 @@ export function BotThinkingPanel({ tokenId, name, strategy, color, asset }: Prop
             <Play className="w-5 h-5 fill-current" />
             Watch {name} analyze {asset}
           </button>
-          <p className="text-center text-[10px] text-gray-600 mt-2">
+          <p className="text-center text-[12px] text-gray-600 mt-2">
             Live Bybit data · RSI · SMA · Bollinger · On-chain tx
           </p>
         </div>
@@ -170,7 +170,7 @@ export function BotThinkingPanel({ tokenId, name, strategy, color, asset }: Prop
             return (
               <div key={p} className="flex items-center gap-1.5 flex-1">
                 <div
-                  className="flex items-center justify-center w-6 h-6 rounded-full text-[10px] flex-shrink-0 transition-all"
+                  className="flex items-center justify-center w-6 h-6 rounded-full text-[12px] flex-shrink-0 transition-all"
                   style={{
                     background: done ? `${color}30` : active ? `${color}20` : 'rgba(255,255,255,0.04)',
                     border:     `1px solid ${done || active ? color : 'rgba(255,255,255,0.08)'}`,
@@ -230,14 +230,14 @@ export function BotThinkingPanel({ tokenId, name, strategy, color, asset }: Prop
               {/* Indicators row */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-xl bg-white/[0.03] border border-white/[0.05] px-3 py-2 space-y-1.5">
-                  <div className="text-[9px] text-gray-500 uppercase font-semibold tracking-wide">Oscillators</div>
+                  <div className="text-[13px] text-gray-500 uppercase font-semibold tracking-wide">Oscillators</div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-400">RSI(14)</span>
                     <span className={`font-mono font-bold ${rsiColor(analysis.indicators.rsi)}`}>{rsiLabel(analysis.indicators.rsi)}</span>
                   </div>
                 </div>
                 <div className="rounded-xl bg-white/[0.03] border border-white/[0.05] px-3 py-2 space-y-1.5">
-                  <div className="text-[9px] text-gray-500 uppercase font-semibold tracking-wide">Moving Averages</div>
+                  <div className="text-[13px] text-gray-500 uppercase font-semibold tracking-wide">Moving Averages</div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-400">SMA10</span>
                     <span className="font-mono text-white">{analysis.indicators.sma10 != null ? `$${fmt(analysis.indicators.sma10, 0)}` : '—'}</span>
@@ -260,7 +260,7 @@ export function BotThinkingPanel({ tokenId, name, strategy, color, asset }: Prop
 
               {/* Signals */}
               <div className="space-y-1.5">
-                <div className="text-[9px] text-gray-500 uppercase font-semibold tracking-wide">Strategy Signals — {strategy}</div>
+                <div className="text-[13px] text-gray-500 uppercase font-semibold tracking-wide">Strategy Signals — {strategy}</div>
                 {analysis.signals.map((sig, i) => (
                   <motion.div
                     key={i}
@@ -269,7 +269,7 @@ export function BotThinkingPanel({ tokenId, name, strategy, color, asset }: Prop
                     transition={{ delay: i * 0.08 }}
                     className="flex items-center gap-2 text-xs"
                   >
-                    <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 ${sig.bullish ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                    <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[12px] flex-shrink-0 ${sig.bullish ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                       {sig.bullish ? '↑' : '↓'}
                     </span>
                     <span className="text-gray-300">{sig.label}</span>
@@ -302,7 +302,7 @@ export function BotThinkingPanel({ tokenId, name, strategy, color, asset }: Prop
                         conf: <span className="text-white font-bold">{(analysis.decision.confidence / 10).toFixed(1)}%</span>
                       </span>
                     </div>
-                    <div className="text-[10px] text-gray-500 mt-0.5 truncate">{analysis.decision.reasoning}</div>
+                    <div className="text-[12px] text-gray-500 mt-0.5 truncate">{analysis.decision.reasoning}</div>
                   </div>
                 </motion.div>
               )}
@@ -325,17 +325,17 @@ export function BotThinkingPanel({ tokenId, name, strategy, color, asset }: Prop
                       <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold text-green-400">On-chain confirmed</div>
-                        <div className="text-[10px] text-gray-500 font-mono truncate">{tx.txHash}</div>
+                        <div className="text-[12px] text-gray-500 font-mono truncate">{tx.txHash}</div>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button
                           onClick={() => setShowShare(true)}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-dark-surface border border-dark-border text-[10px] text-purple-400 hover:text-purple-300"
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-dark-surface border border-dark-border text-[12px] text-purple-400 hover:text-purple-300"
                         >
                           <Share2 className="w-2.5 h-2.5" /> Share
                         </button>
                         <a href={tx.explorerUrl} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-dark-surface border border-dark-border text-[10px] text-blue-400 hover:text-blue-300"
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-dark-surface border border-dark-border text-[12px] text-blue-400 hover:text-blue-300"
                         >
                           <ExternalLink className="w-2.5 h-2.5" />
                           MantleScan
@@ -347,7 +347,7 @@ export function BotThinkingPanel({ tokenId, name, strategy, color, asset }: Prop
                       <AlertCircle className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0 mt-0.5" />
                       <div>
                         <div className="text-xs font-bold text-yellow-400">Analysis complete · tx skipped</div>
-                        <div className="text-[10px] text-gray-500 mt-0.5">{error}</div>
+                        <div className="text-[12px] text-gray-500 mt-0.5">{error}</div>
                       </div>
                     </div>
                   ) : null}
@@ -410,7 +410,7 @@ function SkeletonRow({ w = '100%' }: { w?: string }) {
 function DataCell({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div className="rounded-xl bg-white/[0.03] border border-white/[0.05] px-3 py-2 text-center">
-      <div className="text-[9px] text-gray-500 uppercase font-semibold tracking-wide">{label}</div>
+      <div className="text-[13px] text-gray-500 uppercase font-semibold tracking-wide">{label}</div>
       <div className="text-sm font-bold mt-0.5" style={{ color }}>{value}</div>
     </div>
   );
@@ -421,7 +421,7 @@ function BollingerBar({ price, boll, color }: { price: number; boll: Bollinger; 
   const pct    = Math.max(0, Math.min(1, (price - boll.lower) / range));
   return (
     <div className="space-y-1">
-      <div className="flex justify-between text-[9px] text-gray-500">
+      <div className="flex justify-between text-[13px] text-gray-500">
         <span>BB Lower ${fmt(boll.lower, 0)}</span>
         <span>Bollinger Bands (20,2)</span>
         <span>BB Upper ${fmt(boll.upper, 0)}</span>
@@ -433,7 +433,7 @@ function BollingerBar({ price, boll, color }: { price: number; boll: Bollinger; 
           style={{ left: `${pct * 100}%`, background: color }}
         />
       </div>
-      <div className="text-center text-[9px] text-gray-500">
+      <div className="text-center text-[13px] text-gray-500">
         Price at <span className="font-bold" style={{ color }}>
           {pct < 0.33 ? 'lower zone (bullish reversal expected)' : pct > 0.67 ? 'upper zone (bearish reversal expected)' : 'middle band (neutral)'}
         </span>

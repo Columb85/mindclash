@@ -143,7 +143,7 @@ export function LiveAgentDemo() {
                   href={`${EXPLORER}/address/${bot.wallet}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ color: 'var(--hud-text-dim)', fontSize: 11 }}
+                  style={{ color: 'var(--hud-text-dim)', fontSize: 13 }}
                 >
                   <i className="fa-solid fa-arrow-up-right-from-square" />
                 </a>
@@ -192,7 +192,7 @@ export function LiveAgentDemo() {
 
       {/* Error */}
       {error && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', marginTop: 8, background: 'var(--hud-red-3)', border: '1px solid var(--hud-red-2)', color: 'var(--hud-red)', fontSize: 11, fontFamily: 'var(--hud-font-mono)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 12px', marginTop: 8, background: 'var(--hud-red-3)', border: '1px solid var(--hud-red-2)', color: 'var(--hud-red)', fontSize: 13, fontFamily: 'var(--hud-font-mono)' }}>
           <i className="fa-solid fa-circle-exclamation" />
           {error}
         </div>
@@ -202,7 +202,7 @@ export function LiveAgentDemo() {
       <AnimatePresence>
         {results.length > 0 && (
           <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 9, color: 'var(--hud-text-dim)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            <div style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 13, color: 'var(--hud-text-dim)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
               On-chain confirmations
             </div>
             {results.map((r, i) => {
@@ -213,19 +213,19 @@ export function LiveAgentDemo() {
                   initial={{ opacity: 0, y: -6 }}
                   animate={{ opacity: 1, y: 0 }}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '12px 12px',
                     background: 'var(--hud-green-3)', border: '1px solid var(--hud-green-2)',
                     clipPath: 'polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%)',
                   }}
                 >
                   <i className="fa-solid fa-circle-check" style={{ color: 'var(--hud-green)', flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: 'var(--hud-font-head)', fontSize: 11, display: 'flex', gap: 6 }}>
+                    <div style={{ fontFamily: 'var(--hud-font-head)', fontSize: 13, display: 'flex', gap: 6 }}>
                       <span style={{ color: botColor, fontWeight: 600 }}>{r.bot.name}</span>
                       <span style={{ color: r.decision.direction === 'UP' ? 'var(--hud-green)' : 'var(--hud-red)', fontWeight: 600 }}>{r.decision.direction}</span>
                       <span style={{ color: 'var(--hud-text-dim)' }}>{r.decision.asset} · {(r.decision.confidence / 10).toFixed(1)}% conf</span>
                     </div>
-                    <div style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 9, color: 'var(--hud-text-dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 13, color: 'var(--hud-text-dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {r.decision.reasoning}
                     </div>
                   </div>
@@ -233,7 +233,7 @@ export function LiveAgentDemo() {
                     href={r.explorerUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 9, color: 'var(--hud-cyan)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}
+                    style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 13, color: 'var(--hud-cyan)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}
                   >
                     <i className="fa-solid fa-arrow-up-right-from-square" />
                     MantleScan

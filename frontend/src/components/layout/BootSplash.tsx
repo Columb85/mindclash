@@ -50,7 +50,7 @@ export function BootSplash({ label = 'INITIALIZING' }: BootSplashProps) {
       </div>
       <div
         style={{
-          fontSize: 10,
+          fontSize: 12,
           color: '#00D4AA',
           fontWeight: 700,
           letterSpacing: '0.2em',

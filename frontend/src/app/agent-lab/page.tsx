@@ -193,7 +193,7 @@ export default function AgentLabPage() {
               <div className="alab-step-num">{step.n}</div>
               <div>
                 <div className="alab-step-title">
-                  <i className={step.icon} style={{ marginRight: 6, fontSize: 11 }} />
+                  <i className={step.icon} style={{ marginRight: 6, fontSize: 13 }} />
                   {step.title}
                 </div>
                 <div className="alab-step-desc">{step.desc}</div>
@@ -286,7 +286,7 @@ export default function AgentLabPage() {
                     type="button"
                     onClick={() => setSelectedAsset(a)}
                     className={`hud-btn${selectedAsset === a ? ' hud-btn-cyan' : ' hud-btn-ghost'}`}
-                    style={{ padding: '6px 14px', fontSize: 12 }}
+                    style={{ padding: '10px 14px', fontSize: 12 }}
                   >
                     {a}
                   </button>
@@ -345,7 +345,7 @@ export default function AgentLabPage() {
                       className="ca-tx-link"
                       style={{ display: 'inline-flex', marginTop: 10, gap: 4 }}
                     >
-                      <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 9 }} />
+                      <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 13 }} />
                       Pending tx: {recordTxHash.slice(0, 22)}…
                     </a>
                   )}

@@ -42,12 +42,12 @@ export function AchievementToast({ achievement, t }: AchievementToastProps) {
         boxShadow: `0 4px 20px rgba(0,0,0,0.6), 0 0 20px ${config.glow}`,
         maxWidth: '360px',
         minWidth: '260px',
-        clipPath: 'polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%)',
+        clipPath: 'polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%)',
         position: 'relative',
         overflow: 'hidden',
         display: 'flex',
         alignItems: 'center',
-        gap: '10px',
+        gap: '12px',
         opacity: t ? (t.visible ? 1 : 0) : 1,
         transform: t ? (t.visible ? 'translateX(0)' : 'translateX(100%)') : undefined,
         transition: 'all 0.3s ease',
@@ -56,13 +56,13 @@ export function AchievementToast({ achievement, t }: AchievementToastProps) {
       <span style={{ fontSize: '20px', flexShrink: 0 }}>{achievement.icon}</span>
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: config.accent, marginBottom: 2 }}>
+        <div style={{ fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: config.accent, marginBottom: 2 }}>
           Achievement Unlocked
         </div>
         <div style={{ fontSize: '13px', fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>
           {achievement.title}
         </div>
-        <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
+        <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
           {achievement.description}
         </div>
       </div>

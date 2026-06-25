@@ -84,6 +84,10 @@ module.exports = {
         sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
         mono: ['Consolas', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
       },
+      fontSize: {
+        xs: ['13px', { lineHeight: '1.45' }],
+        sm: ['14px', { lineHeight: '1.45' }],
+      },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',
         'slide-up': 'slideUp 0.3s ease-out',

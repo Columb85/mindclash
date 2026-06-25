@@ -124,7 +124,7 @@ function GridBackground() {
             width: i % 3 === 0 ? 3 : 2, height: i % 3 === 0 ? 3 : 2,
             borderRadius: '50%',
             background: i % 2 === 0 ? '#00D4AA' : '#a855f7',
-            boxShadow: `0 0 6px ${i % 2 === 0 ? '#00D4AA' : '#a855f7'}`,
+            boxShadow: `0 0 10px ${i % 2 === 0 ? '#00D4AA' : '#a855f7'}`,
           }}
         />
       ))}
@@ -455,7 +455,7 @@ export default function LandingPage() {
                     <Counter to={value} />
                   </div>
                   {/* Label */}
-                  <div className="text-[11px] text-gray-500 mt-1.5 leading-tight">{label}</div>
+                  <div className="text-[13px] text-gray-500 mt-1.5 leading-tight">{label}</div>
                   {/* Bottom accent bar */}
                   <div style={{
                     position:'absolute', bottom:0, left:'20%', right:'20%',
@@ -522,7 +522,7 @@ export default function LandingPage() {
                     style={{ background: `linear-gradient(135deg, ${color}25, ${color}10)`, border: `1px solid ${color}30` }}>
                     <Icon className="w-6 h-6" style={{ color }} />
                   </div>
-                  <div className="text-[11px] font-bold tracking-widest uppercase mb-2" style={{ color }}>Step {step}</div>
+                  <div className="text-[13px] font-bold tracking-widest uppercase mb-2" style={{ color }}>Step {step}</div>
                   <h3 className="text-lg font-black text-white mb-3">{title}</h3>
                   <p className="text-sm text-gray-400 leading-relaxed">{desc}</p>
                 </GlassCard>
@@ -575,7 +575,7 @@ export default function LandingPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <h3 className="text-base font-black text-white">{title}</h3>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                      <span className="px-2 py-0.5 rounded-full text-[12px] font-bold"
                         style={{ background: accent + '15', color: accent, border: `1px solid ${accent}30` }}>{tag}</span>
                     </div>
                     <p className="text-sm text-gray-400 leading-relaxed">{desc}</p>
@@ -622,10 +622,10 @@ export default function LandingPage() {
                       </div>
                       <div>
                         <div className="font-black text-sm" style={{ color }}>{name}</div>
-                        <div className="text-[10px] text-gray-500">AI Agent</div>
+                        <div className="text-[12px] text-gray-500">AI Agent</div>
                       </div>
                     </div>
-                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
+                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[12px] font-bold"
                       style={{ background:'rgba(0,212,170,0.1)', color:'#00D4AA', border:'1px solid rgba(0,212,170,0.2)' }}>
                       <span className="w-1 h-1 rounded-full bg-[#00D4AA] animate-pulse" />
                       ON-CHAIN
@@ -696,7 +696,7 @@ export default function LandingPage() {
                       boxShadow: `0 0 20px ${color}20`,
                     }}
                   >{dot}</div>
-                  <div className="text-[11px] font-bold tracking-wider uppercase mb-1" style={{ color }}>{role}</div>
+                  <div className="text-[13px] font-bold tracking-wider uppercase mb-1" style={{ color }}>{role}</div>
                   <div className="text-base font-black text-white mb-2">{name}</div>
                   <p className="text-xs text-gray-500 leading-relaxed">{desc}</p>
                 </GlassCard>
@@ -818,12 +818,12 @@ export default function LandingPage() {
                   >
                     {/* Phase badge */}
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="text-[11px] font-black tracking-widest uppercase px-2.5 py-1 rounded-lg"
+                      <span className="text-[13px] font-black tracking-widest uppercase px-2.5 py-1 rounded-lg"
                         style={{ background: `${color}15`, color, border: `1px solid ${color}30` }}>
                         {phase}
                       </span>
                       {phase === 'Now' && (
-                        <span className="flex items-center gap-1 text-[10px] text-green-400 font-bold">
+                        <span className="flex items-center gap-1 text-[12px] text-green-400 font-bold">
                           <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                           Live
                         </span>
@@ -838,7 +838,7 @@ export default function LandingPage() {
                             style={{
                               background: `${color}18`,
                               border: `1px solid ${color}35`,
-                              boxShadow: `0 0 10px ${color}25`,
+                              boxShadow: `0 0 12px ${color}25`,
                               color,
                             }}
                           >
@@ -900,7 +900,7 @@ export default function LandingPage() {
             className="inline-flex items-center gap-3 px-12 py-5 rounded-2xl font-black text-lg text-black transition-all hover:scale-105"
             style={{
               background: 'linear-gradient(135deg, #00D4AA 0%, #00A896 100%)',
-              boxShadow: '0 0 60px rgba(0,212,170,0.5), 0 8px 30px rgba(0,0,0,0.4)',
+              boxShadow: '0 0 60px rgba(0,212,170,0.5), 0 12px 30px rgba(0,0,0,0.4)',
             }}
           >
             Launch App <ArrowRight className="w-5 h-5" />

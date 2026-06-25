@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { usePlayer, getRank, xpProgressInLevel, RANKS } from '@/contexts/PlayerContext';
+import { usePlayer, getRank, xpProgressInLevel, RANKS, type Rank } from '@/contexts/PlayerContext';
 import { useLeaderboard } from '@/contexts/LeaderboardContext';
 import { useMyAgent } from '@/hooks/useMyAgent';
 import { useAgentProfile } from '@/hooks/useAgentContract';
@@ -26,6 +26,13 @@ const RANK_FA: Record<string, string> = {
   strategist: 'fa-bullseye',
   oracle: 'fa-gem',
   legend: 'fa-crown',
+};
+
+const TIER_COLORS: Record<string, { border: string; bg: string; text: string; label: string }> = {
+  bronze:   { border: '#cd7f32', bg: 'rgba(205,127,50,0.10)',  text: '#cd7f32', label: 'Bronze' },
+  silver:   { border: '#94a3b8', bg: 'rgba(148,163,184,0.10)', text: '#94a3b8', label: 'Silver' },
+  gold:     { border: '#fbbf24', bg: 'rgba(251,191,36,0.10)',  text: '#fbbf24', label: 'Gold' },
+  platinum: { border: '#a78bfa', bg: 'rgba(167,139,250,0.10)', text: '#a78bfa', label: 'Platinum' },
 };
 
 function formatWalletAddress(address: string): string {
@@ -74,6 +81,13 @@ export function UserProfile({ userAddress }: UserProfileProps) {
 
   const achievements = Object.values(stats.achievements);
   const unlockedCount = achievements.filter(a => a.unlocked).length;
+  const ach3Pct = achievements.length > 0 ? (unlockedCount / achievements.length) * 100 : 0;
+
+  const rankIdx = RANKS.findIndex(r => r.id === rank.id);
+  const nextRank: Rank | null = rankIdx < RANKS.length - 1 ? RANKS[rankIdx + 1] : null;
+  const rankProgress = nextRank
+    ? Math.min(100, ((stats.level - rank.minLevel) / (nextRank.minLevel - rank.minLevel)) * 100)
+    : 100;
 
   const myAgents = useMemo(
     () => allTime.filter(e => e.isAI).slice(0, 3),
@@ -278,14 +292,45 @@ export function UserProfile({ userAddress }: UserProfileProps) {
               Achievements
               <span className="prof-ach-count">{unlockedCount} / {achievements.length}</span>
             </div>
+
+            {/* Progress bar */}
+            <div className="prof-ach-progress">
+              <div className="prof-ach-progress-track">
+                <div className="prof-ach-progress-fill" style={{ width: `${ach3Pct}%` }} />
+              </div>
+              <span className="prof-ach-progress-label">{Math.round(ach3Pct)}% unlocked</span>
+            </div>
+
             <div className="prof-ach-grid">
-              {achievements.map(a => (
-                <div key={a.id} className={`prof-ach-item${a.unlocked ? ' on' : ''}`}>
-                  <span>{a.unlocked ? a.icon : '🔒'}</span>
-                  <div className="prof-ach-title">{a.title}</div>
-                  <div className="prof-ach-desc">{a.description}</div>
-                </div>
-              ))}
+              {achievements.map(a => {
+                const tier = TIER_COLORS[a.type] ?? TIER_COLORS.bronze;
+                return (
+                  <div
+                    key={a.id}
+                    className={`prof-ach-item${a.unlocked ? ' on' : ''}`}
+                    style={a.unlocked ? {
+                      borderColor: tier.border,
+                      background: tier.bg,
+                      '--ach-glow': tier.border,
+                    } as React.CSSProperties : undefined}
+                  >
+                    <div className="prof-ach-icon-wrap">
+                      <span className="prof-ach-emoji">{a.unlocked ? a.icon : '🔒'}</span>
+                      {a.unlocked && (
+                        <span className="prof-ach-tier" style={{ color: tier.text, borderColor: `${tier.border}66` }}>
+                          {tier.label}
+                        </span>
+                      )}
+                    </div>
+                    <div className="prof-ach-info">
+                      <div className="prof-ach-title" style={a.unlocked ? { color: tier.text } : undefined}>
+                        {a.title}
+                      </div>
+                      <div className="prof-ach-desc">{a.description}</div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -295,23 +340,74 @@ export function UserProfile({ userAddress }: UserProfileProps) {
           <div className="prof-sec-hd">
             <i className="fa-solid fa-arrow-trend-up" style={{ color: 'var(--hud-purple)' }} />
             Ranks Overview
+            {nextRank && (
+              <span className="prof-ach-count">
+                Next: {nextRank.name} (Lvl {nextRank.minLevel})
+              </span>
+            )}
           </div>
-          <div className="prof-rank-grid">
-            {RANKS.map(r => {
+
+          {/* Current rank + progress to next */}
+          <div className="prof-rank-current-bar">
+            <div className="prof-rank-cur-label">
+              <i className={`fa-solid ${RANK_FA[rank.id] ?? 'fa-star'}`} style={{ color: rank.color }} />
+              <span style={{ color: rank.color }}>{rank.name}</span>
+              <span className="prof-rank-cur-lvl">LVL {stats.level}</span>
+            </div>
+            {nextRank ? (
+              <div className="prof-rank-progress-row">
+                <div className="prof-rank-progress-track">
+                  <div
+                    className="prof-rank-progress-fill"
+                    style={{ width: `${rankProgress}%`, background: rank.color }}
+                  />
+                </div>
+                <span className="prof-rank-progress-pct">{Math.round(rankProgress)}%</span>
+              </div>
+            ) : (
+              <div className="prof-rank-max-label">MAX RANK ACHIEVED</div>
+            )}
+          </div>
+
+          {/* Rank progression timeline */}
+          <div className="prof-rank-timeline">
+            {RANKS.map((r, i) => {
               const achieved = stats.level >= r.minLevel;
               const isCurrent = r.id === rank.id;
+              const isLast = i === RANKS.length - 1;
               return (
-                <div
-                  key={r.id}
-                  className={`prof-rank-cell${achieved ? ' on' : ' off'}${isCurrent ? ' cur' : ''}`}
-                  style={{
-                    borderColor: achieved ? r.color : undefined,
-                    color: achieved ? r.color : undefined,
-                  }}
-                >
-                  <i className={`fa-solid ${RANK_FA[r.id] ?? 'fa-star'}`} />
-                  <div className="prof-rank-name">{r.name}</div>
-                  <div className="prof-rank-lvl">Lvl {r.minLevel}+</div>
+                <div key={r.id} className="prof-rank-tl-item">
+                  <div className={`prof-rank-tl-node${achieved ? ' on' : ''}${isCurrent ? ' cur' : ''}`}>
+                    <div
+                      className="prof-rank-tl-circle"
+                      style={{
+                        borderColor: achieved ? r.color : undefined,
+                        background: isCurrent ? `${r.color}30` : achieved ? `${r.color}18` : undefined,
+                        boxShadow: isCurrent ? `0 0 12px ${r.color}66, 0 0 24px ${r.color}22` : undefined,
+                      }}
+                    >
+                      <i
+                        className={`fa-solid ${RANK_FA[r.id] ?? 'fa-star'}`}
+                        style={{ color: achieved ? r.color : undefined }}
+                      />
+                    </div>
+                    {!isLast && (
+                      <div
+                        className="prof-rank-tl-connector"
+                        style={{ background: achieved && stats.level >= (RANKS[i + 1]?.minLevel ?? 999) ? r.color : undefined }}
+                      />
+                    )}
+                  </div>
+                  <div className="prof-rank-tl-info">
+                    <div
+                      className="prof-rank-tl-name"
+                      style={{ color: achieved ? r.color : undefined }}
+                    >
+                      {r.name}
+                      {isCurrent && <span className="prof-rank-tl-badge">CURRENT</span>}
+                    </div>
+                    <div className="prof-rank-tl-lvl">Level {r.minLevel}+</div>
+                  </div>
                 </div>
               );
             })}
@@ -371,10 +467,10 @@ export function UserProfile({ userAddress }: UserProfileProps) {
               </div>
 
               <div className="prof-my-agent-actions">
-                <Link href="/agent-lab" className="hud-btn hud-btn-cyan" style={{ fontSize: 10 }}>
+                <Link href="/agent-lab" className="hud-btn hud-btn-cyan" style={{ fontSize: 12 }}>
                   <i className="fa-solid fa-brain" /> Record Decision
                 </Link>
-                <Link href={`/duel?agent=${tokenId}`} className="hud-btn hud-btn-red" style={{ fontSize: 10 }}>
+                <Link href={`/duel?agent=${tokenId}`} className="hud-btn hud-btn-red" style={{ fontSize: 12 }}>
                   <i className="fa-solid fa-bolt" /> Duel
                 </Link>
                 <a
@@ -382,7 +478,7 @@ export function UserProfile({ userAddress }: UserProfileProps) {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hud-btn hud-btn-ghost"
-                  style={{ fontSize: 10 }}
+                  style={{ fontSize: 12 }}
                 >
                   <i className="fa-solid fa-arrow-up-right-from-square" /> MantleScan
                 </a>

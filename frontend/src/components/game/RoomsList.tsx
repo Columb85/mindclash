@@ -94,7 +94,7 @@ function TypingTaunt({ text, delay = 0 }: { text: string; delay?: number }) {
   }, [text, delay]);
 
   return (
-    <span style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 10, color: 'var(--hud-text-dim)', fontStyle: 'italic' }}>
+    <span style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 12, color: 'var(--hud-text-dim)', fontStyle: 'italic' }}>
       &ldquo;
       {phase === 'waiting' ? (
         <span className="inline-flex gap-0.5 items-end ml-0.5">
@@ -113,7 +113,7 @@ function TypingTaunt({ text, delay = 0 }: { text: string; delay?: number }) {
           {displayed}
           {phase === 'typing' && (
             <motion.span
-              className="inline-block w-[1px] h-[10px] ml-[1px] align-middle"
+              className="inline-block w-[1px] h-[12px] ml-[1px] align-middle"
               style={{ background: 'var(--hud-text-dim)' }}
               animate={{ opacity: [1, 0] }}
               transition={{ duration: 0.5, repeat: Infinity }}
@@ -314,7 +314,7 @@ export function RoomsList({ onEnterRoom }: RoomsListProps) {
           <p style={{ fontFamily: 'var(--hud-font-head)', color: 'var(--hud-text-dim)', letterSpacing: '0.06em', textTransform: 'uppercase', fontSize: 13 }}>
             No active rounds
           </p>
-          <p style={{ fontFamily: 'var(--hud-font-mono)', color: 'var(--hud-text-dim)', fontSize: 10, marginTop: 4 }}>
+          <p style={{ fontFamily: 'var(--hud-font-mono)', color: 'var(--hud-text-dim)', fontSize: 12, marginTop: 4 }}>
             New rounds spawn automatically
           </p>
         </div>
@@ -383,7 +383,7 @@ export function RoomsList({ onEnterRoom }: RoomsListProps) {
                           })}
                         </span>
                         <span className={`rc-delta ${isUp ? 'up' : 'dn'}`}>
-                          <i className={`fa-solid fa-arrow-trend-${isUp ? 'up' : 'down'}`} style={{ fontSize: 9 }} />
+                          <i className={`fa-solid fa-arrow-trend-${isUp ? 'up' : 'down'}`} style={{ fontSize: 13 }} />
                           {isUp ? '+' : ''}{priceDelta.toFixed(2)}%
                         </span>
                       </div>
@@ -408,7 +408,7 @@ export function RoomsList({ onEnterRoom }: RoomsListProps) {
                             {primaryBot.avatar}
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 8, color: 'var(--hud-text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>AI Prediction</div>
+                            <div style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 12, color: 'var(--hud-text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>AI Prediction</div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                               <span style={{ fontFamily: 'var(--hud-font-head)', fontSize: 12, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{primaryBot.name}</span>
                               <span className={`hud-badge ${primaryBot.direction === 'UP' ? 'hud-badge-green' : 'hud-badge-red'}`}>
@@ -424,7 +424,7 @@ export function RoomsList({ onEnterRoom }: RoomsListProps) {
 
                       {/* Pool bar — matches mockup .pool-bar-labels + .pool-bar */}
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, fontFamily: 'var(--hud-font-mono)', fontSize: 9, fontWeight: 600 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, fontFamily: 'var(--hud-font-mono)', fontSize: 13, fontWeight: 600 }}>
                           <span style={{ color: 'var(--hud-green)' }}>UP {upPct.toFixed(0)}%</span>
                           <span style={{ color: 'var(--hud-red)' }}>DOWN {(100 - upPct).toFixed(0)}%</span>
                         </div>
@@ -452,14 +452,14 @@ export function RoomsList({ onEnterRoom }: RoomsListProps) {
                             onClick={(e) => { e.stopPropagation(); onEnterRoom(room); }}
                             className="btn-up"
                           >
-                            <i className="fa-solid fa-arrow-trend-up" style={{ fontSize: 10 }} />UP
+                            <i className="fa-solid fa-arrow-trend-up" style={{ fontSize: 12 }} />UP
                           </motion.button>
                           <motion.button
                             whileTap={{ scale: 0.97 }}
                             onClick={(e) => { e.stopPropagation(); onEnterRoom(room); }}
                             className="btn-dn"
                           >
-                            <i className="fa-solid fa-arrow-trend-down" style={{ fontSize: 10 }} />DOWN
+                            <i className="fa-solid fa-arrow-trend-down" style={{ fontSize: 12 }} />DOWN
                           </motion.button>
                         </div>
                       ) : (
@@ -468,7 +468,7 @@ export function RoomsList({ onEnterRoom }: RoomsListProps) {
                           onClick={(e) => { e.stopPropagation(); onEnterRoom(room); }}
                           className="btn-watch"
                         >
-                          <i className="fa-solid fa-eye" style={{ fontSize: 10 }} />Watch Live
+                          <i className="fa-solid fa-eye" style={{ fontSize: 12 }} />Watch Live
                         </motion.button>
                       )}
                     </div>

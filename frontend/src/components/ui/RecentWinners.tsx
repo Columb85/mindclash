@@ -72,7 +72,7 @@ export function RecentWinners() {
         ))}
       </AnimatePresence>
       {winners.length === 0 && (
-        <div style={{ color: 'var(--hud-text-dim)', fontSize: 10, fontStyle: 'italic', padding: '8px 0' }}>
+        <div style={{ color: 'var(--hud-text-dim)', fontSize: 12, fontStyle: 'italic', padding: '12px 0' }}>
           No recent winners yet
         </div>
       )}

@@ -11,8 +11,9 @@ import confetti from 'canvas-confetti';
 import { Direction } from '@/types/room';
 import type { BotResult } from './GameRoundInterface';
 import { ShareOnXButton } from '@/components/ui/ShareOnXButton';
-import { buildRoundResultShareText } from '@/lib/share-x';
+import { buildRoundResultShareText, type ShareCardParams } from '@/lib/share-x';
 import { ASSETS } from '@/lib/web3-config';
+import { CryptoIcon } from '@/components/icons/CryptoIcons';
 
 interface ResolutionRevealProps {
   open: boolean;
@@ -101,12 +102,12 @@ export function ResolutionReveal({
     const colors = ['#00ff88', '#fbbf24', '#00e5ff', '#a855f7'];
     const end = Date.now() + 2800;
     const frame = () => {
-      confetti({ particleCount: 4, angle: 60, spread: 55, origin: { x: 0, y: 0.6 }, colors });
-      confetti({ particleCount: 4, angle: 120, spread: 55, origin: { x: 1, y: 0.6 }, colors });
+      confetti({ particleCount: 4, angle: 60, spread: 55, origin: { x: 0, y: 0.6 }, colors, zIndex: 10002 });
+      confetti({ particleCount: 4, angle: 120, spread: 55, origin: { x: 1, y: 0.6 }, colors, zIndex: 10002 });
       if (Date.now() < end) requestAnimationFrame(frame);
     };
     frame();
-    setTimeout(() => confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 }, colors }), 150);
+    setTimeout(() => confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 }, colors, zIndex: 10002 }), 150);
   }, []);
 
   useEffect(() => {
@@ -131,6 +132,16 @@ export function ResolutionReveal({
   const shareText = userOutcome
     ? buildRoundResultShareText({ asset, winner, outcome: userOutcome, stake: userStake, profit: isWin ? resultAmount : undefined, token, payoutTxHash })
     : '';
+
+  const ogParams: ShareCardParams | undefined = userOutcome ? {
+    outcome: userOutcome,
+    amount: resultAmount.toFixed(0),
+    asset,
+    entry: fmtPrice(startPrice),
+    exit: fmtPrice(endPrice),
+    pct: diffPct.toFixed(2),
+    xp: String(ptsGained),
+  } : undefined;
 
   const sparkD = diffPct >= 0
     ? 'M2 14 L8 11 L14 12 L20 8 L26 9 L32 4 L38 2'
@@ -269,8 +280,8 @@ export function ResolutionReveal({
                   transition={{ delay: 0.25 }}
                 >
                   <div className="rr-asset-left">
-                    <div className="rr-asset-badge" style={{ background: `${assetMeta.color}22`, color: assetMeta.color, border: `1px solid ${assetMeta.color}55` }}>
-                      {assetMeta.icon}
+                    <div className="rr-asset-badge" style={{ background: `${assetMeta.color}22`, border: `1px solid ${assetMeta.color}55` }}>
+                      <CryptoIcon symbol={assetMeta.symbol} className="w-6 h-6" />
                     </div>
                     <div>
                       <div className="rr-asset-symbol">{assetMeta.symbol}</div>
@@ -361,7 +372,7 @@ export function ResolutionReveal({
                     {isWin ? 'CLAIM & CONTINUE' : 'CONTINUE'}
                     <ChevronRight className="w-4 h-4" />
                   </button>
-                  {shareText && <ShareOnXButton text={shareText} className="rr-btn-share" />}
+                  {shareText && <ShareOnXButton text={shareText} className="rr-btn-share" ogParams={ogParams} />}
                 </motion.div>
 
                 {isWin && <p className="rr-footer">Your rewards have been credited to your account.</p>}

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import { useAccount } from 'wagmi';
@@ -53,7 +53,7 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
   const [payoutStatus, setPayoutStatus] = useState<'idle' | 'claiming' | 'paid' | 'failed'>('idle');
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const resolvedRef = useRef(false);
-  // EIP-712 signing removed — single wallet prompt (CLASH transfer only)
+  // EIP-712 signing removed � single wallet prompt (CLASH transfer only)
   const { stakeClash, isStaking } = useStakeClash();
 
   useEffect(() => {
@@ -101,7 +101,7 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
 
         if (address && (outcome === 'win' || outcome === 'tie') && payout > 0) {
           setPayoutStatus('claiming');
-          toast.loading(`Sending ${Math.floor(payout)} CLASH payout…`, { id: 'payout-tx' });
+          toast.loading(`Sending ${Math.floor(payout)} CLASH payout�`, { id: 'payout-tx' });
           claimPayout({
             roundId: room.id,
             player: address,
@@ -135,10 +135,10 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
         type: 'round_end',
         asset: room.asset,
         winner: resolution.winner,
-        text: `${room.asset} round ended — ${resolution.winner} won`,
+        text: `${room.asset} round ended � ${resolution.winner} won`,
       });
 
-      sendSystem(room.id, `Round resolved · ${
+      sendSystem(room.id, `Round resolved � ${
         room.endPrice! > room.startPrice! ? 'UP wins' :
         room.endPrice! < room.startPrice! ? 'DOWN wins' : 'TIE'
       }`);
@@ -228,27 +228,27 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
       return;
     }
     if (stake < room.minStake || stake > room.maxStake) {
-      toast.error(`Stake must be ${room.minStake}–${room.maxStake} CLASH`);
+      toast.error(`Stake must be ${room.minStake}�${room.maxStake} CLASH`);
       return;
     }
 
-    toast.loading(`Staking ${stake} CLASH…`, { id: 'stake-tx' });
+    toast.loading(`Staking ${stake} CLASH�`, { id: 'stake-tx' });
     const { ok, hash } = await stakeClash(stake);
     if (!ok) {
       toast.error('Stake transfer rejected or failed', { id: 'stake-tx' });
       return;
     }
-    toast.success(`${stake} CLASH → Treasury`, { id: 'stake-tx', duration: 3000 });
+    toast.success(`${stake} CLASH ? Treasury`, { id: 'stake-tx', duration: 3000 });
     refetchBalance(stake);
 
     const userAddr = address;
     const res = predict(room.id, dir, stake, userAddr);
     if (res.ok) {
       pinRoom(room.id);
-      toast.success(`${dir} · ${stake} ${room.token}`);
+      toast.success(`${dir} � ${stake} ${room.token}`);
       pushActivity({
         type: 'prediction',
-        actor: address ? `${address.slice(0, 6)}…${address.slice(-4)}` : 'You',
+        actor: address ? `${address.slice(0, 6)}�${address.slice(-4)}` : 'You',
         text: `${dir} on ${room.asset}`,
         amount: stake,
         token: room.token,
@@ -267,7 +267,7 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
 
       if (hash) {
         setSignedCommitment({ roundId: room.id, player: address, txHash: hash });
-        toast(`Tx: ${hash.slice(0, 10)}…`, { icon: '⛓', duration: 4000 });
+        toast(`Tx: ${hash.slice(0, 10)}�`, { icon: '?', duration: 4000 });
       }
     } else {
       toast.error(res.error || 'Failed');
@@ -310,14 +310,14 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
   // Format entry price label
   const entryLabel = room.startPrice != null
     ? `Entry: $${room.startPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
-    : 'Entry: —';
+    : 'Entry: �';
 
   return (
     <div className="game-wrap">
       {/* Scanline overlay */}
       <div className="gr-scanline" />
       <div className="game-grid">
-        {/* ═══════ LEFT COLUMN ═══════ */}
+        {/* ------- LEFT COLUMN ------- */}
         <div className="game-left">
           {/* Asset Header */}
           <div className="gr-ah">
@@ -340,7 +340,7 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
               </div>
               {room.status !== 'open' && room.startPrice != null && (
                 <div className={`gr-ah-ch ${priceDelta >= 0 ? 'up' : 'dn'}`}>
-                  {priceDelta >= 0 ? '▲' : '▼'} {priceDelta >= 0 ? '+' : ''}{priceChangePct.toFixed(2)}%
+                  {priceDelta >= 0 ? '?' : '?'} {priceDelta >= 0 ? '+' : ''}{priceChangePct.toFixed(2)}%
                 </div>
               )}
             </div>
@@ -369,8 +369,8 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
           {/* Pool Bar */}
           <div className="gr-pb">
             <div className="gr-pb-labels">
-              <span className="gr-pb-up">▲ UP {upPct.toFixed(0)}% · {room.upPool.toLocaleString()}</span>
-              <span className="gr-pb-dn">{room.downPool.toLocaleString()} · {downPct.toFixed(0)}% DOWN ▼</span>
+              <span className="gr-pb-up">? UP {upPct.toFixed(0)}% � {room.upPool.toLocaleString()}</span>
+              <span className="gr-pb-dn">{room.downPool.toLocaleString()} � {downPct.toFixed(0)}% DOWN ?</span>
             </div>
             <div className="gr-pb-track">
               <div className="gr-pb-fill-up" style={{ width: `${upPct}%` }} />
@@ -410,7 +410,7 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
                 return (
                   <div key={i} className="gr-hist-cell">
                     <div className="gr-hist-n">#{1240 - i}</div>
-                    <div className={`gr-hist-r ${isUp ? 'u' : 'd'}`}>{isUp ? '▲ UP' : '▼ DN'}</div>
+                    <div className={`gr-hist-r ${isUp ? 'u' : 'd'}`}>{isUp ? '? UP' : '? DN'}</div>
                     <div className="gr-hist-p">+{(0.15 + i * 0.05).toFixed(2)}%</div>
                   </div>
                 );
@@ -428,14 +428,14 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
               return (
                 <div key={idx} className="gr-lb-row">
                   <span className={`gr-lb-rank ${idx === 0 ? 'g' : ''}`}>{idx + 1}</span>
-                  <div className="gr-lb-av" style={{ background: bgC }}>{isBot ? '🤖' : name.charAt(0)}</div>
+                  <div className="gr-lb-av" style={{ background: bgC }}>{isBot ? '??' : name.charAt(0)}</div>
                   <span className="gr-lb-name">{name}</span>
                   <span className={`gr-lb-side ${pred.direction === 'UP' ? 'u' : 'd'}`}>{pred.direction}</span>
                   <span className="gr-lb-stake">{pred.amount}</span>
                 </div>
               );
             })}
-            {room.predictions.length === 0 && <div style={{ color: 'var(--hud-text-3)', fontSize: '10px', textAlign: 'center', padding: '8px' }}>No predictions yet</div>}
+            {room.predictions.length === 0 && <div style={{ color: 'var(--hud-text-3)', fontSize: '12px', textAlign: 'center', padding: '12px' }}>No predictions yet</div>}
           </div>
 
           {/* Chat */}
@@ -454,7 +454,7 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
                   )}
                 </div>
               ))}
-              {messages.length === 0 && <div style={{ color: 'var(--hud-text-3)', fontSize: '10px' }}>No messages yet...</div>}
+              {messages.length === 0 && <div style={{ color: 'var(--hud-text-3)', fontSize: '12px' }}>No messages yet...</div>}
             </div>
             <div className="gr-ct-inp-row">
               <input
@@ -472,12 +472,12 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
           </div>
         </div>
 
-        {/* ═══════ RIGHT COLUMN ═══════ */}
+        {/* ------- RIGHT COLUMN ------- */}
         <div className="game-right">
           {/* Timer */}
           <div className="gr-tmr">
             <div className="gr-tmr-label">
-              {isLive && <><span className="gr-status-live"><i className="fa-solid fa-circle" style={{ fontSize: '6px' }} /> LIVE</span></>}
+              {isLive && <><span className="gr-status-live"><i className="fa-solid fa-circle" style={{ fontSize: '10px' }} /> LIVE</span></>}
               {room.status === 'open' && <span className="gr-status-open"><i className="fa-solid fa-lock-open" /> OPEN</span>}
               {isResolved && <span style={{ color: 'var(--hud-text-3)' }}>RESOLVED</span>}
             </div>
@@ -514,13 +514,13 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
                 <div className="gr-sd-label">Choose Side</div>
                 <div className="gr-sd-cards">
                   <div className={`gr-sd-card u ${side === 'UP' ? 'sel' : ''}`} onClick={() => setSide('UP')}>
-                    <div className="gr-sd-arr">▲</div>
+                    <div className="gr-sd-arr">?</div>
                     <div className="gr-sd-name">UP</div>
                     <div className="gr-sd-mult">{previewUpMultiplier.toFixed(2)}x</div>
                     <div className="gr-sd-meta">{room.upPool.toLocaleString()} {room.token}</div>
                   </div>
                   <div className={`gr-sd-card d ${side === 'DOWN' ? 'sel' : ''}`} onClick={() => setSide('DOWN')}>
-                    <div className="gr-sd-arr">▼</div>
+                    <div className="gr-sd-arr">?</div>
                     <div className="gr-sd-name">DOWN</div>
                     <div className="gr-sd-mult">{previewDownMultiplier.toFixed(2)}x</div>
                     <div className="gr-sd-meta">{room.downPool.toLocaleString()} {room.token}</div>
@@ -572,7 +572,7 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
               </div>
 
               {address && (
-                <div style={{ padding: '6px 12px', background: 'rgba(0,229,255,0.06)', borderBottom: '1px solid rgba(0,229,255,0.15)', fontSize: '9px', color: 'var(--hud-text-dim)' }}>
+                <div style={{ padding: '10px 12px', background: 'rgba(0,229,255,0.06)', borderBottom: '1px solid rgba(0,229,255,0.15)', fontSize: '13px', color: 'var(--hud-text-dim)' }}>
                   <i className="fa-solid fa-circle-info" style={{ marginRight: 4 }} />
                   Stake is transferred on-chain to Treasury before your prediction is recorded.
                 </div>
@@ -580,7 +580,7 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
 
               {/* Insufficient balance warning */}
               {insufficientBalance && (
-                <div style={{ padding: '6px 12px', background: 'rgba(255,51,85,0.08)', borderBottom: '1px solid rgba(255,51,85,0.2)', fontSize: '10px', color: 'var(--hud-red)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ padding: '10px 12px', background: 'rgba(255,51,85,0.08)', borderBottom: '1px solid rgba(255,51,85,0.2)', fontSize: '12px', color: 'var(--hud-red)', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <AlertCircle className="w-3 h-3" /> Stake exceeds balance ({clashBalance})
                 </div>
               )}
@@ -593,14 +593,14 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
                   disabled={insufficientBalance || needsWallet || isBusy}
                 >
                   <i className={`fa-solid ${isBusy ? 'fa-circle-notch fa-spin' : side === 'UP' ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down'}`} />
-                  {isStaking ? 'CONFIRM STAKE…' : needsWallet ? 'CONNECT WALLET' : insufficientBalance ? 'INSUFFICIENT BALANCE' : `PREDICT ${side}`}
+                  {isStaking ? 'CONFIRM STAKE�' : needsWallet ? 'CONNECT WALLET' : insufficientBalance ? 'INSUFFICIENT BALANCE' : `PREDICT ${side}`}
                 </button>
               </div>
             </>
           ) : (
             <div className="gr-locked">
               <i className="fa-solid fa-lock" />
-              {isLive && 'Predictions locked — round in progress'}
+              {isLive && 'Predictions locked � round in progress'}
               {isResolved && 'Round resolved. Next round opening soon...'}
             </div>
           )}
@@ -611,27 +611,27 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
               <span className="gr-pos-lbl">Your Position</span>
               {userUpStake > 0 && (
                 <span className="gr-pos-val">
-                  <span className="gr-pos-dir up">▲ UP</span> {userUpStake} {room.token}
+                  <span className="gr-pos-dir up">? UP</span> {userUpStake} {room.token}
                   {winner === 'UP' && <span style={{ color: 'var(--hud-green)', marginLeft: '4px' }}>+{(userUpStake * upMultiplier - userUpStake).toFixed(2)}</span>}
                   {winner === 'DOWN' && <span style={{ color: 'var(--hud-red)', marginLeft: '4px' }}>lost</span>}
                 </span>
               )}
               {userDownStake > 0 && (
                 <span className="gr-pos-val">
-                  <span className="gr-pos-dir dn">▼ DOWN</span> {userDownStake} {room.token}
+                  <span className="gr-pos-dir dn">? DOWN</span> {userDownStake} {room.token}
                   {winner === 'DOWN' && <span style={{ color: 'var(--hud-green)', marginLeft: '4px' }}>+{(userDownStake * downMultiplier - userDownStake).toFixed(2)}</span>}
                   {winner === 'UP' && <span style={{ color: 'var(--hud-red)', marginLeft: '4px' }}>lost</span>}
                 </span>
               )}
               {signedCommitment && (
-                <span className="gr-pos-proof" title={signedCommitment.txHash ? `Tx: ${signedCommitment.txHash.slice(0, 20)}…` : 'Committed'}>
+                <span className="gr-pos-proof" title={signedCommitment.txHash ? `Tx: ${signedCommitment.txHash.slice(0, 20)}�` : 'Committed'}>
                   <CheckCircle2 className="w-3 h-3" /> On-chain proof
                 </span>
               )}
             </div>
           )}
 
-          {/* AI Bots — hidden for now */}
+          {/* AI Bots � hidden for now */}
           {/* 
           <div className="gr-bots">
             <div className="gr-sec-label"><i className="fa-solid fa-robot" /> AI Competitors</div>
@@ -641,12 +641,12 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
               return (
                 <div key={bot.address} className="gr-bot-card">
                   <div className="gr-bot-hdr">
-                    <div className={`gr-bot-av ${avClass}`}>🤖</div>
+                    <div className={`gr-bot-av ${avClass}`}>??</div>
                     <div>
                       <span className="gr-bot-name">{bot.name}</span>
                       {botPred && (
                         <span className={`gr-bot-dir ${botPred.direction === 'UP' ? 'up' : 'dn'}`}>
-                          {botPred.direction === 'UP' ? '▲ UP' : '▼ DN'}
+                          {botPred.direction === 'UP' ? '? UP' : '? DN'}
                         </span>
                       )}
                       <div className="gr-bot-meta">{bot.strategy}</div>
@@ -665,7 +665,7 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
         </div>
       </div>
 
-      {/* ═══════════ RESOLUTION MODAL ═══════════ */}
+      {/* ----------- RESOLUTION MODAL ----------- */}
       <ResolutionReveal
         open={showReveal}
         onClose={() => { setShowReveal(false); onRoundComplete?.(); }}

@@ -146,13 +146,13 @@ export default function LeaderboardPage() {
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             {lastUpdate && (
-              <span style={{ fontSize: 10, color: 'var(--hud-text-3)' }}>Updated {lastUpdate.toLocaleTimeString()}</span>
+              <span style={{ fontSize: 12, color: 'var(--hud-text-3)' }}>Updated {lastUpdate.toLocaleTimeString()}</span>
             )}
-            <button type="button" onClick={() => setAutoRefresh(!autoRefresh)} className={`hud-btn ${autoRefresh ? 'hud-btn-green' : 'hud-btn-ghost'}`} style={{ fontSize: 10, padding: '5px 10px' }}>
+            <button type="button" onClick={() => setAutoRefresh(!autoRefresh)} className={`hud-btn ${autoRefresh ? 'hud-btn-green' : 'hud-btn-ghost'}`} style={{ fontSize: 12, padding: '5px 12px' }}>
               <i className={`fa-solid fa-arrows-rotate${autoRefresh ? ' fa-spin' : ''}`} style={autoRefresh ? { animationDuration: '3s' } : undefined} />
               Auto {autoRefresh ? 'ON' : 'OFF'}
             </button>
-            <button type="button" onClick={() => { setLoading(true); fetchAll(); }} className="hud-btn hud-btn-cyan" style={{ fontSize: 10, padding: '5px 10px' }}>
+            <button type="button" onClick={() => { setLoading(true); fetchAll(); }} className="hud-btn hud-btn-cyan" style={{ fontSize: 12, padding: '5px 12px' }}>
               Refresh
             </button>
           </div>
@@ -196,7 +196,7 @@ export default function LeaderboardPage() {
           <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--hud-border)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <i className="fa-solid fa-chart-bar" style={{ color: 'var(--hud-gold)' }} />
             <span className="ca-panel-title">Tournament Rankings</span>
-            <a href={`${EXPLORER}/address/${NFT_ADDR}`} target="_blank" rel="noopener noreferrer" className="ca-tx-link" style={{ fontSize: 9, marginLeft: 'auto' }}>
+            <a href={`${EXPLORER}/address/${NFT_ADDR}`} target="_blank" rel="noopener noreferrer" className="ca-tx-link" style={{ fontSize: 13, marginLeft: 'auto' }}>
               <i className="fa-solid fa-arrow-up-right-from-square" /> AgentNFT contract
             </a>
           </div>
@@ -229,12 +229,12 @@ export default function LeaderboardPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ fontFamily: 'var(--hud-font-head)', fontWeight: 600, color: '#fff' }}>{agent.name}</span>
-                      <span className="hud-badge" style={{ fontSize: 8, padding: '2px 6px', color: agent.color, borderColor: `${agent.color}44`, background: `${agent.color}11` }}>
+                      <span className="hud-badge" style={{ fontSize: 12, padding: '2px 10px', color: agent.color, borderColor: `${agent.color}44`, background: `${agent.color}11` }}>
                         {agent.strategy}
                       </span>
-                      <span style={{ fontSize: 9, color: 'var(--hud-text-3)' }}>NFT #{agent.tokenId} · {agent.version}</span>
+                      <span style={{ fontSize: 13, color: 'var(--hud-text-3)' }}>NFT #{agent.tokenId} · {agent.version}</span>
                     </div>
-                    <a href={agent.explorerUrl} target="_blank" rel="noopener noreferrer" className="ca-tx-link" style={{ fontSize: 9, marginTop: 4, display: 'inline-flex', gap: 4 }}>
+                    <a href={agent.explorerUrl} target="_blank" rel="noopener noreferrer" className="ca-tx-link" style={{ fontSize: 13, marginTop: 4, display: 'inline-flex', gap: 4 }}>
                       <i className="fa-solid fa-arrow-up-right-from-square" />
                       {agent.address.slice(0, 6)}…{agent.address.slice(-4)}
                     </a>
@@ -242,13 +242,13 @@ export default function LeaderboardPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 18, color: '#fff' }}>{agent.totalDecisions}</div>
-                      <div style={{ fontSize: 9, color: 'var(--hud-text-3)' }}>On-Chain Txs</div>
+                      <div style={{ fontSize: 13, color: 'var(--hud-text-3)' }}>On-Chain Txs</div>
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 18, color: agent.winRate >= 50 ? 'var(--hud-green)' : 'var(--hud-gold)' }}>
                         {agent.winRateFormatted}
                       </div>
-                      <div style={{ fontSize: 9, color: 'var(--hud-text-3)', marginTop: 4 }}>
+                      <div style={{ fontSize: 13, color: 'var(--hud-text-3)', marginTop: 4 }}>
                         Win Rate ({agent.correctDecisions}/{agent.totalDecisions})
                       </div>
                     </div>
@@ -256,14 +256,14 @@ export default function LeaderboardPage() {
                       <div style={{ fontFamily: 'var(--hud-font-mono)', fontSize: 18, color: agent.totalPnL >= 0 ? 'var(--hud-green)' : 'var(--hud-red)' }}>
                         {agent.totalPnL >= 0 ? '+' : ''}{agent.totalPnL}
                       </div>
-                      <div style={{ fontSize: 9, color: 'var(--hud-text-3)' }}>PnL (bps)</div>
+                      <div style={{ fontSize: 13, color: 'var(--hud-text-3)' }}>PnL (bps)</div>
                     </div>
                     <div className="hud-banner-wl" style={{ marginTop: 0 }}>
                       {last5.length > 0 ? last5.map((d, i) => (
-                        <span key={i} className={`hud-wl-chip${d.wasCorrect ? ' w' : ' l'}`} style={{ width: 24, height: 24, fontSize: 9 }} title={`${d.direction} ${d.wasCorrect ? '✓' : '✗'}`}>
+                        <span key={i} className={`hud-wl-chip${d.wasCorrect ? ' w' : ' l'}`} style={{ width: 24, height: 24, fontSize: 13 }} title={`${d.direction} ${d.wasCorrect ? '✓' : '✗'}`}>
                           {d.wasCorrect ? '✓' : '✗'}
                         </span>
-                      )) : <span style={{ fontSize: 9, color: 'var(--hud-text-3)' }}>—</span>}
+                      )) : <span style={{ fontSize: 13, color: 'var(--hud-text-3)' }}>—</span>}
                     </div>
                   </div>
                 </motion.div>
@@ -292,13 +292,13 @@ export default function LeaderboardPage() {
                     <span style={{ color: d.direction === 'UP' ? 'var(--hud-green)' : 'var(--hud-red)', fontWeight: 600, minWidth: 48 }}>
                       <i className={`fa-solid fa-arrow-trend-${d.direction === 'UP' ? 'up' : 'down'}`} /> {d.direction}
                     </span>
-                    <span style={{ color: 'var(--hud-text-3)', fontSize: 10, minWidth: 72 }}>{(d.confidence / 10).toFixed(1)}%</span>
+                    <span style={{ color: 'var(--hud-text-3)', fontSize: 12, minWidth: 72 }}>{(d.confidence / 10).toFixed(1)}%</span>
                     <span style={{ color: d.wasCorrect ? 'var(--hud-green)' : 'var(--hud-red)', fontWeight: 600, minWidth: 64 }}>
                       {d.wasCorrect ? '✓ Correct' : '✗ Wrong'}
                     </span>
                     <span style={{ color: d.pnl >= 0 ? 'var(--hud-green)' : 'var(--hud-red)', minWidth: 56 }}>{d.pnl >= 0 ? '+' : ''}{d.pnl} bps</span>
-                    <span style={{ flex: 1, color: 'var(--hud-text-3)', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={d.reasoning}>{d.reasoning}</span>
-                    <span style={{ color: 'var(--hud-text-3)', fontSize: 9, flexShrink: 0 }}>
+                    <span style={{ flex: 1, color: 'var(--hud-text-3)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={d.reasoning}>{d.reasoning}</span>
+                    <span style={{ color: 'var(--hud-text-3)', fontSize: 13, flexShrink: 0 }}>
                       {d.timestamp > 0 ? new Date(d.timestamp * 1000).toLocaleTimeString() : '—'}
                     </span>
                   </motion.div>
@@ -308,7 +308,7 @@ export default function LeaderboardPage() {
           </div>
         </div>
 
-        <p style={{ textAlign: 'center', fontSize: 10, color: 'var(--hud-text-3)', marginTop: 16 }}>
+        <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--hud-text-3)', marginTop: 16 }}>
           Data fetched server-side from{' '}
           <a href={`${EXPLORER}/address/${NFT_ADDR}`} target="_blank" rel="noopener noreferrer" className="ca-tx-link">
             AgentNFT on Mantle Sepolia

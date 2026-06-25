@@ -383,7 +383,7 @@ export function PriceChart({
       </svg>
 
       {/* ═══ OVERLAY LEGEND ═══ */}
-      <div className="absolute top-2 left-3 flex items-center gap-4 text-[10px] pointer-events-none">
+      <div className="absolute top-2 left-3 flex items-center gap-4 text-[12px] pointer-events-none">
         {startPrice != null && (
           <span className="flex items-center gap-1.5 text-yellow-400/80 font-semibold">
             <span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />

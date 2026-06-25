@@ -7,6 +7,30 @@ export function openShareOnX(text: string, url?: string) {
   window.open(`https://x.com/intent/tweet?${params.toString()}`, '_blank', 'noopener,noreferrer');
 }
 
+export interface ShareCardParams {
+  outcome: 'win' | 'loss' | 'tie';
+  amount: string;
+  asset: string;
+  entry: string;
+  exit: string;
+  pct: string;
+  xp: string;
+}
+
+/** Build the /share page URL that carries og:image meta for X cards */
+export function buildSharePageUrl(p: ShareCardParams): string {
+  const qs = new URLSearchParams({
+    outcome: p.outcome,
+    amount: p.amount,
+    asset: p.asset,
+    entry: p.entry,
+    exit: p.exit,
+    pct: p.pct,
+    xp: p.xp,
+  });
+  return `${SITE_URL}/share?${qs.toString()}`;
+}
+
 export function buildRoundResultShareText(opts: {
   asset: string;
   winner: string;

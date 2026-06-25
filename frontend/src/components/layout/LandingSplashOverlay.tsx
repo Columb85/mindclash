@@ -64,7 +64,7 @@ export function LandingSplashOverlay() {
         }} />
       </div>
       <div style={{
-        fontSize: 10, color: '#00D4AA', fontWeight: 700,
+        fontSize: 12, color: '#00D4AA', fontWeight: 700,
         letterSpacing: '0.2em', opacity: 0.7,
         animation: 'splashBlink 1.2s ease-in-out infinite',
       }}>

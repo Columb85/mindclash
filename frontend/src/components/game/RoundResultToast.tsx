@@ -69,7 +69,7 @@ export function RoundResultToast({
         color: '#e2e8f0',
         boxShadow: '0 4px 24px rgba(0,0,0,0.7)',
         maxWidth: '360px',
-        clipPath: 'polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%)',
+        clipPath: 'polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%)',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -91,7 +91,7 @@ export function RoundResultToast({
                 border: '1px solid rgba(0,212,170,0.35)',
                 color: '#00d4aa',
                 padding: '5px 12px',
-                fontSize: 11,
+                fontSize: 13,
                 fontWeight: 600,
                 letterSpacing: '0.06em',
                 cursor: 'pointer',

@@ -29,7 +29,7 @@ const toasterOptions = {
       letterSpacing: '0.03em',
       boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
       maxWidth: '360px',
-      clipPath: 'polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%)',
+      clipPath: 'polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%)',
     },
     success: {
       duration: 3000,
