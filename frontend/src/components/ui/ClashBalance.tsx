@@ -21,10 +21,10 @@ export function ClashBalance() {
   }
 
   return (
-    <div className="hud-topbar-util flex items-center gap-2">
+    <div className="hud-topbar-util flex items-center">
       {/* $CLASH — purple (matches mockup .balance-pill.clash) */}
       <div
-        className="flex items-center gap-1.5 px-2.5 py-1"
+        className="flex items-center"
         style={{
           border: '1px solid rgba(168,85,247,0.35)',
           background: 'rgba(168,85,247,0.08)',
@@ -42,7 +42,7 @@ export function ClashBalance() {
 
       {/* Points — gold (matches mockup .balance-pill.pts) */}
       <div
-        className="flex items-center gap-1.5 px-2.5 py-1"
+        className="flex items-center"
         style={{
           border: '1px solid rgba(251,191,36,0.35)',
           background: 'rgba(251,191,36,0.06)',

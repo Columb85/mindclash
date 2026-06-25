@@ -10,8 +10,8 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 const CONNECT_BTN_STYLE: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: 5,
-  padding: '5px 12px',
+  gap: 10,
+  padding: '6px 10px',
   fontFamily: 'var(--hud-font-head)',
   fontSize: 12,
   fontWeight: 600,
@@ -63,8 +63,8 @@ export function HudConnectButton() {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 5,
-                padding: '5px 12px',
+                gap: 10,
+                padding: '6px 10px',
                 fontFamily: 'var(--hud-font-head)',
                 fontSize: 12,
                 fontWeight: 600,
@@ -89,8 +89,8 @@ export function HudConnectButton() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 5,
-              padding: '5px 12px',
+              gap: 10,
+              padding: '6px 10px',
               fontFamily: 'var(--hud-font-head)',
               fontSize: 12,
               fontWeight: 600,

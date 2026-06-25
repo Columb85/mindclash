@@ -221,7 +221,7 @@ body.hud-app .hud-topbar-nav-center {
   }
   body.hud-app .hud-topbar-right {
     margin-left: auto;
-    padding-left: 12px;
+    padding-left: 10px;
     background: rgba(12, 15, 23, 0.98);
   }
   body.hud-app .hud-nav-btn {
@@ -241,8 +241,8 @@ body.hud-app .hud-topbar-nav-center {
     margin: 0 4px;
   }
   body.hud-app .online-counter {
-    padding: 4px 12px;
-    gap: 5px;
+    padding: 6px 10px;
+    gap: 10px;
   }
   body.hud-app .online-lbl,
   body.hud-app .hud-util-label {
@@ -791,7 +791,7 @@ body.hud-app .hud-more-desc {
   margin-top: 1px;
 }
 
-/* Right utility strip ??? pinned right; never pushed by nav */
+/* Right utility strip ? pinned right; uniform 10px padding/gap on chips */
 body.hud-app .hud-topbar-right {
   position: relative;
   margin-left: auto;
@@ -803,6 +803,22 @@ body.hud-app .hud-topbar-right {
   flex-shrink: 0;
   z-index: 2;
   min-height: 28px;
+}
+
+body.hud-app .hud-topbar-right .online-counter,
+body.hud-app .hud-topbar-right .hud-topbar-util,
+body.hud-app .hud-topbar-right .hud-topbar-util > div,
+body.hud-app .hud-topbar-right > button,
+body.hud-app .hud-topbar-right .hud-topbar-placeholder > button {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  gap: 10px;
+}
+
+body.hud-app .hud-topbar-right .hud-topbar-util {
+  display: flex;
+  align-items: center;
 }
 
 body.hud-app .hud-topbar-placeholder {
@@ -3821,8 +3837,8 @@ body.hud-app .hiw-feat .fd {
 body.hud-app .online-counter {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px 12px;
+  gap: 10px;
+  padding: 6px 10px;
   background: rgba(0,40,30,0.4);
   border: 1px solid rgba(0,212,170,0.2);
   clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
