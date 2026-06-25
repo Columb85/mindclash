@@ -40,7 +40,7 @@ export function ModeIndicator() {
         style={{ border: '1px solid var(--hud-border)', background: 'var(--hud-panel)', clipPath: 'polygon(4px 0,100% 0,calc(100% - 4px) 100%,0 100%)' }}
       >
         <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--hud-text-dim)' }} />
-        <span style={{ fontFamily: 'var(--hud-font-head)', fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--hud-text-dim)' }}>
+        <span style={{ fontFamily: 'var(--hud-font-head)', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--hud-text-dim)' }}>
           INIT
         </span>
       </div>
@@ -58,7 +58,7 @@ export function ModeIndicator() {
             background: 'rgba(0,51,32,.5)',
             clipPath: 'polygon(4px 0,100% 0,calc(100% - 4px) 100%,0 100%)',
             fontFamily: 'var(--hud-font-head)',
-            fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
+            fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
             color: 'var(--hud-green)',
           }}
         >
