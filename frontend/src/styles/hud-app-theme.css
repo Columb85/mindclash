@@ -803,22 +803,6 @@ body.hud-app .hud-topbar-right {
   flex-shrink: 0;
   z-index: 2;
   min-height: 28px;
-  font-size: 10px;
-}
-
-body.hud-app .hud-topbar-right .online-counter,
-body.hud-app .hud-topbar-right .hud-topbar-util,
-body.hud-app .hud-topbar-right .hud-topbar-util > div,
-body.hud-app .hud-topbar-right > button,
-body.hud-app .hud-topbar-right .hud-topbar-placeholder > button {
-  font-size: 10px;
-}
-
-body.hud-app .hud-topbar-right .online-counter i,
-body.hud-app .hud-topbar-right .hud-topbar-util i,
-body.hud-app .hud-topbar-right > button i,
-body.hud-app .hud-topbar-right .hud-topbar-placeholder > button i {
-  font-size: 10px;
 }
 
 body.hud-app .hud-topbar-placeholder {
@@ -3843,7 +3827,7 @@ body.hud-app .online-counter {
   border: 1px solid rgba(0,212,170,0.2);
   clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
   font-family: var(--hud-font-mono);
-  font-size: 10px;
+  font-size: 12px;
 }
 body.hud-app .online-dot {
   width: 8px; height: 8px;

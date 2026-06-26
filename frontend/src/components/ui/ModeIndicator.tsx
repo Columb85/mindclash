@@ -36,11 +36,11 @@ export function ModeIndicator() {
   if (mode === 'checking') {
     return (
       <div
-        className="hud-topbar-util flex items-center animate-pulse"
+        className="hud-topbar-util flex items-center gap-1.5 px-2.5 py-1 animate-pulse"
         style={{ border: '1px solid var(--hud-border)', background: 'var(--hud-panel)', clipPath: 'polygon(4px 0,100% 0,calc(100% - 4px) 100%,0 100%)' }}
       >
         <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--hud-text-dim)' }} />
-        <span style={{ fontFamily: 'var(--hud-font-head)', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--hud-text-dim)' }}>
+        <span style={{ fontFamily: 'var(--hud-font-head)', fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--hud-text-dim)' }}>
           INIT
         </span>
       </div>
@@ -53,12 +53,13 @@ export function ModeIndicator() {
         <div
           className="hud-topbar-util"
           style={{
-            display: 'flex', alignItems: 'center',
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '4px 12px',
             border: '1px solid rgba(0,255,136,.3)',
             background: 'rgba(0,51,32,.5)',
             clipPath: 'polygon(4px 0,100% 0,calc(100% - 4px) 100%,0 100%)',
             fontFamily: 'var(--hud-font-head)',
-            fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
+            fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
             color: 'var(--hud-green)',
           }}
         >
@@ -74,7 +75,8 @@ export function ModeIndicator() {
       <div
         className="cursor-help"
         style={{
-          display: 'flex', alignItems: 'center',
+          display: 'flex', alignItems: 'center', gap: 5,
+          padding: '4px 12px',
           border: '1px solid rgba(251,191,36,.3)',
           background: 'rgba(40,30,0,.5)',
           clipPath: 'polygon(4px 0,100% 0,calc(100% - 4px) 100%,0 100%)',

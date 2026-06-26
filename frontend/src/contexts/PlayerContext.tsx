@@ -113,7 +113,73 @@ const DEFAULT_STATS: PlayerStats = {
   achievements: DEFAULT_ACHIEVEMENTS,
 };
 
-const STORAGE_KEY = 'gamefi_player_stats_v1';
+const STORAGE_KEY_PREFIX = 'gamefi_player_stats_v1_';
+const LEGACY_STORAGE_KEY = 'gamefi_player_stats_v1';
+
+function storageKeyForAddress(address: string): string {
+  return `${STORAGE_KEY_PREFIX}${address.toLowerCase()}`;
+}
+
+function loadLocalStats(address: string): PlayerStats | null {
+  try {
+    const key = storageKeyForAddress(address);
+    let raw = localStorage.getItem(key);
+    if (!raw) {
+      // one-time migration from legacy global key
+      raw = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (raw) localStorage.setItem(key, raw);
+    }
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PlayerStats>;
+    return {
+      ...DEFAULT_STATS,
+      ...parsed,
+      achievements: { ...DEFAULT_ACHIEVEMENTS, ...(parsed.achievements ?? {}) },
+    };
+  } catch {
+    return null;
+  }
+}
+
+function mergeAchievements(
+  a: Record<string, Achievement>,
+  b: Record<string, Achievement>,
+): Record<string, Achievement> {
+  const merged = { ...DEFAULT_ACHIEVEMENTS, ...a };
+  for (const [id, ach] of Object.entries(b)) {
+    if (!merged[id]) continue;
+    if (ach.unlocked || merged[id].unlocked) {
+      merged[id] = {
+        ...merged[id],
+        unlocked: true,
+        unlockedAt: merged[id].unlockedAt ?? ach.unlockedAt,
+      };
+    }
+  }
+  return merged;
+}
+
+/** Prefer the highest progress from local + remote so sync lag never wipes XP. */
+function mergePlayerStats(local: PlayerStats | null, remote: PlayerStats | null): PlayerStats {
+  if (!local && !remote) return { ...DEFAULT_STATS, achievements: { ...DEFAULT_ACHIEVEMENTS } };
+  const l = local ?? DEFAULT_STATS;
+  const r = remote ?? DEFAULT_STATS;
+  const xp = Math.max(l.xp, r.xp);
+  return {
+    xp,
+    level: levelFromXp(xp),
+    totalPredictions: Math.max(l.totalPredictions, r.totalPredictions),
+    wins: Math.max(l.wins, r.wins),
+    losses: Math.max(l.losses, r.losses),
+    ties: Math.max(l.ties, r.ties),
+    totalStaked: Math.max(l.totalStaked, r.totalStaked),
+    totalWon: Math.max(l.totalWon, r.totalWon),
+    currentStreak: Math.max(l.currentStreak, r.currentStreak),
+    bestStreak: Math.max(l.bestStreak, r.bestStreak),
+    lastPredictionAt: Math.max(l.lastPredictionAt, r.lastPredictionAt),
+    achievements: mergeAchievements(l.achievements, r.achievements),
+  };
+}
 
 // PTS curve: total PTS required to reach level N.
 // Level 1 = 0 PTS baseline. Level N = floor(100 * (N-1)^1.5).
@@ -184,41 +250,67 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [stats, setStats]               = useState<PlayerStats>(DEFAULT_STATS);
   const [totalBotsBeaten, setBotsBeaten] = useState(0);
   const syncTimerRef                     = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const botsBeatenRef                    = useRef(0); // ref mirror for use inside callbacks
+  const botsBeatenRef                    = useRef(0);
+  const statsRef                         = useRef<PlayerStats>(DEFAULT_STATS);
+  const addressRef                       = useRef<string | undefined>(undefined);
 
-  // Load stats: API first, then localStorage fallback
+  useEffect(() => { statsRef.current = stats; }, [stats]);
+  useEffect(() => { addressRef.current = address; }, [address]);
+
+  // Load stats per wallet: merge localStorage + API (never drop the higher XP)
   useEffect(() => {
+    if (!address) {
+      setStats({ ...DEFAULT_STATS, achievements: { ...DEFAULT_ACHIEVEMENTS } });
+      setBotsBeaten(0);
+      botsBeatenRef.current = 0;
+      return;
+    }
+
+    let cancelled = false;
     const load = async () => {
-      if (address) {
-        const remote = await fetchPlayerStats(address);
-        if (remote) {
-          setStats({ ...remote, achievements: { ...DEFAULT_ACHIEVEMENTS, ...(remote.achievements ?? {}) } });
-          return;
-        }
-      }
-      // localStorage fallback
+      const local = loadLocalStats(address);
+      const remote = await fetchPlayerStats(address);
+      if (cancelled) return;
+      const merged = mergePlayerStats(local, remote);
+      setStats(merged);
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw) as PlayerStats;
-          setStats({ ...DEFAULT_STATS, ...parsed, achievements: { ...DEFAULT_ACHIEVEMENTS, ...(parsed.achievements || {}) } });
-        }
+        localStorage.setItem(storageKeyForAddress(address), JSON.stringify(merged));
       } catch { /* ignore */ }
+      if (merged.xp > (remote?.xp ?? 0)) {
+        pushPlayerStats(address, merged);
+      }
     };
     load();
+    return () => { cancelled = true; };
   }, [address]);
 
-  // Persist: localStorage always, API debounced 2s when wallet connected
+  // Persist per wallet: localStorage + debounced API sync
   const persistRef = useRef<(s: PlayerStats) => void>(() => {});
   useEffect(() => {
     persistRef.current = (s: PlayerStats) => {
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch { /* ignore */ }
-      if (address) {
-        if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
-        syncTimerRef.current = setTimeout(() => pushPlayerStats(address, s), 2000);
-      }
+      if (!address) return;
+      try {
+        localStorage.setItem(storageKeyForAddress(address), JSON.stringify(s));
+      } catch { /* ignore */ }
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = setTimeout(() => pushPlayerStats(address, s), 2000);
     };
   }, [address]);
+
+  // Flush pending sync when tab closes
+  useEffect(() => {
+    const flush = () => {
+      const addr = addressRef.current;
+      if (!addr) return;
+      if (syncTimerRef.current) {
+        clearTimeout(syncTimerRef.current);
+        syncTimerRef.current = null;
+      }
+      pushPlayerStats(addr, statsRef.current);
+    };
+    window.addEventListener('beforeunload', flush);
+    return () => window.removeEventListener('beforeunload', flush);
+  }, []);
 
   const persist = useCallback((s: PlayerStats) => persistRef.current(s), []);
 
@@ -320,8 +412,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [persist]);
 
   const resetStats = useCallback(() => {
-    setStats(DEFAULT_STATS);
-    persist(DEFAULT_STATS);
+    const empty = { ...DEFAULT_STATS, achievements: { ...DEFAULT_ACHIEVEMENTS } };
+    setStats(empty);
+    persist(empty);
   }, [persist]);
 
   return (

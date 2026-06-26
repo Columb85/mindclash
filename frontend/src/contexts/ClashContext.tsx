@@ -52,7 +52,31 @@ interface ClashContextType {
   refetchBalance: (optimisticDeduct?: number) => void;
 }
 
-const ClashContext = createContext<ClashContextType | undefined>(undefined);
+const POINTS_KEY_PREFIX = 'clash_points_';
+
+function pointsKey(address: string): string {
+  return `${POINTS_KEY_PREFIX}${address.toLowerCase()}`;
+}
+
+function readPoints(address: string): number | null {
+  try {
+    const key = pointsKey(address);
+    let raw = localStorage.getItem(key);
+    if (raw === null) {
+      // migrate legacy mixed-case key
+      raw = localStorage.getItem(`${POINTS_KEY_PREFIX}${address}`);
+      if (raw !== null) {
+        localStorage.setItem(key, raw);
+        localStorage.removeItem(`${POINTS_KEY_PREFIX}${address}`);
+      }
+    }
+    if (raw === null) return null;
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
+}
 
 // Points rewards configuration
 const POINTS_REWARDS = {
@@ -65,6 +89,8 @@ const POINTS_REWARDS = {
   REFERRAL: 200,
   TOP_10_LEADERBOARD: 1000,
 };
+
+const ClashContext = createContext<ClashContextType | undefined>(undefined);
 
 export function ClashProvider({ children }: { children: ReactNode }) {
   const { address, isConnected } = useAccount();
@@ -92,25 +118,32 @@ export function ClashProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { setBalanceOffset(0); }, [rawBalance]);
 
-  // ── Off-chain points (localStorage) ─────────────────────────────────────────
+  // ── Off-chain points (localStorage, per wallet) ─────────────────────────────
   useEffect(() => {
-    if (!isConnected || !address) { setClashPoints(0); return; }
-    try {
-      const stored = localStorage.getItem(`clash_points_${address}`);
-      if (stored) {
-        setClashPoints(parseInt(stored, 10));
-      } else {
-        setClashPoints(100); // welcome bonus
-        localStorage.setItem(`clash_points_${address}`, '100');
-      }
-    } catch { /* ignore */ }
+    if (!isConnected || !address) {
+      setClashPoints(0);
+      return;
+    }
+    const stored = readPoints(address);
+    if (stored !== null) {
+      setClashPoints(stored);
+    } else {
+      setClashPoints(100); // welcome bonus for new wallet
+      try {
+        localStorage.setItem(pointsKey(address), '100');
+      } catch { /* ignore */ }
+    }
   }, [isConnected, address]);
 
-  const addPoints = (amount: number, reason: string) => {
+  const addPoints = (amount: number, _reason: string) => {
     if (!address) return;
-    const newPoints = clashPoints + amount;
-    setClashPoints(newPoints);
-    localStorage.setItem(`clash_points_${address}`, newPoints.toString());
+    setClashPoints(prev => {
+      const newPoints = prev + amount;
+      try {
+        localStorage.setItem(pointsKey(address), String(newPoints));
+      } catch { /* ignore */ }
+      return newPoints;
+    });
   };
 
   return (
