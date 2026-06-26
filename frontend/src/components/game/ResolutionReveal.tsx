@@ -30,6 +30,8 @@ interface ResolutionRevealProps {
   ptsGained?: number;
   payoutTxHash?: string | null;
   payoutStatus?: 'idle' | 'claiming' | 'paid' | 'failed';
+  payoutError?: string | null;
+  onRetryPayout?: () => void;
 }
 
 const RESOLVE_STEPS = [
@@ -61,6 +63,8 @@ export function ResolutionReveal({
   ptsGained = 0,
   payoutTxHash = null,
   payoutStatus = 'idle',
+  payoutError = null,
+  onRetryPayout,
 }: ResolutionRevealProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -353,7 +357,20 @@ export function ResolutionReveal({
                       <span className="flex items-center gap-1 text-green-400"><CheckCircle2 className="w-3 h-3" />{userPayout.toFixed(0)} {displayToken} received on-chain</span>
                     )}
                     {payoutStatus === 'failed' && (
-                      <span className="flex items-center gap-1 text-red-400"><AlertCircle className="w-3 h-3" />On-chain payout failed</span>
+                      <span className="flex flex-col items-center gap-1 text-red-400">
+                        <span className="flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          On-chain payout failed
+                        </span>
+                        {payoutError && (
+                          <span className="text-[11px] text-red-300/80 text-center max-w-xs">{payoutError}</span>
+                        )}
+                        {onRetryPayout && (
+                          <button type="button" onClick={onRetryPayout} className="text-[11px] text-cyan-400 hover:underline mt-1">
+                            Retry payout
+                          </button>
+                        )}
+                      </span>
                     )}
                     {payoutTxHash && (
                       <a href={`https://sepolia.mantlescan.xyz/tx/${payoutTxHash}`} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">View payout tx ↗</a>

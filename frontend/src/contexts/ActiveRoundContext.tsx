@@ -20,6 +20,7 @@ import {
   computeRoundResolution,
   tryMarkRoomProcessed,
 } from '@/lib/roundResolution';
+import { buildPayoutParams, ensureRoundPayout, isPayoutSuccess } from '@/lib/roundPayout';
 import { AchievementToast } from '@/components/player/AchievementToast';
 import { RoundResultToast } from '@/components/game/RoundResultToast';
 
@@ -64,7 +65,7 @@ export function ActiveRoundProvider({ children }: { children: ReactNode }) {
   const { rooms, protocolFee } = useRooms();
   const { address } = useAccount();
   const { stats, recordResult } = usePlayer();
-  const { addPoints } = useClash();
+  const { addPoints, refetchBalance } = useClash();
   const { push: pushActivity } = useActivity();
   const router = useRouter();
   const pathname = usePathname();
@@ -114,11 +115,11 @@ export function ActiveRoundProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!pinnedRoom || pinnedRoom.status !== 'resolved') return;
     if (viewingRoomId === pinnedRoom.id) return;
-    if (!tryMarkRoomProcessed(pinnedRoom.id)) return;
 
     const resolution = computeRoundResolution(pinnedRoom, address, protocolFee);
+    const shouldApplyRewards = tryMarkRoomProcessed(pinnedRoom.id);
 
-    if (resolution.recordPayload) {
+    if (shouldApplyRewards && resolution.recordPayload) {
       const { outcome, stake, payout, botsBeaten } = resolution.recordPayload;
 
       if (outcome === 'win') {
@@ -132,44 +133,64 @@ export function ActiveRoundProvider({ children }: { children: ReactNode }) {
       recordResult({ outcome, stake, payout, botsBeaten }).forEach(ach =>
         toast.custom(() => <AchievementToast achievement={ach} />, { duration: 5000 }),
       );
-    }
 
-    pushActivity({
-      type: 'round_end',
-      asset: pinnedRoom.asset,
-      winner: resolution.winner,
-      text: `${pinnedRoom.asset} round ended — ${resolution.winner} won`,
-    });
-
-    if (resolution.userOutcome) {
-      toast.custom(
-        t => (
-          <RoundResultToast
-            toastId={t.id}
-            asset={pinnedRoom.asset}
-            winner={resolution.winner}
-            outcome={resolution.userOutcome!}
-            payout={resolution.userPayout}
-            stake={resolution.userStake}
-            profit={resolution.profit}
-            ptsGained={resolution.ptsGained}
-            onViewResults={() => {
-              toast.dismiss(t.id);
-              pinRoom(pinnedRoom.id);
-              returnToRound();
-            }}
-          />
-        ),
-        { duration: 8000 },
-      );
-    } else {
-      toast(`🏁 ${pinnedRoom.asset} round ended — ${resolution.winner}`, {
-        icon: resolution.winner === 'UP' ? '📈' : resolution.winner === 'DOWN' ? '📉' : '➖',
-        duration: 4000,
+      pushActivity({
+        type: 'round_end',
+        asset: pinnedRoom.asset,
+        winner: resolution.winner,
+        text: `${pinnedRoom.asset} round ended — ${resolution.winner} won`,
       });
+
+      if (resolution.userOutcome) {
+        toast.custom(
+          t => (
+            <RoundResultToast
+              toastId={t.id}
+              asset={pinnedRoom.asset}
+              winner={resolution.winner}
+              outcome={resolution.userOutcome!}
+              payout={resolution.userPayout}
+              stake={resolution.userStake}
+              profit={resolution.profit}
+              ptsGained={resolution.ptsGained}
+              onViewResults={() => {
+                toast.dismiss(t.id);
+                pinRoom(pinnedRoom.id);
+                returnToRound();
+              }}
+            />
+          ),
+          { duration: 8000 },
+        );
+      } else {
+        toast(`🏁 ${pinnedRoom.asset} round ended — ${resolution.winner}`, {
+          icon: resolution.winner === 'UP' ? '📈' : resolution.winner === 'DOWN' ? '📉' : '➖',
+          duration: 4000,
+        });
+      }
+
+      clearPin();
     }
 
-    clearPin();
+    if (address) {
+      const payoutParams = buildPayoutParams(pinnedRoom, address, protocolFee);
+      if (payoutParams) {
+        void ensureRoundPayout(payoutParams).then(result => {
+          if (isPayoutSuccess(result)) {
+            refetchBalance();
+            if (!shouldApplyRewards) return;
+            toast.success(
+              result.alreadyClaimed
+                ? `${Math.floor(payoutParams.payout)} CLASH already paid`
+                : `${Math.floor(payoutParams.payout)} CLASH received on-chain`,
+              { duration: 4000 },
+            );
+          } else if (shouldApplyRewards) {
+            toast.error(result.error || 'On-chain payout failed', { duration: 5000 });
+          }
+        });
+      }
+    }
   }, [
     pinnedRoom,
     viewingRoomId,
@@ -178,6 +199,7 @@ export function ActiveRoundProvider({ children }: { children: ReactNode }) {
     stats.currentStreak,
     recordResult,
     addPoints,
+    refetchBalance,
     pushActivity,
     clearPin,
     pinRoom,

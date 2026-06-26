@@ -17,7 +17,7 @@ export interface ClaimPayoutParams {
 
 export interface ClaimPayoutResult {
   ok: boolean;
-  txHash?: string;
+  txHash?: string | null;
   amount?: number;
   alreadyClaimed?: boolean;
   error?: string;
@@ -32,13 +32,13 @@ export async function claimPayout(params: ClaimPayoutParams): Promise<ClaimPayou
     });
     const json = await res.json();
     if (!res.ok) {
-      return { ok: false, error: json.error || 'Payout failed' };
+      return { ok: false, error: json.error || json.message || 'Payout failed' };
     }
     return {
       ok: true,
-      txHash: json.txHash,
+      txHash: json.txHash ?? null,
       amount: json.amount,
-      alreadyClaimed: json.alreadyClaimed,
+      alreadyClaimed: !!json.alreadyClaimed,
     };
   } catch {
     return { ok: false, error: 'Network error' };
