@@ -54,7 +54,7 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
   const [payoutError, setPayoutError] = useState<string | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const resolvedRef = useRef(false);
-  // EIP-712 signing removed ? single wallet prompt (CLASH transfer only)
+  // EIP-712 signing removed — single wallet prompt (CLASH transfer only)
   const { stakeClash, isStaking } = useStakeClash();
 
   useEffect(() => {
@@ -642,7 +642,7 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
             </div>
           )}
 
-          {/* AI Bots ? hidden for now */}
+          {/* AI Bots — hidden for now */}
           {/* 
           <div className="gr-bots">
             <div className="gr-sec-label"><i className="fa-solid fa-robot" /> AI Competitors</div>
