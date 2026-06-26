@@ -321,7 +321,7 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
   // Format entry price label
   const entryLabel = room.startPrice != null
     ? `Entry: $${room.startPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
-    : 'Entry: ?';
+    : 'Entry: \u2014';
 
   return (
     <div className="game-wrap">
@@ -439,7 +439,7 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
               return (
                 <div key={idx} className="gr-lb-row">
                   <span className={`gr-lb-rank ${idx === 0 ? 'g' : ''}`}>{idx + 1}</span>
-                  <div className="gr-lb-av" style={{ background: bgC }}>{isBot ? '??' : name.charAt(0)}</div>
+                  <div className="gr-lb-av" style={{ background: bgC }}>{isBot ? '\u{1F916}' : name.charAt(0)}</div>
                   <span className="gr-lb-name">{name}</span>
                   <span className={`gr-lb-side ${pred.direction === 'UP' ? 'u' : 'd'}`}>{pred.direction}</span>
                   <span className="gr-lb-stake">{pred.amount}</span>
@@ -525,13 +525,13 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
                 <div className="gr-sd-label">Choose Side</div>
                 <div className="gr-sd-cards">
                   <div className={`gr-sd-card u ${side === 'UP' ? 'sel' : ''}`} onClick={() => setSide('UP')}>
-                    <div className="gr-sd-arr">?</div>
+                    <div className="gr-sd-arr">{'\u25B2'}</div>
                     <div className="gr-sd-name">UP</div>
                     <div className="gr-sd-mult">{previewUpMultiplier.toFixed(2)}x</div>
                     <div className="gr-sd-meta">{room.upPool.toLocaleString()} {room.token}</div>
                   </div>
                   <div className={`gr-sd-card d ${side === 'DOWN' ? 'sel' : ''}`} onClick={() => setSide('DOWN')}>
-                    <div className="gr-sd-arr">?</div>
+                    <div className="gr-sd-arr">{'\u25BC'}</div>
                     <div className="gr-sd-name">DOWN</div>
                     <div className="gr-sd-mult">{previewDownMultiplier.toFixed(2)}x</div>
                     <div className="gr-sd-meta">{room.downPool.toLocaleString()} {room.token}</div>
@@ -652,12 +652,12 @@ export function GameRoundInterface({ roomId, onRoundComplete }: GameRoundInterfa
               return (
                 <div key={bot.address} className="gr-bot-card">
                   <div className="gr-bot-hdr">
-                    <div className={`gr-bot-av ${avClass}`}>??</div>
+                    <div className={`gr-bot-av ${avClass}`}>{'\u{1F916}'}</div>
                     <div>
                       <span className="gr-bot-name">{bot.name}</span>
                       {botPred && (
                         <span className={`gr-bot-dir ${botPred.direction === 'UP' ? 'up' : 'dn'}`}>
-                          {botPred.direction === 'UP' ? '? UP' : '? DN'}
+                          {botPred.direction === 'UP' ? '\u25B2 UP' : '\u25BC DN'}
                         </span>
                       )}
                       <div className="gr-bot-meta">{bot.strategy}</div>
